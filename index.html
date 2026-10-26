@@ -6114,9 +6114,11 @@ function contDibujarFact(){
       <div class="tabla-wrap" style="border:0;border-radius:0"><table class="ct-t ct-fact">${THEAD}<tbody>`;
     for (const l of lin) {
       h += `<tr class="${l.folio ? "pagado" : ""}">
-        <td style="white-space:nowrap">${fecha(l.fecha_solicitud || s.fecha_solicitud)}</td><td style="min-width:130px">${esc(l.cliente || "—")}</td>
+        <td style="white-space:nowrap">${fecha(l.fecha_solicitud || s.fecha_solicitud)}</td><td style="min-width:130px">${l.obra
+          ? `<a href="#" data-ctficha-obra="${esc(l.obra)}" title="Ver hoja del cliente">${esc(l.cliente || l.obra)}</a><br><small><a href="#" data-ctficha-obra="${esc(l.obra)}">${esc(l.obra)}</a></small>`
+          : l.franquicia ? `<a href="#" data-ctficha-fr="${esc(l.franquicia)}" title="Ver hoja del franquiciado">${esc(l.cliente || l.receptor || l.franquicia)}</a>` : esc(l.cliente || "—")}</td>
         <td><b>${esc(l.item)}</b>${l.tipo_linea !== "Normal" ? `<br><small>${esc(l.tipo_linea)}${l.folio_referencia ? " · ref. " + esc(l.folio_referencia) : ""}</small>` : ""}</td>
-        <td style="min-width:200px">${esc(l.glosa || "")}</td><td style="white-space:nowrap">${esc(l.centro_costo || "")}</td><td><b>${esc(l.franquicia || "")}</b></td>
+        <td style="min-width:200px">${esc(l.glosa || "")}</td><td style="white-space:nowrap">${esc(l.centro_costo || "")}</td><td>${l.franquicia ? `<a href="#" data-ctficha-fr="${esc(l.franquicia)}" title="Ver hoja del franquiciado"><b>${esc(l.franquicia)}</b></a>` : ""}</td>
         <td style="white-space:nowrap">${esc(rut(l.rut))}</td><td style="min-width:160px">${esc(l.receptor || "")}</td><td style="min-width:150px">${esc(l.direccion || "")}</td><td>${esc(l.comuna || "")}</td>
         <td>${esc(l.correo_envio_factura || "")}</td>
         <td class="n">${$$(l.neto)}</td><td class="n">${Number(l.iva) ? $$(l.iva) : "Exento"}</td><td class="n"><b>${$$(l.total)}</b></td>
