@@ -922,6 +922,7 @@
 .ptl-chk{width:18px;height:18px;accent-color:var(--p-nar);cursor:pointer}
 .ptl-est{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap}
 .ptl-est.Vencida{background:var(--p-rojof);color:var(--p-rojo)}
+.ptl-est.Esperando-factura{background:#efe9e5;color:var(--p-gris)}
 .ptl-est.Por-vencer,.ptl-est.Abono-parcial{background:var(--p-ambf);color:var(--p-amb)}
 .ptl-est.En-revisión,.ptl-est.Iniciado{background:var(--p-azulf);color:var(--p-azul)}
 .ptl-est.Pago-recibido,.ptl-est.Pagada,.ptl-est.Aceptado,.ptl-est.Confirmado{background:var(--p-okf);color:var(--p-ok)}
@@ -9897,7 +9898,7 @@ window.PortalATR = (() => {
       let h = `<div class="ptl-filtros">${[["pend", "Por pagar"], ["venc", "Vencidas"], ["rev", "En revisión"], ["pag", "Pagadas"], ["todas", "Todas"]]
           .map(([k, t]) => `<button data-f="${k}" class="${S.filtro === k ? "on" : ""}">${t}</button>`).join("")}</div>`;
       if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">${S.filtro === "pend" || S.filtro === "venc" ? "✓" : "—"}</div>
-        ${S.filtro === "pend" ? "<b>No tienes deudas pendientes.</b><br>¡Gracias por estar al día!" : S.filtro === "venc" ? "<b>No tienes deudas vencidas.</b>" : "No hay deudas en esta lista."}</div></div>`;
+        ${S.filtro === "pend" ? "<b>No tienes deudas por pagar.</b><br>¡Gracias por estar al día!" : S.filtro === "venc" ? "<b>No tienes deudas vencidas.</b>" : "No hay deudas en esta lista."}</div></div>`;
       h += `<div class="ptl-caja"><table class="ptl-tabla"><thead><tr>
           <th style="width:36px">${pendTodas.length ? `<input type="checkbox" class="ptl-chk" data-todas="1" ${pendTodas.every(x => S.sel.has(x.id)) ? "checked" : ""} title="Seleccionar todas">` : ""}</th>
           <th>Concepto</th><th class="x-movil">Documento</th><th class="x-movil">Emisión</th><th>Vence</th><th class="n">Monto</th><th>Estado</th><th></th></tr></thead><tbody>`;
@@ -10136,21 +10137,23 @@ function cobzDibujarDeudas(){
   const tot = COBZ.acc.reduce((s, x) => s + Number(x.deuda || 0), 0), venc = COBZ.acc.reduce((s, x) => s + Number(x.deuda_vencida || 0), 0);
   const conAcc = COBZ.acc.filter(x => x.email && x.activo).length, sinAccCorreo = COBZ.acc.filter(x => !x.email && /@fr\.aquituremodelacion\.cl$/i.test(x.correo_corporativo || "") && !/renuncia/i.test(x.estado || "")).length;
   $("cobz-cuerpo").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
-      <div class="kpi"><div class="t">Deuda total</div><div class="v">${$$(tot)}</div><div class="s">${COBZ.acc.filter(x => Number(x.deuda) > 0).length} franquicias con deuda</div></div>
+      <div class="kpi"><div class="t">Deuda por pagar</div><div class="v">${$$(tot)}</div><div class="s">${COBZ.acc.filter(x => Number(x.deuda) > 0).length} franquicias con deuda</div></div>
       <div class="kpi"><div class="t">Vencida</div><div class="v" style="color:#a1281f">${$$(venc)}</div><div class="s">${COBZ.acc.filter(x => Number(x.deuda_vencida) > 0).length} franquicias</div></div>
       <div class="kpi"><div class="t">Pagos por revisar</div><div class="v">${COBZ.acc.reduce((s, x) => s + Number(x.en_revision || 0), 0)}</div><div class="s"><a href="#" data-cobzir="revisar">Revisar</a></div></div>
       <div class="kpi"><div class="t">Con acceso al portal</div><div class="v">${conAcc} / ${COBZ.acc.length}</div><div class="s">${sinAccCorreo ? `<a href="#" data-cobztodos="1">Dar acceso a ${sinAccCorreo} con correo corporativo</a>` : "Todas las con correo tienen acceso"}</div></div></div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input id="cobz-q" placeholder="Buscar franquicia, franquiciado o correo" value="${esc(COBZ.q)}" style="flex:1;max-width:360px"></div>
-    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Franquicia</th><th>Estado</th><th class="n">Deuda</th><th class="n">Vencida</th><th>En revisión</th><th>Acceso al portal</th><th>Último ingreso</th><th></th></tr></thead><tbody>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Franquicia</th><th>Estado</th><th class="n">Deuda</th><th class="n">Vencida</th><th>En revisión</th><th class="n">Esperando factura</th><th>Acceso al portal</th><th>Último ingreso</th><th></th></tr></thead><tbody>
     ${A.map(x => `<tr><td><b>${esc(x.franquicia)}</b><br><small>${esc(x.franquiciado || "")}</small></td><td><small>${esc(x.estado || "")}</small></td>
       <td class="n">${Number(x.deuda) ? $$(x.deuda) + `<br><small>${x.n_deudas} deuda(s)</small>` : "—"}</td>
       <td class="n">${Number(x.deuda_vencida) ? `<b style="color:#a1281f">${$$(x.deuda_vencida)}</b><br><small>${x.n_vencidas}</small>` : "—"}</td>
       <td>${Number(x.en_revision) ? `<span class="pill parcial">${x.en_revision}</span>` : ""}</td>
+      <td class="n">${Number(x.esperando_factura) ? `${$$(x.esperando_factura)}<br><small>${x.n_esperando_factura} sin factura emitida</small>` : "—"}</td>
       <td>${x.email ? `<small>${esc(x.email)}</small><br>${!/@fr\.aquituremodelacion\.cl$/i.test(x.email) ? '<span class="pill parcial" title="No es @fr.aquituremodelacion.cl">Excepción</span> ' : ""}${x.activo ? '<span class="pill ok">Activo</span>' : '<span class="pill no">Desactivado</span>'}` : `<span class="pill no">Sin acceso</span>${x.correo_corporativo ? `<br><small>${esc(x.correo_corporativo)}</small>` : ""}`}</td>
       <td><small>${x.ultimo_acceso ? fecha(x.ultimo_acceso) + ` · ${x.n_accesos} ingreso(s)` : x.email ? "Aún no entra" : ""}</small></td>
-      <td style="white-space:nowrap"><button class="btn-acc sec" data-cobzver="${esc(x.franquicia)}">Ver como franquiciado</button>
-        <button class="btn-acc" data-cobzacc="${esc(x.franquicia)}">${x.email ? "Editar acceso" : "Dar acceso"}</button></td></tr>`).join("")
-      || `<tr><td colspan="8" class="cp-vacio">Sin franquicias.</td></tr>`}</tbody></table></div>
+      <td style="white-space:nowrap"><button class="btn-acc sec" data-cobzver="${esc(x.franquicia)}" title="Ver el portal como lo ve este franquiciado">Ver portal</button>
+        <button class="btn-acc" data-cobzacc="${esc(x.franquicia)}">${x.email ? "Acceso" : "Dar acceso"}</button></td></tr>`).join("")
+      || `<tr><td colspan="9" class="cp-vacio">Sin franquicias.</td></tr>`}</tbody></table></div>
+    <p class="nota-g"><b>Deuda por pagar</b> = cobros con factura emitida (o que no llevan factura, como garantías). Los que llevan factura y aún no la tienen salen en <b>Esperando factura</b> (sólo aquí): el franquiciado no los ve hasta que se emita la factura.</p>
     <p class="nota-g">El portal muestra los cobros a franquiciados <b>por pagar</b> (plataforma tecnológica, mínimo trimestral, arriendo, cartelería, garantías…), sin royalty, Aquí Club, canon de entrada ni reserva.
       Para entregar el portal: envía al franquiciado el archivo <b>Portal Franquiciados ATR.html</b> (o el enlace donde lo publiques) y dale acceso aquí.</p>`;
 }

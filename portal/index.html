@@ -80,6 +80,7 @@
 .ptl-chk{width:18px;height:18px;accent-color:var(--p-nar);cursor:pointer}
 .ptl-est{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap}
 .ptl-est.Vencida{background:var(--p-rojof);color:var(--p-rojo)}
+.ptl-est.Esperando-factura{background:#efe9e5;color:var(--p-gris)}
 .ptl-est.Por-vencer,.ptl-est.Abono-parcial{background:var(--p-ambf);color:var(--p-amb)}
 .ptl-est.En-revisión,.ptl-est.Iniciado{background:var(--p-azulf);color:var(--p-azul)}
 .ptl-est.Pago-recibido,.ptl-est.Pagada,.ptl-est.Aceptado,.ptl-est.Confirmado{background:var(--p-okf);color:var(--p-ok)}
@@ -267,7 +268,7 @@ window.PortalATR = (() => {
       let h = `<div class="ptl-filtros">${[["pend", "Por pagar"], ["venc", "Vencidas"], ["rev", "En revisión"], ["pag", "Pagadas"], ["todas", "Todas"]]
           .map(([k, t]) => `<button data-f="${k}" class="${S.filtro === k ? "on" : ""}">${t}</button>`).join("")}</div>`;
       if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">${S.filtro === "pend" || S.filtro === "venc" ? "✓" : "—"}</div>
-        ${S.filtro === "pend" ? "<b>No tienes deudas pendientes.</b><br>¡Gracias por estar al día!" : S.filtro === "venc" ? "<b>No tienes deudas vencidas.</b>" : "No hay deudas en esta lista."}</div></div>`;
+        ${S.filtro === "pend" ? "<b>No tienes deudas por pagar.</b><br>¡Gracias por estar al día!" : S.filtro === "venc" ? "<b>No tienes deudas vencidas.</b>" : "No hay deudas en esta lista."}</div></div>`;
       h += `<div class="ptl-caja"><table class="ptl-tabla"><thead><tr>
           <th style="width:36px">${pendTodas.length ? `<input type="checkbox" class="ptl-chk" data-todas="1" ${pendTodas.every(x => S.sel.has(x.id)) ? "checked" : ""} title="Seleccionar todas">` : ""}</th>
           <th>Concepto</th><th class="x-movil">Documento</th><th class="x-movil">Emisión</th><th>Vence</th><th class="n">Monto</th><th>Estado</th><th></th></tr></thead><tbody>`;
