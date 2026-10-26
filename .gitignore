@@ -1,0 +1,9 @@
+conexion.txt
+*.bat
+*.ipynb
+*.py
+*.xlsx
+*.xlsm
+*.csv
+*.txt
+respaldo*/
