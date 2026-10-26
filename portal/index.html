@@ -155,6 +155,14 @@
   .ptl-barra{flex-direction:column;align-items:stretch;text-align:center}
 }
 
+.ptl-buscar{font:inherit;border:1px solid var(--p-linea);border-radius:999px;padding:6px 14px;min-width:260px;background:#fff}
+.ptl-buscar:focus{outline:2px solid var(--p-dur);border-color:var(--p-nar)}
+.ptl-hoja{display:grid;grid-template-columns:1fr 1fr}
+.ptl-hoja div{grid-template-columns:1fr auto!important;border-right:1px solid #f1e6df}
+.ptl-tabs{flex-wrap:wrap}
+@media (max-width:700px){.ptl-hoja{grid-template-columns:1fr}.ptl-buscar{min-width:0;flex:1}
+  .ptl-fac tr,.ptl-ob tr{grid-template-columns:1fr auto}.ptl-fac td,.ptl-ob td{grid-column:auto!important;grid-row:auto!important}}
+
 </style>
 </head>
 <body>
@@ -208,20 +216,22 @@ window.PortalATR = (() => {
   const nuevaClave = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
 
   function montar(o){
-    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
+    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
     const rpc = (fn, args) => S.sb.rpc(fn, args);
     const args = () => (S.fr ? { p_franquicia: S.fr } : {});
 
     async function cargar(){
       S.cont.innerHTML = `<div class="ptl"><p class="ptl-nota">Cargando tus deudas…</p></div>`;
-      const [s, d, p] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args())]);
+      const [s, d, p, f] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args())]);
       const err = s.error || d.error || p.error;
       if (err) {
         S.cont.innerHTML = `<div class="ptl"><div class="ptl-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message)
           ? "Falta ejecutar 53_portal_franquiciados.sql en Supabase." : esc(err.message)}</div></div>`;
         if (o.alError) o.alError(err); return;
       }
-      S.ses = s.data; S.deudas = d.data || []; S.pagos = p.data || [];
+      S.ses = s.data; S.deudas = d.data || []; S.pagos = p.data || []; S.obras = null;
+      S.facturas = f.error ? [] : (f.data || []);           // sin 54_facturas_pdf.sql: el portal funciona igual, sin facturas
+      S.fpdf = new Map(S.facturas.filter(x => x.ruta).map(x => [String(x.folio), x.ruta]));
       const vivos = new Set(S.deudas.filter(x => PENDIENTE.includes(x.estado)).map(x => x.id));
       [...S.sel].forEach(i => { if (!vivos.has(i)) S.sel.delete(i); });
       dibujar();
@@ -248,8 +258,10 @@ window.PortalATR = (() => {
           <div class="ptl-kpi pag ${S.filtro === "pag" ? "on" : ""}" data-f="pag"><div class="t">Pagado · 12 meses</div><div class="v">${clp(rec.reduce((a, x) => a + Number(x.monto || 0), 0))}</div><div class="s">${rec.length} deuda(s)</div></div>
         </div>
         <div class="ptl-tabs"><button data-tab="deudas" class="${S.tab === "deudas" ? "on" : ""}">Mis deudas</button>
-          <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button></div>`;
-      h += S.tab === "deudas" ? tablaDeudas() : listaPagos();
+          <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button>
+          <button data-tab="facturas" class="${S.tab === "facturas" ? "on" : ""}">Mis facturas</button>
+          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button></div>`;
+      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : listaObras();
       h += `</div>`;
       S.cont.innerHTML = h;
     }
@@ -273,13 +285,13 @@ window.PortalATR = (() => {
           <th style="width:36px">${pendTodas.length ? `<input type="checkbox" class="ptl-chk" data-todas="1" ${pendTodas.every(x => S.sel.has(x.id)) ? "checked" : ""} title="Seleccionar todas">` : ""}</th>
           <th>Concepto</th><th class="x-movil">Documento</th><th class="x-movil">Emisión</th><th>Vence</th><th class="n">Monto</th><th>Estado</th><th></th></tr></thead><tbody>`;
       for (const x of L) {
-        const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + x.documento : "", x.obra ? "Obra " + x.obra : ""].filter(Boolean).join(" · ");
+        const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + folios(x.documento) : "", x.obra ? "Obra " + esc(x.obra) : ""].filter(Boolean).join(" · ");
         const sub = x.estado === "Vencida" ? `Vencida hace ${x.dias_vencido} día(s)` : x.estado === "Pago recibido" ? `Pago recibido el ${fec(x.fecha_pagado)}`
                   : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago" : "";
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>
-          <td class="x-movil t-doc">${doc ? esc(doc) : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
+          <td class="x-movil t-doc">${doc ? doc : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
           <td class="x-movil t-fe">${fec(x.fecha_emision)}</td>
           <td class="t-fe t-ven">${fec(x.vencimiento)}</td>
           <td class="n t-mon"><b>${clp(pend ? x.saldo : x.monto)}</b>${pend && Number(x.saldo) !== Number(x.monto) ? `<div class="d">de ${clp(x.monto)}</div>` : ""}</td>
@@ -291,6 +303,67 @@ window.PortalATR = (() => {
           <div style="display:flex;gap:8px"><button class="ptl-btn sec chico" data-p="limpiar">Quitar selección</button><button class="ptl-btn" data-p="pagarsel">Pagar ${clp(tot)}</button></div></div>`;
       h += `<p class="ptl-nota">Una deuda queda <b>Pagada</b> sólo cuando el pago se confirma: por el banco o cuando Operaciones lo verifica en la cartola. Informar un pago la deja <b>En revisión</b>.</p>`;
       return h;
+    }
+
+    // N° de factura → link al PDF si está disponible
+    function folios(txt){
+      return esc(String(txt ?? "")).replace(/\b(\d{1,9})\b/g, (m, n) => S.fpdf.has(n) ? `<button class="ptl-link" data-pdf="${esc(S.fpdf.get(n))}" title="Ver la factura">${n}</button>` : m);
+    }
+    function listaFacturas(){
+      const q = S.qf.trim().toLowerCase();
+      const L = S.facturas.filter(x => !q || [x.folio, x.conceptos, x.obras, x.receptor, fec(x.fecha)].join(" ").toLowerCase().includes(q));
+      let h = `<div class="ptl-filtros" style="align-items:center"><input class="ptl-buscar" data-qf="1" value="${esc(S.qf)}" placeholder="Buscar N°, concepto u obra…">
+        <span class="ptl-nota" style="margin:0">${S.facturas.length} factura(s) · ${S.facturas.filter(x => x.ruta).length} con PDF</span></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas emitidas a tu nombre o al de tus clientes."}</div></div>`;
+      h += `<div class="ptl-caja"><table class="ptl-tabla ptl-fac"><thead><tr><th>N° factura</th><th>Fecha</th><th>Concepto</th><th class="x-movil">A nombre de</th><th class="n">Monto</th><th></th></tr></thead><tbody>
+        ${L.map(x => `<tr><td class="t-con"><div class="c">${x.tipo_dte === "Nota Crédito" ? "Nota de crédito" : "Factura"} N° ${esc(x.folio)}</div>${x.obras ? `<div class="d">Obra ${esc(x.obras)}</div>` : ""}</td>
+          <td class="t-fe">${fec(x.fecha)}</td><td>${esc(x.conceptos || "")}</td><td class="x-movil"><span class="d">${esc(x.receptor || "")}</span></td>
+          <td class="n t-mon"><b>${x.monto_total == null ? "" : clp(x.monto_total)}</b></td>
+          <td class="n t-btn">${x.ruta ? `<button class="ptl-btn chico" data-pdf="${esc(x.ruta)}">Ver PDF</button>` : `<span class="d">PDF pendiente</span>`}</td></tr>`).join("")}</tbody></table></div>
+        <p class="ptl-nota">Las facturas aparecen con su PDF cuando Atrium lo sube. Si necesitas una que dice "PDF pendiente", escribe a ${esc((S.ses.cuenta || {}).correo || "")}.</p>`;
+      return h;
+    }
+    function listaObras(){
+      if (S.obras === null) { cargarObras(); return `<p class="ptl-nota">Cargando tus obras…</p>`; }
+      if (S.obras.error) return `<div class="ptl-aviso rojo">${esc(S.obras.error)}</div>`;
+      const L = S.obras.lista;
+      if (!L.length) return `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>No tienes obras activas.</div></div>`;
+      return `<div class="ptl-caja"><table class="ptl-tabla ptl-ob"><thead><tr><th>Obra</th><th>Cliente</th><th class="x-movil">Estado</th><th class="n x-movil">Contrato</th><th class="n x-movil">Avance</th><th class="n">Saldo en obra</th><th></th></tr></thead><tbody>
+        ${L.map(o => `<tr><td class="t-con"><div class="c">${esc(o.obra)}</div></td><td>${esc(o.cliente || "")}</td><td class="x-movil"><span class="d">${esc(o.estado || "")}</span></td>
+          <td class="n x-movil">${o.contrato == null ? "" : clp(o.contrato)}</td><td class="n x-movil">${o.avance_pct == null ? "" : Math.round(100 * o.avance_pct) + "%"}</td>
+          <td class="n t-mon"><b>${o.saldo == null ? "" : clp(o.saldo)}</b></td><td class="n t-btn"><button class="ptl-btn sec chico" data-obra="${esc(o.obra)}">Ver hoja</button></td></tr>`).join("")}</tbody></table></div>
+        <p class="ptl-nota">En la hoja de cada obra ves los pagos del cliente, lo transferido y sus facturas.</p>`;
+    }
+    async function cargarObras(){
+      const r = await rpc("cont_ficha_franquicia", { p_fr: S.ses.franquicia });
+      S.obras = r.error ? { error: r.error.message } : { lista: (r.data && r.data.obras) || [] };
+      if (S.tab === "obras") dibujar();
+    }
+    async function verObra(cod){
+      const r = await rpc("cont_ficha_obra", { p_obra: cod });
+      if (r.error || !r.data) return alert("No se pudo abrir la hoja de la obra" + (r.error ? ": " + r.error.message : "."));
+      const d = r.data, fila = (t, v) => v == null || v === "" ? "" : `<div><span>${t}</span><b>${v}</b></div>`;
+      const fondo = document.createElement("div"); fondo.className = "ptl ptl-fondo";
+      fondo.innerHTML = `<div class="ptl-modal" style="width:min(860px,100%)"><div class="mc"><h3>${esc(d.cliente || "")} <span class="d" style="font-weight:400;color:var(--p-gris)">· ${esc(d.obra)}</span></h3><button class="mx" aria-label="Cerrar">×</button></div>
+        <div class="mb"><div class="ptl-cuenta ptl-hoja">${fila("Estado", esc(d.estado || ""))}${fila("RUT cliente", esc(d.rut_cliente || ""))}${fila("Correo cliente", esc(d.correo_cliente || ""))}
+          ${fila("Teléfono cliente", esc(d.telefono_cliente || ""))}${fila("Fecha contrato", fec(d.fecha_contrato))}${fila("Monto contrato (IVA incl.)", d.monto_contrato == null ? "" : clp(d.monto_contrato))}
+          ${fila("Avance de la obra", d.avance_pct == null ? "" : Math.round(100 * d.avance_pct) + "%")}${fila("Pagado por el cliente", d.pago_cliente_conc == null ? "" : clp(d.pago_cliente_conc))}
+          ${fila("Transferido a tu franquicia", d.transferido == null ? "" : clp(d.transferido))}${fila("Saldo en obra", d.saldo_obra == null ? "" : clp(d.saldo_obra))}</div>
+          <p style="margin:16px 0 8px;font-weight:600">Pagos de la obra · ${(d.pagos || []).length}</p>
+          <div class="ptl-caja" style="max-height:46vh;overflow:auto"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
+          ${(d.pagos || []).map(p => `<tr><td class="t-fe">${fec(p.fecha)}</td><td>${esc(String(p.item || "").replace(" (egreso)", "").replace(" (ingreso)", ""))}</td><td class="n">${clp(p.monto)}</td>
+            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? folios(p.factura) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
+      document.body.appendChild(fondo);
+      fondo.addEventListener("click", e => {
+        if (e.target === fondo || e.target.closest(".mx")) return fondo.remove();
+        const b = e.target.closest("[data-pdf]"); if (b) verPdf(b.dataset.pdf);
+      });
+    }
+    async function verPdf(ruta){
+      const w = window.open("", "_blank");
+      const r = await S.sb.storage.from("facturas").createSignedUrl(ruta, 300);
+      if (r.error) { if (w) w.close(); alert("No se pudo abrir la factura: " + r.error.message); return; }
+      if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
     }
 
     function listaPagos(){
@@ -434,10 +507,15 @@ window.PortalATR = (() => {
       const tb = t.closest("[data-tab]"); if (tb) { S.tab = tb.dataset.tab; return dibujar(); }
       const pg = t.closest("[data-pagar]"); if (pg) return abrirPago([+pg.dataset.pagar]);
       const cm = t.closest("[data-comp]"); if (cm) return verComprobante(cm.dataset.comp);
+      const pdf = t.closest("[data-pdf]"); if (pdf) return verPdf(pdf.dataset.pdf);
+      const ob = t.closest("[data-obra]"); if (ob) return verObra(ob.dataset.obra);
       const p = t.closest("[data-p]");
       if (p && p.dataset.p === "act") return cargar();
       if (p && p.dataset.p === "limpiar") { S.sel.clear(); return dibujar(); }
       if (p && p.dataset.p === "pagarsel") return abrirPago([...S.sel]);
+    };
+    S.cont.oninput = e => {
+      if (e.target.dataset.qf) { S.qf = e.target.value; const pos = e.target.selectionStart; dibujar(); const n = S.cont.querySelector("[data-qf]"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
     };
     S.cont.onchange = e => {
       const t = e.target;

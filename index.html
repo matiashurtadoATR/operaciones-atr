@@ -996,6 +996,14 @@
   .ptl-cab h2{font-size:18px}.ptl-kpi .v{font-size:19px}.ptl-kpi{padding:12px}
   .ptl-barra{flex-direction:column;align-items:stretch;text-align:center}
 }
+
+.ptl-buscar{font:inherit;border:1px solid var(--p-linea);border-radius:999px;padding:6px 14px;min-width:260px;background:#fff}
+.ptl-buscar:focus{outline:2px solid var(--p-dur);border-color:var(--p-nar)}
+.ptl-hoja{display:grid;grid-template-columns:1fr 1fr}
+.ptl-hoja div{grid-template-columns:1fr auto!important;border-right:1px solid #f1e6df}
+.ptl-tabs{flex-wrap:wrap}
+@media (max-width:700px){.ptl-hoja{grid-template-columns:1fr}.ptl-buscar{min-width:0;flex:1}
+  .ptl-fac tr,.ptl-ob tr{grid-template-columns:1fr auto}.ptl-fac td,.ptl-ob td{grid-column:auto!important;grid-row:auto!important}}
 </style>
 </head>
 <body>
@@ -1881,10 +1889,10 @@ async function entrarApp(){
     $("menu-h-rep").classList.toggle("oculto", !puedeArea("operaciones"));
     await cargarListas();
     if (!puedeArea("operaciones")) { document.querySelectorAll('section[id^="vista-"]').forEach(v => v.classList.add("oculto"));
-      if (puedeArea("facturacion")) { irA("ing", "oc"); arrfmContador(); cprechContador(); respContador(); } else if (puedeArea("contabilidad")) { revisarVersion(); irA("cont", "fobras"); contContadores(); }
+      if (puedeArea("facturacion")) { irA("ing", "oc"); arrfmContador(); cprechContador(); respContador(); fpdfCargar(); } else if (puedeArea("contabilidad")) { revisarVersion(); fpdfCargar().then(() => irA("cont", "fobras")); contContadores(); }
       return; }
     if (puedeArea("contabilidad")) contContadores();
-    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador();
+    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar();
   }
   if (SESION.ok) revisarVersion();
   if (location.hash === "#panel" && SESION.ok) { try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {} irA("panel"); }
@@ -2029,7 +2037,7 @@ function dibujar({ enc, res, oc, mov }){
       <tbody>${mov.map(m => `<tr>
         <td>${esc(m.item_pago)}</td><td class="f">${fecha(m.fecha_pago)}</td><td class="n">${pesos(m.monto)}</td>
         <td class="f">${m.no_bancario ? "N/A" : fecha(m.fecha_conciliacion)}</td><td class="f">${esc(m.medio_pago || "")}</td>
-        <td class="c">${esc(m.n_factura_venta || "0")}</td><td class="c">${esc(m.n_factura_compra || "")}</td>
+        <td class="c">${m.n_factura_venta ? fpdfTxt(m.n_factura_venta) : "0"}</td><td class="c">${esc(m.n_factura_compra || "")}</td>
         <td class="f">${fecha(m.fecha_factura_compra)}</td><td>${esc(m.proveedor || "")}</td></tr>`).join("")
         || `<tr><td colspan="9" class="c">Sin movimientos</td></tr>`}</tbody>
     </table></div>
@@ -3759,7 +3767,7 @@ function dibujarFranquicia(A){
       <tbody>${L.map(c => `<tr><td class="c">${esc(c.id_pago || "")}</td><td>${esc(c.concepto)}</td><td class="n">${num(c.monto)}</td><td class="f">${fecha(c.vencimiento)}</td>
         <td class="f">${c.estado_cobro !== "Por cobrar" ? fecha(c.fecha_pago) : ""}</td><td class="c">${c.estado_cobro !== "Por cobrar" ? esc(c.medio || "") : ""}</td>
         <td class="c ${c.estado_cobro === "Por cobrar" ? "deuda-cel" : ""}">${est(c)}</td><td class="f">${c.no_bancario ? "N/A" : fecha(c.fecha_conciliacion)}</td>
-        <td class="c">${esc(c.folio || (c.facturacion_estado === "Facturado" ? "Facturado" : ""))}</td><td>${esc(c.observaciones || "")}</td></tr>`).join("")
+        <td class="c">${c.folio ? fpdfTxt(c.folio) : esc(c.facturacion_estado === "Facturado" ? "Facturado" : "")}</td><td>${esc(c.observaciones || "")}</td></tr>`).join("")
         || `<tr><td colspan="10" class="c">Sin cobros</td></tr>`}</tbody>
       <tfoot><tr><td colspan="2">TOTAL</td><td class="n">${num(L.reduce((s, c) => s + Number(c.monto || 0), 0))}</td><td colspan="7"></td></tr></tfoot></table></div>`;
     const egresos = movs.filter(m => Number(m.monto) < 0);
@@ -6097,7 +6105,7 @@ function contDibujarFact(){
   let h = `<div class="controles">
       <div class="chips">${[["pend", "Por emitir"], ["fact", "Facturadas"], ["todas", "Todas"]].map(([k, t]) => `<button class="chip ${F.filtro === k ? "activo" : ""}" data-ctf="${k}">${t} · ${n(k)}</button>`).join("")}</div>
       ${tipos.length > 1 ? `<div class="campo"><label>Tipo</label><select id="ct-tipo"><option value="">Todos</option>${tipos.map(t => `<option ${t === F.tipo ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>` : ""}
-      <div class="campo" style="min-width:240px"><label>Buscar</label><input id="ct-q" value="${esc(F.q)}" placeholder="Cliente, razón social, RUT, CC, folio…"></div></div>`;
+      <div class="campo" style="min-width:240px"><label>Buscar</label><input id="ct-q" value="${esc(F.q)}" placeholder="Cliente, razón social, RUT, CC, folio…"></div>${ed ? `<div class="campo"><label>PDF de facturas</label><button class="btn sec" id="ct-pdfs" title="Elige varios PDF: el N° de factura se toma del nombre del archivo">Subir PDFs de facturas</button></div>` : ""}</div>`;
   if (!L.length) { $("cont-cuerpo").innerHTML = h + `<p class="nota-g">${F.filtro === "pend" ? `No hay facturas de ${o.toLowerCase()} por emitir. Llegan aquí cuando Patricio aprueba la solicitud.` : "Sin resultados."}</p>`; return; }
   const THEAD = `<thead><tr><th>Fecha solicitud</th><th>Cliente</th><th>Concepto</th><th>Glosa</th><th>Centro costo</th><th>ID Franquicia</th>
     <th>RUT Franquiciado</th><th>Razón Social</th><th>Dirección</th><th>Comuna</th><th>Correo</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Monto Total</th><th></th><th class="ct-fol">N° factura</th></tr></thead>`;
@@ -6126,7 +6134,7 @@ function contDibujarFact(){
         <td>${esc(l.correo_envio_factura || "")}</td>
         <td class="n">${$$(l.neto)}</td><td class="n">${Number(l.iva) ? $$(l.iva) : "Exento"}</td><td class="n"><b>${$$(l.total)}</b></td>
         <td><button class="cf-btn" data-ctinfo="${l.id}" title="Más datos del receptor">ⓘ</button></td>
-        <td class="ct-fol" style="white-space:nowrap">${l.folio ? `<span class="pill ok">F° ${esc(l.folio)}</span><br><small>${fecha(l.fecha_factura)}</small>`
+        <td class="ct-fol" style="white-space:nowrap">${l.folio ? `<span class="pill ok">F° ${esc(l.folio)}</span><br><small>${fecha(l.fecha_factura)}</small><br>${fpdfBotonLinea(l.folio, ed)}`
           : ed ? `<input class="ct-l-folio" data-ctl="${l.id}" data-ctg="${s.id}" inputmode="numeric" placeholder="N° factura" style="width:105px">` : '<span class="pill parcial">Por emitir</span>'}</td></tr>`;
       if (F.info.has(l.id)) h += `<tr><td></td><td colspan="${CT_NCOL - 1}"><div class="ct-rec" style="margin:2px 0 6px">
         ${[["Giro", l.giro], ["Ciudad", l.ciudad], ["Teléfono", l.telefono], ["Contacto", l.contacto], ["Representante legal", l.rrll1 ? `${l.rrll1}${l.rut_rrll1 ? " · " + rut(l.rut_rrll1) : ""}` : ""],
@@ -6285,7 +6293,7 @@ function contDibujarConc(){
       <td><small>${esc(x.franquicia)}<br>${esc(x.franquiciado || "")}</small></td><td>${x.obra ? `<b>${esc(x.cliente || "")}</b><br><small>${esc(x.obra)}</small>` : ""}</td>
       <td>${esc(x.centro_costo || "")}</td><td>${esc(x.contraparte || "")}${x.rut_contraparte ? `<br><small>${esc(rut(x.rut_contraparte))}</small>` : ""}</td>
       <td><small>${esc([x.medio, x.banco_atrium].filter(Boolean).join(" · "))}${x.referencia_banco ? `<br>${esc(x.referencia_banco)}` : ""}</small></td>
-      <td><small>${x.folios_venta ? "Venta " + esc(x.folios_venta) : ""}${x.n_factura_compra ? `<br>Compra F° ${esc(x.n_factura_compra)}` : ""}${x.n_oc ? `<br>OC ${esc(x.n_oc)}` : ""}</small></td>
+      <td><small>${x.folios_venta ? "Venta " + fpdfTxt(x.folios_venta) : ""}${x.n_factura_compra ? `<br>Compra F° ${esc(x.n_factura_compra)}` : ""}${x.n_oc ? `<br>OC ${esc(x.n_oc)}` : ""}</small></td>
       <td class="n">${x.sentido === "Ingreso" ? $$(x.monto) : ""}</td><td class="n">${x.sentido === "Egreso" ? $$(x.monto) : ""}</td></tr>`).join("") || `<tr><td colspan="13" class="cp-vacio">Sin pagos con estos filtros.</td></tr>`}
     </tbody></table></div>${L.length > MAX ? `<p class="nota-g">Se muestran los primeros ${MAX} de ${L.length.toLocaleString("es-CL")}: acota los filtros o usa <b>Descargar Excel</b> (trae todos).</p>` : ""}`;
   $("cont-cuerpo").innerHTML = h;
@@ -7064,7 +7072,7 @@ async function contFicha(tipo, cod){
       <h5 style="margin:10px 0 4px">Pagos de la obra · ${(d.pagos || []).length}</h5>
       <div class="tabla-wrap" style="max-height:300px;overflow:auto;margin:0"><table class="ct-t"><thead><tr><th>Fecha</th><th>Id pago</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
       ${(d.pagos || []).map(p => `<tr><td>${fecha(p.fecha)}</td><td>${esc(p.id_pago)}</td><td><small>${esc(String(p.item || "").replace(" (egreso)", ""))}</small></td>
-        <td class="n">${$$(p.monto)}</td><td>${p.conciliacion ? esc(p.conciliacion) : `<small>${esc(p.estado || "")}</small>`}</td><td><small>${esc(p.factura || p.n_factura_compra || "")}</small></td></tr>`).join("")}</tbody></table></div>`;
+        <td class="n">${$$(p.monto)}</td><td>${p.conciliacion ? esc(p.conciliacion) : `<small>${esc(p.estado || "")}</small>`}</td><td><small>${p.factura ? fpdfTxt(p.factura) : esc(p.n_factura_compra || "")}</small></td></tr>`).join("")}</tbody></table></div>`;
   } else {
     h = `<h3>${esc(d.razon_social || "")} <small style="color:var(--gris)">${esc(d.franquicia)}</small></h3>
       <div class="ct-rec" style="margin:8px 0">${fila("RUT", esc(rut(d.rut)))}${fila("Estado", esc(d.estado || ""))}${fila("Id UMB", esc(d.id_umb || ""))}
@@ -9117,7 +9125,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 53;
+const VERSION_PAGINA = 54;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9231,7 +9239,7 @@ function dibujarCobros(){
       <td>${esc(r.concepto)}<br><small style="color:var(--gris)">Factura: ${esc(r.regla_factura)}</small></td>
       <td class="n"><b>${$$(r.monto)}</b></td>
       <td>${fecha(r.vencimiento) || "—"}${r.dias_vencido > 0 ? `<br><small class="rojo">vencido hace ${r.dias_vencido} días</small>` : ""}</td>
-      <td>${r.folio ? `N° ${esc(r.folio)}${r.fecha_factura ? `<br><small>${fecha(r.fecha_factura)}</small>` : ""}` : r.regla_factura === "Sin factura" ? "<small>No aplica</small>" : r.facturacion_estado ? `<small>${esc(r.facturacion_estado)}</small>` : "—"}</td>
+      <td>${r.folio ? `N° ${fpdfTxt(r.folio)}${r.fecha_factura ? `<br><small>${fecha(r.fecha_factura)}</small>` : ""}` : r.regla_factura === "Sin factura" ? "<small>No aplica</small>" : r.facturacion_estado ? `<small>${esc(r.facturacion_estado)}</small>` : "—"}</td>
       <td>${r.estado_cobro === "Pagado" ? '<span class="pill ok">Pagado</span>' : r.estado_cobro === "Informado" ? '<span class="pill transf">Informado · falta cartola</span>' : '<span class="pill parcial">Por cobrar</span>'}</td>
       <td>${r.estado_cobro === "Pagado" ? `${r.no_bancario ? "N/A" : fecha(r.fecha_conciliacion)}<br><small>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`
           : r.estado_cobro === "Informado" ? (fqCheque(r) ? `<small><b>Cheque</b> al ${fecha(r.fecha_pago)}<br>${esc(r.banco || "")}</small>` : `<small>comprobante ${fecha(r.informado_en)}<br>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`) : ""}</td>
@@ -9838,20 +9846,22 @@ window.PortalATR = (() => {
   const nuevaClave = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
 
   function montar(o){
-    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
+    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
     const rpc = (fn, args) => S.sb.rpc(fn, args);
     const args = () => (S.fr ? { p_franquicia: S.fr } : {});
 
     async function cargar(){
       S.cont.innerHTML = `<div class="ptl"><p class="ptl-nota">Cargando tus deudas…</p></div>`;
-      const [s, d, p] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args())]);
+      const [s, d, p, f] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args())]);
       const err = s.error || d.error || p.error;
       if (err) {
         S.cont.innerHTML = `<div class="ptl"><div class="ptl-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message)
           ? "Falta ejecutar 53_portal_franquiciados.sql en Supabase." : esc(err.message)}</div></div>`;
         if (o.alError) o.alError(err); return;
       }
-      S.ses = s.data; S.deudas = d.data || []; S.pagos = p.data || [];
+      S.ses = s.data; S.deudas = d.data || []; S.pagos = p.data || []; S.obras = null;
+      S.facturas = f.error ? [] : (f.data || []);           // sin 54_facturas_pdf.sql: el portal funciona igual, sin facturas
+      S.fpdf = new Map(S.facturas.filter(x => x.ruta).map(x => [String(x.folio), x.ruta]));
       const vivos = new Set(S.deudas.filter(x => PENDIENTE.includes(x.estado)).map(x => x.id));
       [...S.sel].forEach(i => { if (!vivos.has(i)) S.sel.delete(i); });
       dibujar();
@@ -9878,8 +9888,10 @@ window.PortalATR = (() => {
           <div class="ptl-kpi pag ${S.filtro === "pag" ? "on" : ""}" data-f="pag"><div class="t">Pagado · 12 meses</div><div class="v">${clp(rec.reduce((a, x) => a + Number(x.monto || 0), 0))}</div><div class="s">${rec.length} deuda(s)</div></div>
         </div>
         <div class="ptl-tabs"><button data-tab="deudas" class="${S.tab === "deudas" ? "on" : ""}">Mis deudas</button>
-          <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button></div>`;
-      h += S.tab === "deudas" ? tablaDeudas() : listaPagos();
+          <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button>
+          <button data-tab="facturas" class="${S.tab === "facturas" ? "on" : ""}">Mis facturas</button>
+          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button></div>`;
+      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : listaObras();
       h += `</div>`;
       S.cont.innerHTML = h;
     }
@@ -9903,13 +9915,13 @@ window.PortalATR = (() => {
           <th style="width:36px">${pendTodas.length ? `<input type="checkbox" class="ptl-chk" data-todas="1" ${pendTodas.every(x => S.sel.has(x.id)) ? "checked" : ""} title="Seleccionar todas">` : ""}</th>
           <th>Concepto</th><th class="x-movil">Documento</th><th class="x-movil">Emisión</th><th>Vence</th><th class="n">Monto</th><th>Estado</th><th></th></tr></thead><tbody>`;
       for (const x of L) {
-        const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + x.documento : "", x.obra ? "Obra " + x.obra : ""].filter(Boolean).join(" · ");
+        const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + folios(x.documento) : "", x.obra ? "Obra " + esc(x.obra) : ""].filter(Boolean).join(" · ");
         const sub = x.estado === "Vencida" ? `Vencida hace ${x.dias_vencido} día(s)` : x.estado === "Pago recibido" ? `Pago recibido el ${fec(x.fecha_pagado)}`
                   : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago" : "";
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>
-          <td class="x-movil t-doc">${doc ? esc(doc) : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
+          <td class="x-movil t-doc">${doc ? doc : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
           <td class="x-movil t-fe">${fec(x.fecha_emision)}</td>
           <td class="t-fe t-ven">${fec(x.vencimiento)}</td>
           <td class="n t-mon"><b>${clp(pend ? x.saldo : x.monto)}</b>${pend && Number(x.saldo) !== Number(x.monto) ? `<div class="d">de ${clp(x.monto)}</div>` : ""}</td>
@@ -9921,6 +9933,67 @@ window.PortalATR = (() => {
           <div style="display:flex;gap:8px"><button class="ptl-btn sec chico" data-p="limpiar">Quitar selección</button><button class="ptl-btn" data-p="pagarsel">Pagar ${clp(tot)}</button></div></div>`;
       h += `<p class="ptl-nota">Una deuda queda <b>Pagada</b> sólo cuando el pago se confirma: por el banco o cuando Operaciones lo verifica en la cartola. Informar un pago la deja <b>En revisión</b>.</p>`;
       return h;
+    }
+
+    // N° de factura → link al PDF si está disponible
+    function folios(txt){
+      return esc(String(txt ?? "")).replace(/\b(\d{1,9})\b/g, (m, n) => S.fpdf.has(n) ? `<button class="ptl-link" data-pdf="${esc(S.fpdf.get(n))}" title="Ver la factura">${n}</button>` : m);
+    }
+    function listaFacturas(){
+      const q = S.qf.trim().toLowerCase();
+      const L = S.facturas.filter(x => !q || [x.folio, x.conceptos, x.obras, x.receptor, fec(x.fecha)].join(" ").toLowerCase().includes(q));
+      let h = `<div class="ptl-filtros" style="align-items:center"><input class="ptl-buscar" data-qf="1" value="${esc(S.qf)}" placeholder="Buscar N°, concepto u obra…">
+        <span class="ptl-nota" style="margin:0">${S.facturas.length} factura(s) · ${S.facturas.filter(x => x.ruta).length} con PDF</span></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas emitidas a tu nombre o al de tus clientes."}</div></div>`;
+      h += `<div class="ptl-caja"><table class="ptl-tabla ptl-fac"><thead><tr><th>N° factura</th><th>Fecha</th><th>Concepto</th><th class="x-movil">A nombre de</th><th class="n">Monto</th><th></th></tr></thead><tbody>
+        ${L.map(x => `<tr><td class="t-con"><div class="c">${x.tipo_dte === "Nota Crédito" ? "Nota de crédito" : "Factura"} N° ${esc(x.folio)}</div>${x.obras ? `<div class="d">Obra ${esc(x.obras)}</div>` : ""}</td>
+          <td class="t-fe">${fec(x.fecha)}</td><td>${esc(x.conceptos || "")}</td><td class="x-movil"><span class="d">${esc(x.receptor || "")}</span></td>
+          <td class="n t-mon"><b>${x.monto_total == null ? "" : clp(x.monto_total)}</b></td>
+          <td class="n t-btn">${x.ruta ? `<button class="ptl-btn chico" data-pdf="${esc(x.ruta)}">Ver PDF</button>` : `<span class="d">PDF pendiente</span>`}</td></tr>`).join("")}</tbody></table></div>
+        <p class="ptl-nota">Las facturas aparecen con su PDF cuando Atrium lo sube. Si necesitas una que dice "PDF pendiente", escribe a ${esc((S.ses.cuenta || {}).correo || "")}.</p>`;
+      return h;
+    }
+    function listaObras(){
+      if (S.obras === null) { cargarObras(); return `<p class="ptl-nota">Cargando tus obras…</p>`; }
+      if (S.obras.error) return `<div class="ptl-aviso rojo">${esc(S.obras.error)}</div>`;
+      const L = S.obras.lista;
+      if (!L.length) return `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>No tienes obras activas.</div></div>`;
+      return `<div class="ptl-caja"><table class="ptl-tabla ptl-ob"><thead><tr><th>Obra</th><th>Cliente</th><th class="x-movil">Estado</th><th class="n x-movil">Contrato</th><th class="n x-movil">Avance</th><th class="n">Saldo en obra</th><th></th></tr></thead><tbody>
+        ${L.map(o => `<tr><td class="t-con"><div class="c">${esc(o.obra)}</div></td><td>${esc(o.cliente || "")}</td><td class="x-movil"><span class="d">${esc(o.estado || "")}</span></td>
+          <td class="n x-movil">${o.contrato == null ? "" : clp(o.contrato)}</td><td class="n x-movil">${o.avance_pct == null ? "" : Math.round(100 * o.avance_pct) + "%"}</td>
+          <td class="n t-mon"><b>${o.saldo == null ? "" : clp(o.saldo)}</b></td><td class="n t-btn"><button class="ptl-btn sec chico" data-obra="${esc(o.obra)}">Ver hoja</button></td></tr>`).join("")}</tbody></table></div>
+        <p class="ptl-nota">En la hoja de cada obra ves los pagos del cliente, lo transferido y sus facturas.</p>`;
+    }
+    async function cargarObras(){
+      const r = await rpc("cont_ficha_franquicia", { p_fr: S.ses.franquicia });
+      S.obras = r.error ? { error: r.error.message } : { lista: (r.data && r.data.obras) || [] };
+      if (S.tab === "obras") dibujar();
+    }
+    async function verObra(cod){
+      const r = await rpc("cont_ficha_obra", { p_obra: cod });
+      if (r.error || !r.data) return alert("No se pudo abrir la hoja de la obra" + (r.error ? ": " + r.error.message : "."));
+      const d = r.data, fila = (t, v) => v == null || v === "" ? "" : `<div><span>${t}</span><b>${v}</b></div>`;
+      const fondo = document.createElement("div"); fondo.className = "ptl ptl-fondo";
+      fondo.innerHTML = `<div class="ptl-modal" style="width:min(860px,100%)"><div class="mc"><h3>${esc(d.cliente || "")} <span class="d" style="font-weight:400;color:var(--p-gris)">· ${esc(d.obra)}</span></h3><button class="mx" aria-label="Cerrar">×</button></div>
+        <div class="mb"><div class="ptl-cuenta ptl-hoja">${fila("Estado", esc(d.estado || ""))}${fila("RUT cliente", esc(d.rut_cliente || ""))}${fila("Correo cliente", esc(d.correo_cliente || ""))}
+          ${fila("Teléfono cliente", esc(d.telefono_cliente || ""))}${fila("Fecha contrato", fec(d.fecha_contrato))}${fila("Monto contrato (IVA incl.)", d.monto_contrato == null ? "" : clp(d.monto_contrato))}
+          ${fila("Avance de la obra", d.avance_pct == null ? "" : Math.round(100 * d.avance_pct) + "%")}${fila("Pagado por el cliente", d.pago_cliente_conc == null ? "" : clp(d.pago_cliente_conc))}
+          ${fila("Transferido a tu franquicia", d.transferido == null ? "" : clp(d.transferido))}${fila("Saldo en obra", d.saldo_obra == null ? "" : clp(d.saldo_obra))}</div>
+          <p style="margin:16px 0 8px;font-weight:600">Pagos de la obra · ${(d.pagos || []).length}</p>
+          <div class="ptl-caja" style="max-height:46vh;overflow:auto"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
+          ${(d.pagos || []).map(p => `<tr><td class="t-fe">${fec(p.fecha)}</td><td>${esc(String(p.item || "").replace(" (egreso)", "").replace(" (ingreso)", ""))}</td><td class="n">${clp(p.monto)}</td>
+            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? folios(p.factura) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
+      document.body.appendChild(fondo);
+      fondo.addEventListener("click", e => {
+        if (e.target === fondo || e.target.closest(".mx")) return fondo.remove();
+        const b = e.target.closest("[data-pdf]"); if (b) verPdf(b.dataset.pdf);
+      });
+    }
+    async function verPdf(ruta){
+      const w = window.open("", "_blank");
+      const r = await S.sb.storage.from("facturas").createSignedUrl(ruta, 300);
+      if (r.error) { if (w) w.close(); alert("No se pudo abrir la factura: " + r.error.message); return; }
+      if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
     }
 
     function listaPagos(){
@@ -10064,10 +10137,15 @@ window.PortalATR = (() => {
       const tb = t.closest("[data-tab]"); if (tb) { S.tab = tb.dataset.tab; return dibujar(); }
       const pg = t.closest("[data-pagar]"); if (pg) return abrirPago([+pg.dataset.pagar]);
       const cm = t.closest("[data-comp]"); if (cm) return verComprobante(cm.dataset.comp);
+      const pdf = t.closest("[data-pdf]"); if (pdf) return verPdf(pdf.dataset.pdf);
+      const ob = t.closest("[data-obra]"); if (ob) return verObra(ob.dataset.obra);
       const p = t.closest("[data-p]");
       if (p && p.dataset.p === "act") return cargar();
       if (p && p.dataset.p === "limpiar") { S.sel.clear(); return dibujar(); }
       if (p && p.dataset.p === "pagarsel") return abrirPago([...S.sel]);
+    };
+    S.cont.oninput = e => {
+      if (e.target.dataset.qf) { S.qf = e.target.value; const pos = e.target.selectionStart; dibujar(); const n = S.cont.querySelector("[data-qf]"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
     };
     S.cont.onchange = e => {
       const t = e.target;
@@ -10217,6 +10295,115 @@ $("vista-cobz").addEventListener("click", async e => {
 });
 $("vista-cobz").addEventListener("input", e => { if (e.target.id === "cobz-q") { COBZ.q = e.target.value; const p = e.target.selectionStart; cobzDibujarDeudas(); const i = $("cobz-q"); i.focus(); i.setSelectionRange(p, p); } });
 $("vista-cobz").addEventListener("change", e => { if (e.target.id === "cobz-fr") { COBZ.fr = e.target.value; COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: COBZ.fr }); } });
+
+/* =====================================================================
+   v54 · PDF DE FACTURAS EMITIDAS
+   Contabilidad sube el PDF de cada factura (uno a uno o varios de una vez). Los N° de factura de las hojas abren el PDF.
+   ===================================================================== */
+const FPDF = { map: new Map(), cargado: false };
+async function fpdfCargar(forzar){
+  if (FPDF.cargado && !forzar) return;
+  if (!(puedeArea("operaciones") || puedeArea("facturacion") || puedeArea("contabilidad"))) return;
+  try {
+    const { data, error } = await todo(() => db.from("factura_pdf").select("tipo_dte,folio,ruta"));
+    if (error) return;                       // sin 54_facturas_pdf.sql: los N° se ven como antes
+    const m = new Map();
+    (data || []).forEach(r => { m.set(`${r.tipo_dte}|${r.folio}`, r.ruta); if (r.tipo_dte === "Factura" || !m.has(String(r.folio))) m.set(String(r.folio), r.ruta); });
+    FPDF.map = m; FPDF.cargado = true;
+  } catch (_) {}
+}
+// texto con N° de factura → cada N° con PDF es un link ("NC 12" busca la nota de crédito)
+function fpdfTxt(txt){
+  const s = esc(String(txt ?? ""));
+  if (!FPDF.map.size) return s;
+  return s.replace(/(NC\s*)?\b(\d{1,9})\b/gi, (m, nc, n) => {
+    const r = nc ? FPDF.map.get(`Nota Crédito|${n}`) : FPDF.map.get(`Factura|${n}`) || FPDF.map.get(n);
+    return r ? `${nc || ""}<a href="#" class="fpdf" data-fpdf="${esc(r)}" title="Abrir el PDF de la factura N° ${n}">${n}</a>` : m;
+  });
+}
+const fpdfDe = folio => FPDF.map.get(`Factura|${folio}`) || FPDF.map.get(String(folio));
+async function fpdfAbrir(ruta){
+  const w = window.open("", "_blank");
+  const r = await db.storage.from("facturas").createSignedUrl(ruta, 300);
+  if (r.error) { if (w) w.close(); return toast("⚠ No se pudo abrir la factura: " + esc(r.error.message), 8000); }
+  if (w) w.location.href = r.data.signedUrl; else window.open(r.data.signedUrl, "_blank");
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-fpdf]"); if (!a) return;
+  e.preventDefault(); e.stopPropagation(); fpdfAbrir(a.dataset.fpdf);
+}, true);
+
+async function fpdfSubir(file, folio, tipo = "Factura"){
+  if (!file) throw new Error("Elige el PDF.");
+  if (!/pdf$/i.test(file.type || file.name)) throw new Error(`${file.name}: debe ser PDF.`);
+  if (file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: pesa más de 10 MB.`);
+  const ruta = `emitidas/${tipo === "Nota Crédito" ? "NC" : "Factura"}/${folio}_${Date.now()}.pdf`;
+  const up = await db.storage.from("facturas").upload(ruta, file, { contentType: "application/pdf", upsert: false });
+  if (up.error) throw new Error(/bucket|not found/i.test(up.error.message) ? "Falta ejecutar 54_facturas_pdf.sql en Supabase." : up.error.message);
+  const { error } = await db.rpc("factura_pdf_registrar", { p: { folio: String(folio), tipo_dte: tipo, ruta, nombre: file.name, bytes: String(file.size) } });
+  if (error) throw new Error(errorAmigable(error.message));
+  FPDF.map.set(`${tipo}|${folio}`, ruta); if (tipo === "Factura") FPDF.map.set(String(folio), ruta);
+  return ruta;
+}
+// un PDF desde la línea de la factura (Contabilidad)
+document.addEventListener("change", async e => {
+  const inp = e.target.closest("input[data-fpdfsub]"); if (!inp || !inp.files[0]) return;
+  const folio = inp.dataset.fpdfsub, lab = inp.closest("label");
+  if (lab) lab.firstChild.textContent = "Subiendo…";
+  try { await fpdfSubir(inp.files[0], folio); toast(`PDF de la factura N° ${esc(folio)} guardado.`); }
+  catch (ex) { toast("⚠ " + esc(ex.message), 9000); }
+  if (typeof contDibujarFact === "function" && $("vista-cont") && !$("vista-cont").classList.contains("oculto")) contDibujarFact();
+});
+// botón en la línea: ver PDF o subirlo
+function fpdfBotonLinea(folio, puede){
+  const r = fpdfDe(folio);
+  if (r) return `<a href="#" class="cf-btn" data-fpdf="${esc(r)}" title="Abrir PDF">📄 PDF</a>${puede ? ` <label class="cf-btn" style="cursor:pointer" title="Reemplazar el PDF">↻<input type="file" accept="application/pdf" data-fpdfsub="${esc(folio)}" style="display:none"></label>` : ""}`;
+  return puede ? `<label class="cf-btn" style="cursor:pointer;color:#a1281f" title="Subir el PDF de esta factura">Subir PDF<input type="file" accept="application/pdf" data-fpdfsub="${esc(folio)}" style="display:none"></label>` : "";
+}
+
+// varios PDF de una vez: el N° se toma del nombre del archivo (el último número que sea una factura registrada)
+async function fpdfCargaMasiva(){
+  const sel = document.createElement("input"); sel.type = "file"; sel.accept = "application/pdf"; sel.multiple = true;
+  sel.onchange = async () => {
+    const files = [...sel.files]; if (!files.length) return;
+    const nums = f => (f.name.replace(/\.pdf$/i, "").match(/\d+/g) || []).map(Number).filter(n => n > 0 && n < 1e9);
+    const todos = [...new Set(files.flatMap(nums))];
+    const { data, error } = await db.rpc("facturas_pdf_buscar", { p_folios: todos.length ? todos : [0] });
+    if (error) return toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 54_facturas_pdf.sql en Supabase." : errorAmigable(error.message)), 9000);
+    const existe = FPDF.existe = new Map((data || []).filter(x => x.tipo_dte === "Factura").map(x => [x.folio, x]));
+    const filas = files.map(f => { const c = nums(f).filter(n => existe.has(n)); return { f, folio: c.length ? c[c.length - 1] : "" }; });
+    const info = n => { const x = existe.get(Number(n));
+      return !n ? '<span class="pill no">Escribe el N°</span>' : !x ? '<span class="pill no">N° no registrado</span>'
+        : `${x.tiene_pdf ? '<span class="pill parcial">Reemplaza PDF</span>' : '<span class="pill ok">OK</span>'}<br><small>${esc(x.receptor || "")}${x.franquicia ? " · " + esc(x.franquicia) : ""} · ${fecha(x.fecha)} · ${$$(x.monto_total)}</small>`; };
+    await modal(`<h3>Subir PDF de facturas · ${files.length} archivo(s)</h3>
+      <p class="nota-g" style="margin-top:0">Tomé el N° de factura del nombre de cada archivo. Revisa y corrige si hace falta: sólo se suben los que tienen un N° registrado.</p>
+      <div class="tabla-wrap" style="max-height:55vh;overflow:auto;margin:0"><table class="ct-t"><thead><tr><th>Archivo</th><th>N° factura</th><th>Factura</th></tr></thead><tbody>
+      ${filas.map((r, i) => `<tr><td><small>${esc(r.f.name)}</small></td><td><input data-fpm="${i}" value="${r.folio}" inputmode="numeric" style="width:100px"></td><td data-fpi="${i}">${info(r.folio)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="cf-aviso" id="fpm-err" style="display:none;margin-top:8px"></div>`,
+      [{ t: "Cancelar", sec: 1 }, { t: "Subir", fn: async fondo => {
+        fondo.querySelectorAll("[data-fpm]").forEach(i => { filas[+i.dataset.fpm].folio = i.value.replace(/\D/g, ""); });
+        const ok = filas.filter(r => r.folio && existe.has(Number(r.folio)));
+        if (!ok.length) { const e = fondo.querySelector("#fpm-err"); e.style.display = ""; e.className = "cf-aviso rojo"; e.textContent = "Ningún archivo tiene un N° de factura registrado."; return false; }
+        let n = 0; const errs = [];
+        for (const r of ok) { try { await fpdfSubir(r.f, r.folio); n++; } catch (ex) { errs.push(ex.message); } }
+        toast(`${n} PDF guardado(s)${errs.length ? ` · ${errs.length} con error: ${esc(errs.slice(0, 2).join(" · "))}` : ""}${filas.length - ok.length ? ` · ${filas.length - ok.length} sin N° registrado (no se subieron)` : ""}.`, 9000);
+        if (typeof contDibujarFact === "function" && !$("vista-cont").classList.contains("oculto")) contDibujarFact();
+      } }]);
+  };
+  sel.click();
+}
+document.addEventListener("input", async e => {
+  const i = e.target.closest("input[data-fpm]"); if (!i) return;
+  const n = i.value.replace(/\D/g, ""), cel = document.querySelector(`[data-fpi="${i.dataset.fpm}"]`); if (!cel) return;
+  if (!n) { cel.innerHTML = '<span class="pill no">Escribe el N°</span>'; return; }
+  const { data } = await db.rpc("facturas_pdf_buscar", { p_folios: [Number(n)] });
+  const x = (data || []).find(r => r.tipo_dte === "Factura");
+  if (i.value.replace(/\D/g, "") !== n) return;
+  cel.innerHTML = !x ? '<span class="pill no">N° no registrado</span>'
+    : `${x.tiene_pdf ? '<span class="pill parcial">Reemplaza PDF</span>' : '<span class="pill ok">OK</span>'}<br><small>${esc(x.receptor || "")}${x.franquicia ? " · " + esc(x.franquicia) : ""} · ${fecha(x.fecha)} · ${$$(x.monto_total)}</small>`;
+  if (x && FPDF.existe) FPDF.existe.set(x.folio, x);
+});
+document.addEventListener("click", e => { if (e.target.closest("#ct-pdfs")) { e.preventDefault(); fpdfCargaMasiva(); } });
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
