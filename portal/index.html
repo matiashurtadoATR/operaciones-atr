@@ -278,7 +278,7 @@ window.PortalATR = (() => {
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>
-          <td class="x-movil t-doc">${doc ? esc(doc) : `<span class="d">Factura por emitir</span>`}</td>
+          <td class="x-movil t-doc">${doc ? esc(doc) : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
           <td class="x-movil t-fe">${fec(x.fecha_emision)}</td>
           <td class="t-fe t-ven">${fec(x.vencimiento)}</td>
           <td class="n t-mon"><b>${clp(pend ? x.saldo : x.monto)}</b>${pend && Number(x.saldo) !== Number(x.monto) ? `<div class="d">de ${clp(x.monto)}</div>` : ""}</td>

@@ -9230,7 +9230,7 @@ function dibujarCobros(){
       <td>${esc(r.concepto)}<br><small style="color:var(--gris)">Factura: ${esc(r.regla_factura)}</small></td>
       <td class="n"><b>${$$(r.monto)}</b></td>
       <td>${fecha(r.vencimiento) || "—"}${r.dias_vencido > 0 ? `<br><small class="rojo">vencido hace ${r.dias_vencido} días</small>` : ""}</td>
-      <td>${r.folio ? `N° ${esc(r.folio)}${r.fecha_factura ? `<br><small>${fecha(r.fecha_factura)}</small>` : ""}` : r.facturacion_estado ? `<small>${esc(r.facturacion_estado)}</small>` : "—"}</td>
+      <td>${r.folio ? `N° ${esc(r.folio)}${r.fecha_factura ? `<br><small>${fecha(r.fecha_factura)}</small>` : ""}` : r.regla_factura === "Sin factura" ? "<small>No aplica</small>" : r.facturacion_estado ? `<small>${esc(r.facturacion_estado)}</small>` : "—"}</td>
       <td>${r.estado_cobro === "Pagado" ? '<span class="pill ok">Pagado</span>' : r.estado_cobro === "Informado" ? '<span class="pill transf">Informado · falta cartola</span>' : '<span class="pill parcial">Por cobrar</span>'}</td>
       <td>${r.estado_cobro === "Pagado" ? `${r.no_bancario ? "N/A" : fecha(r.fecha_conciliacion)}<br><small>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`
           : r.estado_cobro === "Informado" ? (fqCheque(r) ? `<small><b>Cheque</b> al ${fecha(r.fecha_pago)}<br>${esc(r.banco || "")}</small>` : `<small>comprobante ${fecha(r.informado_en)}<br>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`) : ""}</td>
@@ -9908,7 +9908,7 @@ window.PortalATR = (() => {
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>
-          <td class="x-movil t-doc">${doc ? esc(doc) : `<span class="d">Factura por emitir</span>`}</td>
+          <td class="x-movil t-doc">${doc ? esc(doc) : x.requiere_factura === false ? `<span class="d" title="Este cobro no lleva factura (p. ej. garantías)">No aplica</span>` : `<span class="d">Factura por emitir</span>`}</td>
           <td class="x-movil t-fe">${fec(x.fecha_emision)}</td>
           <td class="t-fe t-ven">${fec(x.vencimiento)}</td>
           <td class="n t-mon"><b>${clp(pend ? x.saldo : x.monto)}</b>${pend && Number(x.saldo) !== Number(x.monto) ? `<div class="d">de ${clp(x.monto)}</div>` : ""}</td>
@@ -10159,7 +10159,7 @@ async function cobzAcceso(fr){
   await modal(`<h3>Acceso al portal · ${esc(fr)}</h3><p class="nota-g" style="margin-top:0">${esc(x.franquiciado || "")}. El franquiciado entra con este correo y un código que le llega ahí (no usa contraseña).</p>
       <label class="campo">Correo de acceso<input id="cobz-mail" value="${esc(x.email || x.correo_corporativo || "")}" placeholder="nombre@fr.aquituremodelacion.cl"></label>
       <p class="nota-g" style="margin:6px 0 0">Correo corporativo registrado: <b>${x.correo_corporativo ? esc(x.correo_corporativo) : "sin correo corporativo"}</b>${x.correo_corporativo && x.email && x.email !== String(x.correo_corporativo).toLowerCase() ? ` · <a href="#" onclick="document.getElementById('cobz-mail').value='${esc(x.correo_corporativo)}';return false">usar este</a>` : ""}.
-        Lo normal es @fr.aquituremodelacion.cl; si el franquiciado usa otro correo (excepción), escríbelo aquí.</p>
+        Lo normal es un correo @fr.aquituremodelacion.cl, pero puedes poner cualquier correo del franquiciado (por ejemplo @aquituremodelacion.cl o uno personal): quedará marcado como <i>Excepción</i>.</p>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="cobz-act" ${x.email && !x.activo ? "" : "checked"}> Acceso activo</label>
       <div class="cf-aviso" id="cobz-err" style="display:none;margin-top:10px"></div>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Guardar", fn: async f => {
