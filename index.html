@@ -1005,6 +1005,8 @@
 @media (max-width:700px){.ptl-hoja{grid-template-columns:1fr}.ptl-buscar{min-width:0;flex:1}
   .ptl-fac tr,.ptl-ob tr{grid-template-columns:1fr auto}.ptl-fac td,.ptl-ob td{grid-column:auto!important;grid-row:auto!important}}
 
+.ptl-cfx-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+
   /* v55 · ingreso en formulario */
   .f-seg{display:inline-flex;border:1px solid var(--linea);border-radius:999px;overflow:hidden;background:#fff}
   .f-seg button{border:0;background:none;padding:7px 14px;font-weight:600;color:var(--gris)}
@@ -1043,6 +1045,11 @@
   #cfx-cuerpo .cf-btn{white-space:normal;max-width:110px}
   #cfx-cuerpo td a[data-oblink]{word-break:break-all}
   @media (max-width:700px){.cfx-tabs{flex-wrap:nowrap;overflow-x:auto}.cfx-tabs button{white-space:nowrap}}
+
+  /* v58 · facturas a clientes que emite Contabilidad */
+  .fc-barra{background:#fff8ec;border:1px solid #f0d9a8;border-radius:12px;padding:10px 14px;margin:0 0 10px;display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap;font-size:13px}
+  .fc-barra>div:first-child{flex:1 1 380px}.fc-barra .fc-acc{display:flex;gap:6px;flex-wrap:wrap}
+  .fc-conf{background:#f7f3f0;border:1px solid var(--linea);border-radius:10px;padding:10px 14px;margin:14px 0 6px;font-size:13px;display:grid;gap:4px}
 </style>
 </head>
 <body>
@@ -1186,6 +1193,7 @@
       <h5 data-area="contabilidad">Facturación</h5>
       <button data-rep="cont" data-mod="fobras" data-area="contabilidad" data-solo-supabase="1">Facturas de obras<small>Royalty y Aquí Club · aprobadas por Patricio<span class="n-ctrl" id="cont-n-fobras"></span></small></button>
       <button data-rep="cont" data-mod="ffranq" data-area="contabilidad" data-solo-supabase="1">Facturas de franquiciados<small>Canon, arriendo, plataforma, mínimos…<span class="n-ctrl" id="cont-n-ffranq"></span></small></button>
+      <button data-rep="cont" data-mod="fcli" data-area="contabilidad" data-solo-supabase="1">Facturas a clientes<small>Dominicos · Nostradomus: emitir y registrar N°<span class="n-ctrl" id="cont-n-fcli"></span></small></button>
       <h5 data-area="contabilidad">Pagos</h5>
       <button data-rep="cont" data-mod="pagos" data-area="contabilidad" data-solo-supabase="1">Pagos para la semana<small>Enviados por Operaciones · marcar pagada<span class="n-ctrl" id="cont-n-pagos"></span></small></button>
       <button data-rep="cont" data-mod="conc" data-area="contabilidad" data-solo-supabase="1">Pagos conciliados<small>Obras y franquiciados · histórico</small></button>
@@ -1325,7 +1333,7 @@
      <section id="vista-sol" class="oculto">
       <div class="cp-head">
         <div><h1 id="sol-titulo">Solicitudes de factura</h1><p id="sol-sub"></p></div>
-        <div class="acciones"><button class="btn sec" id="sol-actualizar">Actualizar</button></div>
+        <div class="acciones"><button class="btn sec" data-vpdf="sol">Descargar PDF</button><button class="btn sec" id="sol-actualizar">Actualizar</button></div>
       </div>
       <div class="controles" id="sol-controles">
         <div class="campo"><label>Nueva solicitud</label>
@@ -1575,7 +1583,7 @@
       <div class="cp-head">
         <div><h1>Royalty y Aquí Club</h1><p>Facturas de obras. <b>1</b> aparece la recomendación · <b>2</b> la solicitas y queda esperando el visto bueno de Patricio · <b>3</b> aprobada, Contabilidad la emite ·
           si no corresponde o hay que cambiarla, <b>Rehacer</b> anula la solicitud y la vuelve a dejar por solicitar.</p></div>
-        <div class="acciones"><button class="btn sec" id="sugf-act">Actualizar</button></div>
+        <div class="acciones"><button class="btn sec" data-vpdf="sugf">Descargar PDF</button><button class="btn sec" id="sugf-act">Actualizar</button></div>
       </div>
       <div id="sugf-cuerpo"></div>
      </section>
@@ -1584,7 +1592,7 @@
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
         <div><h1>Arriendo · solicitar a Contabilidad</h1><p>Facturas espejo de arriendo ya aprobadas por Matías. Revisa y presiona <b>Solicitar emisión a Contabilidad</b>: la solicitud pasa a Contabilidad › Facturas de franquiciados.</p></div>
-        <div class="acciones"><button class="btn sec" id="arrfm-act">Actualizar</button></div>
+        <div class="acciones"><button class="btn sec" data-vpdf="arrfm">Descargar PDF</button><button class="btn sec" id="arrfm-act">Actualizar</button></div>
       </div>
       <div id="arrfm-cuerpo"></div>
      </section>
@@ -1744,7 +1752,7 @@
      <section id="vista-fres" class="oculto">
       <div class="cp-head">
         <div><h1>Resumen de facturación</h1><p>Seguimiento simple de las facturas de cada mes: cuántas hay que cobrar y cuántas ya están emitidas y enviadas.</p></div>
-        <div class="acciones"><label style="font-size:13px">Año <select id="fres-anio" style="margin-left:6px"></select></label><button class="btn sec" id="fres-act">Actualizar</button></div>
+        <div class="acciones"><label style="font-size:13px">Año <select id="fres-anio" style="margin-left:6px"></select></label><button class="btn sec" data-vpdf="fres">Descargar PDF</button><button class="btn sec" id="fres-act">Actualizar</button></div>
       </div>
       <div id="fres-cuerpo"></div>
      </section>
@@ -6128,7 +6136,7 @@ async function contContadores(){
 
 async function cargarCont(mod){
   if (mod === "fact") mod = "fobras";
-  CONT.mod = ["fobras", "ffranq", "pagos", "conc"].includes(mod) ? mod : "fobras";
+  CONT.mod = ["fobras", "ffranq", "fcli", "pagos", "conc"].includes(mod) ? mod : "fobras";
   document.querySelectorAll('.menu button[data-rep="cont"]').forEach(b => b.classList.toggle("activo", b.dataset.mod === CONT.mod));
   $("cont-titulo").textContent = CONT_INFO[CONT.mod].t; $("cont-desc").textContent = CONT_INFO[CONT.mod].d;
   $("cont-acciones").innerHTML = `<button class="btn sec" id="cont-xlsx">Descargar Excel</button><button class="btn sec" id="cont-act">Actualizar</button>`;
@@ -6136,6 +6144,7 @@ async function cargarCont(mod){
   if (CONT.mod === "fobras" || CONT.mod === "ffranq") await contCargarFact();
   if (CONT.mod === "pagos") await contCargarPagos();
   if (CONT.mod === "conc") await contCargarConc();
+  if (CONT.mod === "fcli") await contCargarFcli();
 }
 const contError = (e, sql) => { $("cont-cuerpo").innerHTML = `<div class="cf-aviso rojo">No pude leer los datos: ${esc(e.message)}${sql ? `<br>¿Se ejecutó ${sql} en Supabase?` : ""}</div>`; };
 
@@ -6377,6 +6386,8 @@ $("vista-cont").addEventListener("click", async e => {
   const rpc = async (fn, args, ok) => { const { data, error } = await db.rpc(fn, args); if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return null; }
     if (ok) toast(ok); return data || true; };
   if (t.id === "cont-act") { CONT.conc.datos = null; return cargarCont(CONT.mod); }
+  if (t.id === "cont-xlsx" && CONT.mod === "fcli") return contXlsxFcli();
+  if (CONT.mod === "fcli") return;
   if (t.id === "cont-xlsx") return /^f/.test(CONT.mod) ? contXlsxFact(contFactFiltradas().map(s => s.id)) : CONT.mod === "pagos" ? contXlsxPagos(contPagosVisibles().map(s => s.id)) : contXlsxConc();
   // facturas
   const cf = t.closest("[data-ctf]"); if (cf) { CONT.fact.filtro = cf.dataset.ctf; return contDibujarFact(); }
@@ -9189,7 +9200,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 57;
+const VERSION_PAGINA = 58;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9910,13 +9921,15 @@ window.PortalATR = (() => {
   const nuevaClave = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
 
   function montar(o){
-    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
+    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, cfx: null, cfxSec: "Clientes", cfxEst: "pend", cfxSel: new Set(), cfxMsg: "", qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
     const rpc = (fn, args) => S.sb.rpc(fn, args);
     const args = () => (S.fr ? { p_franquicia: S.fr } : {});
 
     async function cargar(){
       S.cont.innerHTML = `<div class="ptl"><p class="ptl-nota">Cargando tus deudas…</p></div>`;
-      const [s, d, p, f] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args())]);
+      const [s, d, p, f, c] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args()),
+                                                 rpc("portal_control_facturas", args())]);
+      S.cfx = c.error || !c.data || !c.data.habilitado ? null : c.data;   // sólo empresas de ATR (sin 58_… el portal funciona igual)
       const err = s.error || d.error || p.error;
       if (err) {
         S.cont.innerHTML = `<div class="ptl"><div class="ptl-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message)
@@ -9954,8 +9967,10 @@ window.PortalATR = (() => {
         <div class="ptl-tabs"><button data-tab="deudas" class="${S.tab === "deudas" ? "on" : ""}">Mis deudas</button>
           <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button>
           <button data-tab="facturas" class="${S.tab === "facturas" ? "on" : ""}">Mis facturas</button>
-          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button></div>`;
-      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : listaObras();
+          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button>
+          ${S.cfx ? `<button data-tab="cfx" class="${S.tab === "cfx" ? "on" : ""}">Control de facturas${cfxPend().length ? `<small>${cfxPend().length}</small>` : ""}</button>` : ""}</div>`;
+      if (S.tab === "cfx" && !S.cfx) S.tab = "deudas";
+      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : S.tab === "cfx" ? listaCfx() : listaObras();
       h += `</div>`;
       S.cont.innerHTML = h;
     }
@@ -10194,6 +10209,80 @@ window.PortalATR = (() => {
       if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
     }
 
+    // ---------------- Control de facturas (empresas de ATR: sus facturas a clientes las emite Contabilidad) ----------------
+    const CFX_P = ["Pendiente", "Solicitada", "Falta el cobro"];
+    const CFX_S = { Clientes: ["Facturas a mis clientes", "La factura de venta de cada pago de tus clientes. Como empresa de ATR, la emite Contabilidad de Atrium: marca los pagos pendientes y presiona “Pedir a Contabilidad”. Cuando la emitan, aquí verás el N° y el PDF."],
+      Materiales: ["Materiales", "Facturas de materiales que Atrium pagó para tus obras y la factura de Atrium a tu empresa por ellos."],
+      "Royalty y Aquí Club": ["Royalty y Aquí Club", "Royalty y Aquí Club de tus obras y su factura."],
+      Franquiciados: ["Facturas de Atrium", "Lo que Atrium te factura: plataforma tecnológica, mínimo trimestral, arriendo y otros."] };
+    const cfxPend = () => (S.cfx ? S.cfx.filas : []).filter(r => CFX_P.includes(r.estado));
+    const cfxPedible = r => S.cfx && S.cfx.puede_pedir && r.seccion === "Clientes" && r.estado === "Pendiente" && r.pago_id;
+    const cfxFol = r => !r.folio ? "" : r.ruta_pdf ? `<button class="ptl-link" data-pdf="${esc(r.ruta_pdf)}" title="Ver la factura">${esc(r.folio)}</button>` : r.seccion === "Clientes" ? esc(r.folio) : folios(r.folio);
+    const cfxDet = r => r.seccion === "Clientes" ? [r.cliente, r.obra && "Obra " + r.obra, r.id_pago]
+      : r.seccion === "Materiales" ? [r.proveedor, r.referencia, r.obra && "Obra " + r.obra] : r.seccion === "Franquiciados" ? [r.concepto, r.detalle, r.id_pago] : [r.concepto, r.obra && "Obra " + r.obra, r.cliente];
+    function cfxLista(){ return S.cfx.filas.filter(r => r.seccion === S.cfxSec && (S.cfxEst === "todas" || (S.cfxEst === "pend" ? CFX_P.includes(r.estado) : r.estado === "Emitida"))); }
+    function listaCfx(){
+      const L = cfxLista(), sec = CFX_S[S.cfxSec], ped = L.filter(cfxPedible), nSel = S.cfxSel.size;
+      let h = `<div class="ptl-filtros" style="align-items:center;flex-wrap:wrap">${Object.keys(CFX_S).map(k => { const n = S.cfx.filas.filter(r => r.seccion === k && CFX_P.includes(r.estado)).length;
+          return `<button class="${S.cfxSec === k ? "on" : ""}" data-cfxs="${esc(k)}">${esc(CFX_S[k][0])}${n ? ` · <b>${n}</b>` : ""}</button>`; }).join("")}</div>
+        <div class="ptl-cfx-acc"><div class="ptl-filtros" style="margin:0">${[["pend", "Pendientes"], ["ok", "Emitidas"], ["todas", "Todas"]].map(([k, t]) => `<button class="${S.cfxEst === k ? "on" : ""}" data-cfxe="${k}">${t}</button>`).join("")}</div>
+          <button class="ptl-btn sec chico" data-p="cfxpdf" style="margin-left:auto">Descargar PDF</button></div>
+        ${S.cfxMsg ? `<div class="ptl-aviso azul">${S.cfxMsg}</div>` : ""}
+        <p class="ptl-nota">${esc(sec[1])}</p>`;
+      if (S.cfxSec === "Clientes" && S.cfx.puede_pedir && (ped.length || nSel))
+        h += `<div class="ptl-cfx-acc">${ped.length ? `<button class="ptl-btn sec chico" data-p="cfxtodas">Marcar las ${ped.length} pendientes</button>` : ""}
+          <button class="ptl-btn chico" data-p="cfxpedir" ${nSel ? "" : "disabled"}>Pedir a Contabilidad${nSel ? ` (${nSel})` : ""}</button></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">✓</div>${S.cfxEst === "pend" ? "No hay facturas pendientes aquí." : "Sin facturas."}</div></div>`;
+      h += `<div class="ptl-caja"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Detalle</th><th class="n">Monto</th><th>N° factura</th><th>Estado</th></tr></thead><tbody>
+        ${L.map(r => `<tr><td class="t-fe">${cfxPedible(r) ? `<input type="checkbox" data-cfxsel="${r.pago_id}" ${S.cfxSel.has(r.pago_id) ? "checked" : ""} style="margin-right:6px">` : ""}${fec(r.fecha)}</td>
+          <td class="t-con"><div class="c">${esc(cfxDet(r)[0] || "")}</div><div class="d">${cfxDet(r).slice(1).filter(Boolean).map(esc).join(" · ")}</div></td>
+          <td class="n t-mon"><b>${clp(r.monto)}</b></td><td>${cfxFol(r)}${r.fecha_factura ? `<div class="d">${fec(r.fecha_factura)}</div>` : ""}</td>
+          <td><span class="ptl-est ${r.estado === "Emitida" ? "Pagada" : CFX_P.includes(r.estado) ? "Vencida" : ""}">${esc(r.estado === "Solicitada" && r.seccion === "Clientes" ? "Pedida a Contabilidad" : r.estado)}</span>
+            ${r.motivo_no_corresponde ? `<div class="d">${esc(r.motivo_no_corresponde)}</div>` : ""}${r.seccion === "Clientes" && r.detalle && r.solicitud_estado !== "Solicitada" ? `<div class="d">${esc(r.detalle)}</div>` : ""}
+            ${r.seccion === "Clientes" && r.solicitud_estado === "Solicitada" && S.cfx.puede_pedir ? `<button class="ptl-link" data-cfxret="${r.solicitud_id}">Retirar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+      return h;
+    }
+    async function cfxPedir(btn){
+      const ids = [...S.cfxSel]; if (!ids.length) return;
+      btn.disabled = true; btn.textContent = "Enviando…";
+      const r = await rpc("cfx_pedir_factura_cliente", { p: { pago_ids: ids } });
+      if (r.error) { S.cfxMsg = `<b>No se pudo:</b> ${esc(r.error.message)}`; return dibujar(); }
+      const L = S.cfx.filas.filter(x => ids.includes(x.pago_id));
+      const cuerpo = `Hola Andrea,\n\nTe pedí en el portal la emisión de ${r.data.n} factura(s) a clientes de ${S.ses.razon_social || S.ses.franquicia}:\n\n${L.map(x => `· ${x.cliente || ""} · obra ${x.obra || ""} · pago del ${fec(x.fecha)} por ${clp(x.monto)}`).join("\n")}\n\nGracias.`;
+      S.cfxSel.clear();
+      S.cfxMsg = `✓ ${r.data.n} factura(s) pedida(s) a Contabilidad. <a href="mailto:aruiz@iumbrales.cl?subject=${encodeURIComponent("Emisión de facturas a clientes · " + (S.ses.franquicia || ""))}&body=${encodeURIComponent(cuerpo)}">Avisar a Andrea por correo</a>`;
+      await cargar(); S.tab = "cfx"; dibujar();
+    }
+    function cfxScript(urls){
+      return new Promise((ok, mal) => { const prob = i => { if (i >= urls.length) return mal(new Error("sin librería"));
+        const s = document.createElement("script"); s.src = urls[i]; s.onload = () => ok(); s.onerror = () => { s.remove(); prob(i + 1); }; document.head.appendChild(s); }; prob(0); });
+    }
+    async function cfxPdf(){
+      try {
+        if (!window.jspdf) await cfxScript(["https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"]);
+        if (!window.jspdf.jsPDF.API.autoTable) await cfxScript(["https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"]);
+      } catch (_) { return window.print(); }
+      const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" }), W = doc.internal.pageSize.getWidth(), CAFE = [126, 53, 14];
+      const ahora = new Date().toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" }), limpio = t => String(t ?? "").replace(/[✓“”]/g, "");
+      doc.setTextColor(...CAFE); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(`Control de facturas · ${S.ses.razon_social || ""} (${S.ses.franquicia})`, 12, 15);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 75); doc.text(`Aquí Tu Remodelación · generado el ${ahora} · ${({ pend: "pendientes", ok: "emitidas", todas: "todas" })[S.cfxEst]}`, 12, 21);
+      doc.setDrawColor(...CAFE); doc.setLineWidth(0.7); doc.line(12, 24, W - 12, 24);
+      let y = 30;
+      for (const k of Object.keys(CFX_S)) {
+        const L = S.cfx.filas.filter(r => r.seccion === k && (S.cfxEst === "todas" || (S.cfxEst === "pend" ? CFX_P.includes(r.estado) : r.estado === "Emitida")));
+        if (!L.length) continue;
+        if (y > 180) { doc.addPage(); y = 16; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...CAFE); doc.text(`${CFX_S[k][0]} (${L.length}) · ${clp(L.reduce((a, r) => a + Number(r.monto || 0), 0))}`, 12, y); y += 3;
+        doc.autoTable({ startY: y, head: [["Fecha", "Detalle", "Monto", "N° factura", "Estado"]], body: L.map(r => [fec(r.fecha), cfxDet(r).filter(Boolean).join("\n"), clp(r.monto),
+            r.folio ? `${r.folio}${r.fecha_factura ? "\n" + fec(r.fecha_factura) : ""}` : "", limpio([r.estado === "Solicitada" && k === "Clientes" ? "Pedida a Contabilidad" : r.estado, r.motivo_no_corresponde].filter(Boolean).join("\n"))]),
+          theme: "grid", margin: { left: 12, right: 12 }, styles: { fontSize: 8, cellPadding: 1.4, lineColor: [234, 211, 198], lineWidth: 0.15, textColor: [42, 26, 18] },
+          headStyles: { fillColor: CAFE, textColor: 255 }, columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right", cellWidth: 28 }, 3: { cellWidth: 28 }, 4: { cellWidth: 50 } } });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      if (y === 30) { doc.setFontSize(10); doc.text("Sin facturas para este filtro.", 12, y); }
+      doc.save(`Control de facturas ${S.ses.franquicia} ${hoyISO()}.pdf`);
+    }
+
     // ---------------- eventos ----------------
     S.cont.onclick = e => {
       const t = e.target;
@@ -10203,16 +10292,25 @@ window.PortalATR = (() => {
       const cm = t.closest("[data-comp]"); if (cm) return verComprobante(cm.dataset.comp);
       const pdf = t.closest("[data-pdf]"); if (pdf) return verPdf(pdf.dataset.pdf);
       const ob = t.closest("[data-obra]"); if (ob) return verObra(ob.dataset.obra);
+      const cs = t.closest("[data-cfxs]"); if (cs) { S.cfxSec = cs.dataset.cfxs; S.cfxMsg = ""; return dibujar(); }
+      const ce = t.closest("[data-cfxe]"); if (ce) { S.cfxEst = ce.dataset.cfxe; return dibujar(); }
+      const cr = t.closest("[data-cfxret]");
+      if (cr) { cr.disabled = true; return rpc("cfx_anular_factura_cliente", { p: { id: +cr.dataset.cfxret } }).then(async r => {
+        S.cfxMsg = r.error ? `<b>No se pudo:</b> ${esc(r.error.message)}` : "Solicitud retirada: vuelve a quedar pendiente."; await cargar(); S.tab = "cfx"; dibujar(); }); }
       const p = t.closest("[data-p]");
       if (p && p.dataset.p === "act") return cargar();
       if (p && p.dataset.p === "limpiar") { S.sel.clear(); return dibujar(); }
       if (p && p.dataset.p === "pagarsel") return abrirPago([...S.sel]);
+      if (p && p.dataset.p === "cfxtodas") { cfxLista().filter(cfxPedible).forEach(r => S.cfxSel.add(r.pago_id)); return dibujar(); }
+      if (p && p.dataset.p === "cfxpedir") return cfxPedir(p);
+      if (p && p.dataset.p === "cfxpdf") return cfxPdf();
     };
     S.cont.oninput = e => {
       if (e.target.dataset.qf) { S.qf = e.target.value; const pos = e.target.selectionStart; dibujar(); const n = S.cont.querySelector("[data-qf]"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
     };
     S.cont.onchange = e => {
       const t = e.target;
+      if (t.dataset.cfxsel) { t.checked ? S.cfxSel.add(+t.dataset.cfxsel) : S.cfxSel.delete(+t.dataset.cfxsel); return dibujar(); }
       if (t.dataset.sel) { t.checked ? S.sel.add(+t.dataset.sel) : S.sel.delete(+t.dataset.sel); return dibujar(); }
       if (t.dataset.todas) { filtradas().filter(x => PENDIENTE.includes(x.estado)).forEach(x => t.checked ? S.sel.add(x.id) : S.sel.delete(x.id)); return dibujar(); }
     };
@@ -10706,6 +10804,7 @@ async function cargarTrans(){
   const err = p.error || d.error;
   if (err) { $("trans-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 55_transicion_excel_web.sql en Supabase." : esc(err.message)}</div>`; return; }
   TRANS.pend = p.data || []; TRANS.dup = d.data || [];
+  try { const r = await db.from("v_trans_folios_clientes").select("*"); TRANS.fc = r.error ? [] : (r.data || []); } catch (_) { TRANS.fc = []; }
   dibujarTrans(); transContador();
 }
 const transCopiar = id => `<button class="cf-btn" data-trcop="${esc(id)}" title="Copiar el Id">📋 ${esc(id)}</button>`;
@@ -10738,6 +10837,7 @@ function dibujarTrans(){
   }
   if (!P.length) h += `<p class="nota-g">${TRANS.pend.length ? "Sin resultados." : "✓ No hay pagos de la web pendientes de anotar en el Excel."}</p>`;
   else h += `<p class="nota-g">Anótalos en la hoja Pagos del libro que corresponde, en una fila nueva, con <b>el mismo Id</b> (botón 📋 lo copia) y los mismos datos. Con la próxima carga desaparecen de esta lista.</p>`;
+  h += transFcHTML();
   $("trans-cuerpo").innerHTML = h;
 }
 $("vista-trans").addEventListener("click", async e => {
@@ -10883,7 +10983,7 @@ async function cargarCfx(mod){
     const [f, i] = await Promise.all([todo(() => db.from("v_cfx_facturas").select("*")), todo(() => db.from("v_cfx_inconsistencias").select("*"))]);
     const err = f.error || i.error;
     if (err) { $("cfx-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 57_control_facturacion.sql en Supabase." : esc(err.message)}</div>`; return; }
-    CFX.filas = f.data || []; CFX.inc = i.data || [];
+    CFX.filas = f.data || []; CFX.inc = i.data || []; await cfxCargarEmisores();
   }
   dibujarCfx(); cfxContador();
 }
@@ -10908,7 +11008,7 @@ function dibujarCfx(){
       <div class="campo"><label>Desde</label><input type="date" id="cfx-desde" value="${esc(CFX.desde)}"></div>
       <div class="campo"><label>Hasta</label><input type="date" id="cfx-hasta" value="${esc(CFX.hasta)}"></div>
       <div class="campo" style="flex:1;min-width:200px"><label>Buscar</label><input id="cfx-q" value="${esc(CFX.q)}" placeholder="Cliente, obra, N° factura, proveedor…"></div>
-      ${CFX.mod !== "resumen" ? `<div class="campo"><label>&nbsp;</label><button class="btn sec" id="cfx-xlsx">Descargar Excel</button></div>` : ""}</div>`;
+      <div class="campo"><label>&nbsp;</label><div style="display:flex;gap:6px">${CFX.mod !== "resumen" ? `<button class="btn sec" id="cfx-xlsx">Descargar Excel</button>` : ""}<button class="btn sec" id="cfx-pdf">Descargar PDF</button></div></div></div>`;
   if (CFX.mod === "resumen") h += cfxResumen();
   else if (CFX.mod === "inconsistencias") h += cfxInconsistencias();
   else h += cfxTabla(CFX.mod);
@@ -10933,7 +11033,7 @@ function cfxResumen(){
     ${F.map(f => `<tr><td><b>${esc(f.fr)}</b><br><small>${esc(f.nom || "")}</small></td>${secs.map(s => { const x = f.s[s];
         return `<td class="n">${x ? `<a href="#" data-cfxver="${esc(f.fr)}|${esc(s)}"><b>${x.n}</b></a><br><small>${$$(x.m)}</small>` : "—"}</td>`; }).join("")}
       <td>${f.s.Clientes ? `<button class="btn-acc" data-cfxavisar="${esc(f.fr)}">Avisar</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="cp-vacio">✓ Sin pendientes.</td></tr>`}</tbody></table></div>
-    <p class="nota-g">Otras facturas que se controlan en su propio menú: el detalle mensual de plataforma, cartelería y arriendo en <a href="#" data-ir="cf">Facturación mensual</a> y el camino de cada solicitud en <a href="#" data-ir="sol">Registro de facturas</a>.</p>`;
+    ${cfxFcConfigHTML()}<p class="nota-g">Otras facturas que se controlan en su propio menú: el detalle mensual de plataforma, cartelería y arriendo en <a href="#" data-ir="cf">Facturación mensual</a> y el camino de cada solicitud en <a href="#" data-ir="sol">Registro de facturas</a>.</p>`;
   return h;
 }
 const CFX_COLS = {
@@ -10951,13 +11051,13 @@ function cfxTabla(mod){
   const sec = CFX_SEC[mod], L = cfxFiltradas(sec.s).sort((a, b) => (CFX_PEND.includes(b.estado) - CFX_PEND.includes(a.estado)) || String(b.fecha || "").localeCompare(String(a.fecha || "")));
   const cols = CFX_COLS[mod], ed = puedeEditar();
   const tot = L.reduce((a, r) => a + Number(r.monto || 0), 0);
-  return `<p class="nota-g" style="margin-top:0">${sec.d}</p>
+  return `${mod === "clientes" ? cfxFcBarra(L) : ""}<p class="nota-g" style="margin-top:0">${sec.d}</p>
     <p class="nota-g"><b>${L.length}</b> factura(s) · ${$$(tot)}</p>
     <div class="tabla-wrap"><table class="cp"><thead><tr>${cols.map(c => `<th class="${c[2] || ""}">${c[0]}</th>`).join("")}<th>Estado</th><th></th></tr></thead><tbody>
     ${L.slice(0, 600).map(r => `<tr>${cols.map(c => `<td class="${c[2] || ""}">${c[1](r)}</td>`).join("")}
-      <td><span class="pill ${CFX_EST[r.estado] || "sin"}">${esc(r.estado)}</span>${r.motivo_no_corresponde ? `<br><small>${esc(r.motivo_no_corresponde)}</small>` : ""}
+      <td><span class="pill ${CFX_EST[r.estado] || "sin"}">${esc(r.estado)}</span>${r.motivo_no_corresponde ? `<br><small>${esc(r.motivo_no_corresponde)}</small>` : ""}${r.seccion === "Clientes" && r.detalle ? `<br><small style="color:${r.solicitud_estado === "Rechazada" ? "#a1281f" : "var(--gris)"}">${esc(r.detalle)}</small>` : ""}
         ${CFX_PEND.includes(r.estado) ? `<br><small style="color:var(--gris)">${esc(r.responsable || "")}</small>` : ""}</td>
-      <td>${ed && r.clave && !r.clave.startsWith("sug:") ? (r.estado === "No corresponde" && r.motivo_no_corresponde && !/^La pagó|^Nota de crédito|^Sin pagador/.test(r.motivo_no_corresponde)
+      <td>${cfxFcAcc(r)}${ed && r.clave && !r.clave.startsWith("sug:") ? (r.estado === "No corresponde" && r.motivo_no_corresponde && !/^La pagó|^Nota de crédito|^Sin pagador/.test(r.motivo_no_corresponde)
           ? `<button class="cf-btn" data-cfxquitar="${esc(r.seccion)}|${esc(r.clave)}" title="Vuelve a quedar pendiente">Deshacer</button>`
           : CFX_PEND.includes(r.estado) || (r.seccion === "Materiales" && r.estado === "No corresponde" && /^Sin pagador/.test(r.motivo_no_corresponde || "")) ? `<button class="cf-btn" data-cfxnc="${esc(r.seccion)}|${esc(r.clave)}">No corresponde…</button>` : "") : ""}</td></tr>`).join("")
       || `<tr><td colspan="${cols.length + 2}" class="cp-vacio">${CFX.est === "pend" ? "✓ No hay pendientes con este filtro." : "Sin facturas con este filtro."}</td></tr>`}</tbody></table></div>
@@ -11007,6 +11107,291 @@ $("vista-cfx").addEventListener("change", e => {
   const m = { "cfx-fr": "fr", "cfx-desde": "desde", "cfx-hasta": "hasta" }; if (m[e.target.id]) { CFX[m[e.target.id]] = e.target.value; dibujarCfx(); }
 });
 $("vista-cfx").addEventListener("input", e => { if (e.target.id === "cfx-q") { CFX.q = e.target.value; const p = e.target.selectionStart; dibujarCfx(); const i = $("cfx-q"); i.focus(); i.setSelectionRange(p, p); } });
+
+/* =====================================================================
+   v58 · FACTURAS A CLIENTES QUE EMITE CONTABILIDAD (empresas de ATR: Dominicos · Nostradomus)
+   + PDF de los reportes de Control Facturación
+   ===================================================================== */
+const CONT_CORREO = "aruiz@iumbrales.cl";
+CFX.emis = {}; CFX.sel = new Set();
+async function cfxCargarEmisores(){
+  try { const { data, error } = await db.from("v_cfx_emisores").select("*");
+    CFX.emis = {}; if (!error) (data || []).forEach(x => CFX.emis[x.franquicia] = x); } catch (_) { CFX.emis = {}; }
+}
+const cfxPuede = fr => { const e = CFX.emis[fr]; return !!e && (SESION.rol === "admin" || (e.solicitantes || []).includes(String(SESION.email || "").toLowerCase())); };
+const cfxPedible = r => r.seccion === "Clientes" && r.emite_contabilidad && r.estado === "Pendiente" && r.pago_id && cfxPuede(r.franquicia);
+const cfxFcCheck = r => cfxPedible(r) ? `<input type="checkbox" data-fcsel="${r.pago_id}" ${CFX.sel.has(r.pago_id) ? "checked" : ""} style="margin-right:6px;vertical-align:-2px" title="Marcar para pedir a Contabilidad">` : "";
+CFX_COLS.clientes[0] = ["Cliente", r => `${cfxFcCheck(r)}<b>${esc(r.cliente || "")}</b>`];
+CFX_COLS.clientes[5] = ["N° factura venta", r => r.folio ? (r.ruta_pdf ? `<a href="#" class="fpdf" data-fpdf="${esc(r.ruta_pdf)}" title="Abrir el PDF">${esc(r.folio)}</a>` : esc(r.folio))
+  + (r.solicitud_estado === "Emitida" ? "<br><small>emitida por Contabilidad</small>" : "") : ""];
+function cfxFcAcc(r){
+  if (r.seccion !== "Clientes" || !r.emite_contabilidad || !cfxPuede(r.franquicia)) return "";
+  if (cfxPedible(r)) return `<button class="btn-acc" data-fcpedir="${r.pago_id}" style="margin-bottom:4px">Pedir a Contabilidad</button><br>`;
+  if (r.solicitud_estado === "Solicitada") return `<button class="cf-btn" data-fcretirar="${r.solicitud_id}" title="Contabilidad aún no la emite">Retirar solicitud</button>`;
+  return "";
+}
+function cfxFcBarra(L){
+  const fr = Object.keys(CFX.emis).filter(cfxPuede);
+  if (!fr.length) return "";
+  const ped = L.filter(cfxPedible), nSel = [...CFX.sel].length;
+  const emp = fr.map(f => `<b>${esc(CFX.emis[f].franquiciado)}</b> (${esc(f)})`).join(" y ");
+  return `<div class="fc-barra"><div>${emp} ${fr.length > 1 ? "son empresas" : "es empresa"} de ATR: sus facturas a clientes las emite <b>Contabilidad</b>. Marca los pagos y pídelas; Contabilidad registra el N° y el PDF, y aquí quedan como Emitidas.</div>
+    <div class="fc-acc">${ped.length ? `<button class="cf-btn" data-fctodas="1">Marcar las ${ped.length} pendientes</button>` : ""}${nSel ? `<button class="cf-btn" data-fclimpiar="1">Quitar marcas</button>` : ""}
+      <button class="btn-acc" data-fcpedirsel="1" ${nSel ? "" : "disabled"}>Pedir a Contabilidad${nSel ? ` (${nSel})` : ""}</button></div></div>`;
+}
+function cfxFcConfigHTML(){
+  const L = Object.values(CFX.emis); if (!L.length && SESION.rol !== "admin") return "";
+  return `<div class="fc-conf"><b>Facturas a clientes que emite Contabilidad</b> <small>(empresas de ATR)</small>
+    ${L.map(e => `<div>${esc(e.franquicia)} · ${esc(e.franquiciado)} — pueden pedirlas: ${(e.solicitantes || []).map(x => esc(x.split("@")[0])).join(", ") || "—"} y los administradores
+      ${SESION.rol === "admin" ? `<button class="cf-btn" data-fcconf="${esc(e.franquicia)}">Editar</button>` : ""}</div>`).join("") || "<div>Ninguna.</div>"}</div>`;
+}
+async function cfxFcPedir(ids){
+  const L = CFX.filas.filter(r => r.seccion === "Clientes" && ids.includes(r.pago_id));
+  if (!L.length) return toast("Marca al menos un pago.");
+  const tot = L.reduce((a, r) => a + Number(r.monto || 0), 0), frs = [...new Set(L.map(r => r.franquicia))];
+  const r = await modal(`<h3>Pedir a Contabilidad ${L.length} factura(s) a clientes</h3>
+      <p class="nota-g">${frs.map(f => esc((CFX.emis[f] || {}).franquiciado || f)).join(" · ")} · total ${$$(tot)}</p>
+      <ul class="nota-g" style="max-height:180px;overflow:auto;margin:6px 0">${L.map(x => `<li>${esc(x.cliente || "")} · ${fecha(x.fecha)} · ${$$(x.monto)} <small>(${esc(x.id_pago || "")})</small></li>`).join("")}</ul>
+      <label class="campo">Nota para Contabilidad (opcional)<input id="fc-obs" placeholder="Ej.: el cliente pide la factura a nombre de su empresa…"></label>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Pedir a Contabilidad", fn: async f => {
+      const { data, error } = await db.rpc("cfx_pedir_factura_cliente", { p: { pago_ids: L.map(x => x.pago_id), observacion: f.querySelector("#fc-obs").value } });
+      if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return data; } }]);
+  if (!r) return;
+  CFX.sel.clear();
+  const cuerpo = `Hola Andrea,\n\nTe pedí en la página la emisión de ${r.n} factura(s) a clientes:\n\n${L.map(x => `· ${(CFX.emis[x.franquicia] || {}).franquiciado || x.franquicia} → ${x.cliente || ""} · obra ${x.obra || ""} · pago del ${fecha(x.fecha)} por ${$$(x.monto)}`).join("\n")}\n\nLas ves en Contabilidad › Facturas a clientes, con los datos de cada cliente. Ahí registras el N° y subes el PDF.\n\nGracias.`;
+  toast(`✓ ${r.n} factura(s) pedida(s) a Contabilidad${r.omitidos && r.omitidos.length ? ` · ${r.omitidos.length} ya estaban pedidas o emitidas` : ""}. <a href="mailto:${CONT_CORREO}?subject=${encodeURIComponent("Emisión de facturas a clientes")}&body=${encodeURIComponent(cuerpo)}">✉ Avisar a Andrea</a>`, 14000);
+  CFX.filas = null; await cargarCfx();
+}
+$("vista-cfx").addEventListener("click", async e => {
+  const t = e.target;
+  if (t.closest("[data-fcpedir]")) return cfxFcPedir([+t.closest("[data-fcpedir]").dataset.fcpedir]);
+  if (t.closest("[data-fcpedirsel]")) return cfxFcPedir([...CFX.sel]);
+  if (t.closest("[data-fctodas]")) { cfxFiltradas(CFX_SEC.clientes.s).filter(cfxPedible).forEach(r => CFX.sel.add(r.pago_id)); return dibujarCfx(); }
+  if (t.closest("[data-fclimpiar]")) { CFX.sel.clear(); return dibujarCfx(); }
+  const rt = t.closest("[data-fcretirar]");
+  if (rt) { const { error } = await db.rpc("cfx_anular_factura_cliente", { p: { id: +rt.dataset.fcretirar } });
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+    toast("Solicitud retirada: vuelve a quedar pendiente."); CFX.filas = null; return cargarCfx(); }
+  const cf = t.closest("[data-fcconf]");
+  if (cf) { const fr = cf.dataset.fcconf, x = CFX.emis[fr] || {};
+    const ok = await modal(`<h3>¿Quién puede pedir las facturas a clientes de ${esc(fr)}?</h3><p class="nota-g">${esc(x.franquiciado || "")}. Los administradores siempre pueden. Correos separados por coma: usuarios de la página o del portal de esa franquicia.</p>
+        <label class="campo">Correos<input id="fc-sol" value="${esc((x.solicitantes || []).join(", "))}"></label>`,
+      [{ t: "Cancelar", sec: 1 }, { t: "Guardar", fn: async f => {
+        const { error } = await db.rpc("cfx_config_emisor", { p: { franquicia: fr, solicitantes: f.querySelector("#fc-sol").value } });
+        if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
+    if (ok) { await cfxCargarEmisores(); dibujarCfx(); toast("Guardado."); }
+    return; }
+  if (t.id === "cfx-pdf") return cfxPdf();
+});
+$("vista-cfx").addEventListener("change", e => {
+  const c = e.target.closest("[data-fcsel]"); if (!c) return;
+  c.checked ? CFX.sel.add(+c.dataset.fcsel) : CFX.sel.delete(+c.dataset.fcsel); dibujarCfx();
+});
+
+/* ---------------- PDF (jsPDF + autotable; si no carga, impresión del navegador) ---------------- */
+async function pdfLibs(){
+  if (!window.jspdf) await cfScript(["https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"]);
+  if (!window.jspdf.jsPDF.API.autoTable) await cfScript(["https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"]);
+}
+const pdfLimpio = t => String(t ?? "").replace(/[⚠✓✉📄📋↻ⓘ⇄]/g, "").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+\n/g, "\n").trim();
+function pdfNuevo(titulo, lineas){
+  const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth(), CAFE = [126, 53, 14], NAR = [190, 80, 20], ahora = new Date().toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
+  try { doc.addImage(LOGO_PNG, "PNG", 12, 9, 34, 16.5); } catch (_) {}
+  doc.setTextColor(...CAFE); doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.text(pdfLimpio(titulo), 52, 16);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 75);
+  doc.text(`Generado el ${ahora}${SESION.email ? " por " + SESION.email : ""}`, 52, 21.5);
+  if (lineas && lineas.length) doc.text(doc.splitTextToSize(pdfLimpio(lineas.join(" · ")), W - 64), 52, 26);
+  doc.setDrawColor(...CAFE); doc.setLineWidth(0.8); doc.line(12, 31, W - 12, 31);
+  const P = { doc, y: 37 };
+  P.h = t => { if (P.y > 180) { doc.addPage(); P.y = 16; } doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(...CAFE); doc.text(pdfLimpio(t), 12, P.y);
+    doc.setDrawColor(...NAR); doc.setLineWidth(0.4); doc.line(12, P.y + 1.4, W - 12, P.y + 1.4); P.y += 4; };
+  P.p = t => { doc.setFont("helvetica", "normal"); doc.setFontSize(8.8); doc.setTextColor(60, 50, 45); const L = doc.splitTextToSize(pdfLimpio(t), W - 24);
+    if (P.y + L.length * 4 > 195) { doc.addPage(); P.y = 16; } doc.text(L, 12, P.y + 2); P.y += L.length * 4 + 3; };
+  const est = { styles: { font: "helvetica", fontSize: 7.6, cellPadding: 1.4, overflow: "linebreak", valign: "top", lineColor: [234, 211, 198], lineWidth: 0.15, textColor: [42, 26, 18] },
+    headStyles: { fillColor: CAFE, textColor: 255, fontStyle: "bold", fontSize: 7.6 }, alternateRowStyles: { fillColor: [251, 246, 243] }, showHead: "everyPage", rowPageBreak: "avoid",
+    margin: { left: 12, right: 12, top: 14, bottom: 14 }, theme: "grid" };
+  P.t = (head, body, opc = {}) => { doc.autoTable({ ...est, startY: P.y, head: [head.map(pdfLimpio)], body: body.map(f => f.map(pdfLimpio)), ...opc }); P.y = doc.lastAutoTable.finalY + 7; };
+  P.html = (tabla, opc = {}) => { doc.autoTable({ ...est, startY: P.y, html: tabla, didParseCell: d => { d.cell.text = d.cell.text.map(pdfLimpio); }, ...opc }); P.y = doc.lastAutoTable.finalY + 7; };
+  P.guardar = nombre => { const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(120, 110, 105);
+      doc.text(`${pdfLimpio(titulo)} · Aquí Tu Remodelación · ${ahora}`, 12, 203); doc.text(`Página ${i} de ${n}`, W - 12, 203, { align: "right" }); }
+    doc.save(nombre.replace(/[\\/:*?"<>|]/g, "-") + ".pdf"); toast("✓ PDF descargado."); };
+  return P;
+}
+// las mismas columnas de la pantalla, en texto
+const CFX_PDF = {
+  clientes: [["Cliente", r => r.cliente], ["Franquicia", r => `${r.franquicia || ""}\n${r.franquiciado || ""}`], ["Obra", r => r.obra], ["Fecha pago", r => fecha(r.fecha)], ["Monto", r => $$(r.monto), 1],
+             ["N° factura", r => r.folio], ["Fecha emisión", r => fecha(r.fecha_factura)], ["Pago", r => r.id_pago]],
+  materiales: [["Proveedor", r => `${r.proveedor || ""}\n${r.id_pago || ""}`], ["Factura compra", r => r.referencia], ["Obra / destino", r => `${r.obra || ""}\n${r.franquicia || ""}`], ["Cliente", r => r.cliente],
+               ["Fecha", r => fecha(r.fecha)], ["Monto", r => $$(r.monto), 1], ["Factura espejo", r => r.folio ? `${r.folio}\n${fecha(r.fecha_factura)}` : ""]],
+  royalty: [["Franquicia", r => `${r.franquicia || ""}\n${r.franquiciado || ""}`], ["Obra", r => r.obra], ["Cliente", r => r.cliente], ["Concepto", r => r.concepto], ["Fecha", r => fecha(r.fecha)],
+            ["Monto", r => $$(r.monto), 1], ["N° factura", r => r.folio ? `${r.folio}\n${fecha(r.fecha_factura)}` : ""], ["Cobro", r => r.id_pago]],
+  franquiciados: [["Franquicia", r => `${r.franquicia || ""}\n${r.franquiciado || ""}`], ["Concepto", r => `${r.concepto || ""}${r.detalle ? "\n" + String(r.detalle).slice(0, 70) : ""}`], ["Fecha", r => fecha(r.fecha)],
+                  ["Neto", r => r.neto == null ? "" : $$(r.neto), 1], ["IVA", r => r.iva == null ? "" : $$(r.iva), 1], ["Total", r => $$(r.monto), 1], ["UF", r => r.uf ? Number(r.uf).toLocaleString("es-CL") : "", 1],
+                  ["N° factura", r => r.folio ? `${r.folio}\n${fecha(r.fecha_factura)}` : ""], ["Cobro · solicitud", r => [r.id_pago, r.referencia].filter(Boolean).join("\n")]] };
+const cfxEstTxt = r => [r.estado, r.motivo_no_corresponde, r.seccion === "Clientes" ? r.detalle : "", CFX_PEND.includes(r.estado) ? r.responsable : ""].filter(Boolean).join("\n");
+function cfxPdfTabla(P, mod, L){
+  const cols = CFX_PDF[mod], nE = cols.length;
+  P.t([...cols.map(c => c[0]), "Estado"], L.map(r => [...cols.map(c => String(c[1](r) ?? "")), cfxEstTxt(r)]), {
+    columnStyles: Object.fromEntries(cols.map((c, i) => [i, c[2] ? { halign: "right" } : {}]).concat([[nE, { cellWidth: 46 }]])),
+    didParseCell: d => { if (d.section === "body" && d.column.index === nE && CFX_PEND.includes(L[d.row.index].estado)) { d.cell.styles.textColor = [161, 40, 31]; d.cell.styles.fontStyle = "bold"; } } });
+}
+async function cfxPdf(){
+  if (!CFX.filas) return;
+  try { await pdfLibs(); } catch (e) { toast("No se pudo cargar el generador de PDF (sin internet o bloqueado). Se abre la impresión: elige “Guardar como PDF”.", 9000); return window.print(); }
+  const tabN = { resumen: "Resumen", inconsistencias: "Inconsistencias", ...Object.fromEntries(Object.entries(CFX_SEC).map(([k, v]) => [k, v.t])) };
+  const fil = [CFX.fr ? `Franquicia ${CFX.fr}${CFX.filas.find(r => r.franquicia === CFX.fr) ? " · " + CFX.filas.find(r => r.franquicia === CFX.fr).franquiciado : ""}` : "Todas las franquicias",
+    CFX.mod !== "resumen" && CFX.mod !== "inconsistencias" ? "Estado: " + { pend: "pendientes", ok: "emitidas", nc: "no corresponde", todas: "todos" }[CFX.est] : "",
+    CFX.desde || CFX.hasta ? `Fechas: ${CFX.desde ? fecha(CFX.desde) : "…"} a ${CFX.hasta ? fecha(CFX.hasta) : "…"}` : "", CFX.q ? `Búsqueda: "${CFX.q}"` : ""].filter(Boolean);
+  const P = pdfNuevo("Control Facturación · " + tabN[CFX.mod], fil);
+  if (CFX.mod === "resumen") {
+    P.h("Resumen");
+    P.t(["Facturas", "Pendientes", "Monto sin factura", "Emitidas", "No corresponde"], Object.keys(CFX_SEC).map(k => { const L = cfxFiltradas(CFX_SEC[k].s, false), Pn = L.filter(r => CFX_PEND.includes(r.estado)), E = L.filter(r => r.estado === "Emitida");
+      return [CFX_SEC[k].t, String(Pn.length), $$(Pn.reduce((a, r) => a + Number(r.monto || 0), 0)), String(E.length), String(L.length - Pn.length - E.length)]; }).concat([["Inconsistencias detectadas", String(CFX.inc.length), "", "", ""]]),
+      { tableWidth: 190, columnStyles: { 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } } });
+    const P0 = cfxFiltradas(null, false).filter(r => CFX_PEND.includes(r.estado)), secs = Object.values(CFX_SEC).map(x => x.s);
+    const frs = [...new Set(P0.map(r => r.franquicia || "Sin franquicia"))].sort();
+    if (frs.length) { P.h("Pendientes por franquicia");
+      P.t(["Franquicia", ...secs], frs.map(f => { const X = P0.filter(r => (r.franquicia || "Sin franquicia") === f);
+        return [`${f}\n${(X[0] || {}).franquiciado || ""}`, ...secs.map(s => { const Y = X.filter(r => r.seccion === s); return Y.length ? `${Y.length} · ${$$(Y.reduce((a, r) => a + Number(r.monto || 0), 0))}` : "-"; })]; }),
+        { columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } } }); }
+    for (const k of Object.keys(CFX_SEC)) { const L = cfxFiltradas(CFX_SEC[k].s, false).filter(r => CFX_PEND.includes(r.estado));
+      if (!L.length) continue; P.h(`${CFX_SEC[k].t} · pendientes (${L.length})`); cfxPdfTabla(P, k, L); }
+    if (!P0.length) P.p("Sin facturas pendientes con estos filtros.");
+  } else if (CFX.mod === "inconsistencias") {
+    P.h(`Inconsistencias (${CFX.inc.length})`);
+    if (CFX.inc.length) P.t(["Tipo", "Referencia", "Detalle"], CFX.inc.map(r => [r.tipo, r.referencia, r.detalle || ""])); else P.p("Sin inconsistencias.");
+  } else {
+    const L = cfxFiltradas(CFX_SEC[CFX.mod].s).sort((a, b) => (CFX_PEND.includes(b.estado) - CFX_PEND.includes(a.estado)) || String(b.fecha || "").localeCompare(String(a.fecha || "")));
+    P.h(`${CFX_SEC[CFX.mod].t} (${L.length})`);
+    P.p(`${L.length} factura(s) · ${$$(L.reduce((a, r) => a + Number(r.monto || 0), 0))}. ${CFX_SEC[CFX.mod].d.replace(/<[^>]+>/g, "")}`);
+    if (L.length) cfxPdfTabla(P, CFX.mod, L); else P.p("Sin facturas con estos filtros.");
+  }
+  P.guardar(`Control Facturación - ${tabN[CFX.mod]}${CFX.fr ? " - " + CFX.fr : ""} - ${hoyISO()}`);
+}
+// PDF de las otras pantallas de Control Facturación: las tablas tal como se ven
+async function vistaPdf(id){
+  const sec = $("vista-" + id); if (!sec) return;
+  try { await pdfLibs(); } catch (e) { toast("No se pudo cargar el generador de PDF. Se abre la impresión: elige “Guardar como PDF”.", 9000); return window.print(); }
+  const titulo = (sec.querySelector("h1") || {}).textContent || "Reporte";
+  const tablas = [...sec.querySelectorAll("table")].filter(t => t.offsetParent !== null && !t.parentElement.closest("table"));
+  if (!tablas.length) return toast("No hay tablas para exportar en esta pantalla.");
+  const caja = document.createElement("div"); caja.style.cssText = "position:absolute;left:-99999px;top:0;width:1400px"; document.body.appendChild(caja);
+  const P = pdfNuevo(titulo, [...new Set([...sec.querySelectorAll(".chips .activo")].filter(x => x.offsetParent !== null).map(x => "Filtro: " + x.innerText.replace(/\s+/g, " ").trim()))].slice(0, 4));
+  try {
+    for (const t of tablas) {
+      const c = t.cloneNode(true);
+      c.querySelectorAll("tr.detalle, button, input, select, textarea, label:has(input[type=file]), .oculto").forEach(x => x.remove());
+      caja.appendChild(c);
+      const h = t.closest(".ct-card, .tabla-wrap") && t.closest(".tabla-wrap").previousElementSibling;
+      if (h && /^H[2-5]$/.test(h.tagName)) P.h(h.textContent.trim());
+      if (c.rows.length) P.html(c);
+    }
+    P.guardar(`${titulo.trim()} - ${hoyISO()}`);
+  } finally { caja.remove(); }
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-vpdf]"); if (b) vistaPdf(b.dataset.vpdf); });
+
+/* ---------------- Contabilidad › Facturas a clientes (Dominicos · Nostradomus) ---------------- */
+CONT_INFO.fcli = { t: "Facturas a clientes · Dominicos y Nostradomus", d: "Facturas de venta a los clientes de las obras de Dominicos y Nostradomus (empresas de ATR). Las piden Operaciones, Priscilla (Dominicos) o Alejandro Cuadra (Nostradomus). Emítela desde la empresa indicada en cada grupo, registra el N° y la fecha y sube el PDF. Si no se puede emitir, recházala con el motivo: quien la pidió lo ve." };
+CONT.fcli = { lista: null, filtro: "pend", q: "" };
+async function contCargarFcli(){
+  const r = await todo(() => db.from("v_cont_facturas_clientes").select("*").order("solicitado_en", { ascending: false }));
+  if (r.error) return contError(r.error, "58_facturas_clientes_contabilidad.sql");
+  CONT.fcli.lista = r.data || []; contDibujarFcli(); contContadores();
+}
+const FCL_F = [["pend", "Por emitir", x => x.estado === "Solicitada"], ["emit", "Emitidas", x => x.estado === "Emitida"], ["rech", "Rechazadas", x => x.estado === "Rechazada"], ["todas", "Todas", () => true]];
+function contFcliFiltradas(){
+  const F = CONT.fcli, q = contQ(F.q), fn = FCL_F.find(x => x[0] === F.filtro)[2];
+  return (F.lista || []).filter(x => fn(x) && (!q || contQ([x.cliente, x.rut_cliente, x.obra, x.centro_costo, x.id_pago, x.folio, x.emisor, x.franquicia].join(" ")).includes(q)));
+}
+function contDibujarFcli(){
+  const F = CONT.fcli, L = contFcliFiltradas(), ed = puedeEditar();
+  let h = `<div class="controles"><div class="chips">${FCL_F.map(([k, t, fn]) => `<button class="chip ${F.filtro === k ? "activo" : ""}" data-fclf="${k}">${t} · ${(F.lista || []).filter(fn).length}</button>`).join("")}</div>
+    <div class="campo" style="min-width:240px"><label>Buscar</label><input id="fcl-q" value="${esc(F.q)}" placeholder="Cliente, RUT, obra, N° factura…"></div></div>`;
+  if (!L.length) { $("cont-cuerpo").innerHTML = h + `<p class="nota-g">${F.filtro === "pend" ? "No hay facturas a clientes por emitir. Llegan aquí cuando Operaciones, Priscilla o Alejandro las piden." : "Sin resultados."}</p>`; return; }
+  const grupos = [...new Set(L.map(x => x.franquicia))];
+  for (const fr of grupos) {
+    const G = L.filter(x => x.franquicia === fr), g0 = G[0], pend = G.filter(x => x.estado === "Solicitada");
+    h += `<div class="ct-card" data-fclgrupo="${esc(fr)}"><div class="ct-grupo-cab"><div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center">
+        <span>Emite</span><b style="color:var(--cafe)">${esc(g0.emisor)}</b><small>RUT ${esc(rut(g0.rut_emisor))} · franquicia <a href="#" data-ctficha-fr="${esc(fr)}">${esc(fr)}</a></small>
+        <b style="margin-left:auto">${G.length} factura(s) · ${$$(G.reduce((a, x) => a + Number(x.monto || 0), 0))}</b></div></div>
+      <div class="tabla-wrap" style="border:0;border-radius:0"><table class="ct-t ct-fact"><thead><tr><th>Pedida</th><th>Cliente</th><th>RUT cliente</th><th>Giro</th><th>Dirección</th><th>Comuna</th><th>Correo</th>
+        <th>Obra · CC</th><th>Pago del cliente</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th class="ct-fol">N° factura</th></tr></thead><tbody>
+      ${G.map(x => `<tr class="${x.estado === "Emitida" ? "pagado" : ""}">
+        <td style="white-space:nowrap">${fecha(x.solicitado_en)}<br><small>${contUser(x.solicitado_por)}</small>${x.observacion ? `<br><small style="color:#9a5b00">Nota: ${esc(x.observacion)}</small>` : ""}</td>
+        <td style="min-width:140px">${x.obra ? `<a href="#" data-ctficha-obra="${esc(x.obra)}" title="Ver hoja del cliente"><b>${esc(x.cliente || x.obra)}</b></a>` : `<b>${esc(x.cliente || "")}</b>`}${x.telefono_cliente ? `<br><small>${esc(x.telefono_cliente)}</small>` : ""}</td>
+        <td style="white-space:nowrap">${esc(rut(x.rut_cliente))}</td><td><small>${esc(x.giro_cliente || "")}</small></td><td style="min-width:140px">${esc(x.direccion || "")}</td><td>${esc(x.comuna || "")}</td><td>${esc(x.correo_cliente || "")}</td>
+        <td><small>${esc(x.obra || "")}${x.centro_costo ? "<br>CC " + esc(x.centro_costo) : ""}</small></td>
+        <td style="white-space:nowrap"><small>${esc(x.id_pago || "")}<br>${fecha(x.fecha_pago)}${x.medio_pago ? " · " + esc(x.medio_pago) : ""}</small></td>
+        <td class="n">${$$(x.neto)}</td><td class="n">${$$(x.iva)}</td><td class="n"><b>${$$(x.monto)}</b></td>
+        <td class="ct-fol" style="white-space:nowrap">${x.estado === "Emitida" ? `<span class="pill ok">F° ${esc(x.folio)}</span><br><small>${fecha(x.fecha_emision)}</small><br>${x.ruta_pdf ? `<a href="#" class="cf-btn" data-fpdf="${esc(x.ruta_pdf)}">📄 PDF</a>` : ""}${ed ? ` <label class="cf-btn" style="cursor:pointer${x.ruta_pdf ? "" : ";color:#a1281f"}" title="${x.ruta_pdf ? "Reemplazar" : "Subir"} el PDF">${x.ruta_pdf ? "↻" : "Subir PDF"}<input type="file" accept="application/pdf" data-fclpdf="${x.id}" style="display:none"></label>` : ""}`
+          : x.estado === "Rechazada" ? `<span class="pill no">Rechazada</span><br><small>${esc(x.motivo_rechazo || "")}</small>`
+          : ed ? `<input class="fcl-folio" data-fcl="${x.id}" inputmode="numeric" placeholder="N° factura" style="width:105px"><br><button class="cf-btn" data-fclrech="${x.id}" style="margin-top:4px">Rechazar…</button>` : '<span class="pill parcial">Por emitir</span>'}</td></tr>`).join("")}</tbody></table></div>
+      ${pend.length && ed ? `<div class="ct-folio" style="margin:0;border-radius:0"><span style="font-size:12.5px;flex:1 1 260px">Escribe el <b>N° de cada factura emitida</b> desde ${esc(g0.emisor)} (${pend.length} por emitir) y registra. Puedes registrar sólo las que ya emitiste. Luego sube el PDF de cada una.</span>
+        <label>Fecha factura<input type="date" class="fcl-fecha" value="${hoyISO()}"></label><button class="btn" data-fclreg="${esc(fr)}">Registrar facturas</button></div>` : ""}</div>`;
+  }
+  $("cont-cuerpo").innerHTML = h;
+}
+function contXlsxFcli(){
+  const L = contFcliFiltradas(), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L.map(x => ({ Estado: x.estado, Emite: x.emisor, "RUT emisor": rut(x.rut_emisor), Franquicia: x.franquicia, Cliente: x.cliente, "RUT cliente": rut(x.rut_cliente),
+    Giro: x.giro_cliente || "", Dirección: x.direccion || "", Comuna: x.comuna || "", Ciudad: x.ciudad || "", Correo: x.correo_cliente || "", Teléfono: x.telefono_cliente || "", Obra: x.obra, "Centro costo": x.centro_costo || "",
+    "Id pago": x.id_pago, "Fecha pago": fecha(x.fecha_pago), "Medio pago": x.medio_pago || "", Neto: Number(x.neto), IVA: Number(x.iva), Total: Number(x.monto),
+    "Pedida el": fecha(x.solicitado_en), "Pedida por": x.solicitado_por, Nota: x.observacion || "", "N° factura": x.folio || "", "Fecha factura": fecha(x.fecha_emision), "Motivo rechazo": x.motivo_rechazo || "" }))), "Facturas a clientes");
+  XLSX.writeFile(wb, `Facturas a clientes - ${new Date().toLocaleDateString("es-CL").replace(/\//g, "-")}.xlsx`);
+}
+$("vista-cont").addEventListener("click", async e => {
+  if (CONT.mod !== "fcli") return;
+  const t = e.target;
+  const f = t.closest("[data-fclf]"); if (f) { CONT.fcli.filtro = f.dataset.fclf; return contDibujarFcli(); }
+  const rg = t.closest("[data-fclreg]");
+  if (rg) { const card = rg.closest(".ct-card");
+    const filas = [...card.querySelectorAll("input.fcl-folio")].filter(i => i.value.trim()).map(i => ({ id: +i.dataset.fcl, folio: i.value.trim() }));
+    if (!filas.length) return toast("Escribe el N° de al menos una factura.");
+    rg.disabled = true;
+    const { data, error } = await db.rpc("cont_emitir_factura_cliente", { p: { filas, fecha: card.querySelector(".fcl-fecha").value } });
+    rg.disabled = false;
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+    toast(`✓ ${data.n} factura(s) registrada(s). Sube el PDF de cada una.`); return contCargarFcli(); }
+  const rc = t.closest("[data-fclrech]");
+  if (rc) { const ok = await modal(`<h3>Rechazar la solicitud</h3><p class="nota-g">Quien la pidió verá el motivo y podrá volver a pedirla.</p><label class="campo">Motivo<input id="fcl-mot" placeholder="Ej.: falta el RUT o la dirección del cliente"></label>`,
+      [{ t: "Cancelar", sec: 1 }, { t: "Rechazar", fn: async m => { const { error } = await db.rpc("cont_rechazar_factura_cliente", { p: { id: +rc.dataset.fclrech, motivo: m.querySelector("#fcl-mot").value } });
+        if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
+    if (ok) { toast("Solicitud rechazada."); contCargarFcli(); } }
+});
+$("vista-cont").addEventListener("change", async e => {
+  const inp = e.target.closest("input[data-fclpdf]"); if (!inp || !inp.files[0]) return;
+  const id = +inp.dataset.fclpdf, x = (CONT.fcli.lista || []).find(r => r.id === id), file = inp.files[0];
+  if (!/pdf$/i.test(file.type || file.name)) return toast("⚠ Debe ser un PDF.");
+  if (file.size > 10 * 1024 * 1024) return toast("⚠ El PDF pesa más de 10 MB.");
+  const ruta = `emitidas/clientes/${x.franquicia}/${x.folio || id}_${Date.now()}.pdf`;
+  const up = await db.storage.from("facturas").upload(ruta, file, { contentType: "application/pdf", upsert: false });
+  if (up.error) return toast("⚠ " + esc(up.error.message), 9000);
+  const { error } = await db.rpc("cont_pdf_factura_cliente", { p: { id, ruta } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`PDF de la factura N° ${esc(x.folio || "")} guardado.`); contCargarFcli();
+});
+$("vista-cont").addEventListener("input", e => {
+  if (e.target.id !== "fcl-q") return;
+  CONT.fcli.q = e.target.value; const p = e.target.selectionStart; contDibujarFcli(); const i = $("fcl-q"); i.focus(); i.setSelectionRange(p, p);
+});
+const contContadoresBase = contContadores;
+contContadores = async function(){
+  await contContadoresBase();
+  try { const { data, error } = await db.from("v_cont_facturas_clientes").select("id").eq("estado", "Solicitada");
+    if (!error && $("cont-n-fcli")) $("cont-n-fcli").textContent = data && data.length ? ` · ${data.length} por emitir` : ""; } catch (_) {}
+};
+
+/* ---------------- Excel ↔ Web: N° emitidos por Contabilidad que faltan en el Excel ---------------- */
+function transFcHTML(){
+  const L = TRANS.fc || []; if (!L.length) return "";
+  return `<h3 class="fres-h" style="margin-top:18px">N° de facturas a clientes emitidas por Contabilidad, por anotar en el Excel <small>Dominicos y Nostradomus</small></h3>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Id pago</th><th>Id ATR Obra</th><th>Fecha pago</th><th class="n">Monto</th><th>Factura Venta (anotar)</th><th>Fecha factura</th></tr></thead><tbody>
+    ${L.map(x => `<tr><td>${transCopiar(x.id_pago)}</td><td><small>${esc(x.obra || "")}</small></td><td>${fecha(x.fecha_pago)}</td><td class="n">${$$(x.monto)}</td><td><b style="font-size:15px">${esc(x.folio)}</b></td><td>${fecha(x.fecha_emision)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="nota-g">En el libro BBDD-Clientes Obras › hoja Pagos, busca el Id pago y anota el N° en la columna "Factura Venta". Con la próxima carga desaparecen de esta lista.</p>`;
+}
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>

@@ -163,6 +163,8 @@
 @media (max-width:700px){.ptl-hoja{grid-template-columns:1fr}.ptl-buscar{min-width:0;flex:1}
   .ptl-fac tr,.ptl-ob tr{grid-template-columns:1fr auto}.ptl-fac td,.ptl-ob td{grid-column:auto!important;grid-row:auto!important}}
 
+.ptl-cfx-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+
 </style>
 </head>
 <body>
@@ -216,13 +218,15 @@ window.PortalATR = (() => {
   const nuevaClave = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
 
   function montar(o){
-    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
+    const S = { sb: o.sb, cont: o.cont, fr: o.franquicia || null, ses: null, deudas: [], pagos: [], facturas: [], fpdf: new Map(), obras: null, cfx: null, cfxSec: "Clientes", cfxEst: "pend", cfxSel: new Set(), cfxMsg: "", qf: "", tab: "deudas", filtro: "pend", sel: new Set(), cargando: false };
     const rpc = (fn, args) => S.sb.rpc(fn, args);
     const args = () => (S.fr ? { p_franquicia: S.fr } : {});
 
     async function cargar(){
       S.cont.innerHTML = `<div class="ptl"><p class="ptl-nota">Cargando tus deudas…</p></div>`;
-      const [s, d, p, f] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args())]);
+      const [s, d, p, f, c] = await Promise.all([rpc("portal_sesion", args()), rpc("portal_deudas", args()), rpc("portal_mis_pagos", args()), rpc("portal_facturas", args()),
+                                                 rpc("portal_control_facturas", args())]);
+      S.cfx = c.error || !c.data || !c.data.habilitado ? null : c.data;   // sólo empresas de ATR (sin 58_… el portal funciona igual)
       const err = s.error || d.error || p.error;
       if (err) {
         S.cont.innerHTML = `<div class="ptl"><div class="ptl-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message)
@@ -260,8 +264,10 @@ window.PortalATR = (() => {
         <div class="ptl-tabs"><button data-tab="deudas" class="${S.tab === "deudas" ? "on" : ""}">Mis deudas</button>
           <button data-tab="pagos" class="${S.tab === "pagos" ? "on" : ""}">Mis pagos${nRev ? `<small>${nRev}</small>` : ""}</button>
           <button data-tab="facturas" class="${S.tab === "facturas" ? "on" : ""}">Mis facturas</button>
-          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button></div>`;
-      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : listaObras();
+          <button data-tab="obras" class="${S.tab === "obras" ? "on" : ""}">Mis obras</button>
+          ${S.cfx ? `<button data-tab="cfx" class="${S.tab === "cfx" ? "on" : ""}">Control de facturas${cfxPend().length ? `<small>${cfxPend().length}</small>` : ""}</button>` : ""}</div>`;
+      if (S.tab === "cfx" && !S.cfx) S.tab = "deudas";
+      h += S.tab === "deudas" ? tablaDeudas() : S.tab === "pagos" ? listaPagos() : S.tab === "facturas" ? listaFacturas() : S.tab === "cfx" ? listaCfx() : listaObras();
       h += `</div>`;
       S.cont.innerHTML = h;
     }
@@ -500,6 +506,80 @@ window.PortalATR = (() => {
       if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
     }
 
+    // ---------------- Control de facturas (empresas de ATR: sus facturas a clientes las emite Contabilidad) ----------------
+    const CFX_P = ["Pendiente", "Solicitada", "Falta el cobro"];
+    const CFX_S = { Clientes: ["Facturas a mis clientes", "La factura de venta de cada pago de tus clientes. Como empresa de ATR, la emite Contabilidad de Atrium: marca los pagos pendientes y presiona “Pedir a Contabilidad”. Cuando la emitan, aquí verás el N° y el PDF."],
+      Materiales: ["Materiales", "Facturas de materiales que Atrium pagó para tus obras y la factura de Atrium a tu empresa por ellos."],
+      "Royalty y Aquí Club": ["Royalty y Aquí Club", "Royalty y Aquí Club de tus obras y su factura."],
+      Franquiciados: ["Facturas de Atrium", "Lo que Atrium te factura: plataforma tecnológica, mínimo trimestral, arriendo y otros."] };
+    const cfxPend = () => (S.cfx ? S.cfx.filas : []).filter(r => CFX_P.includes(r.estado));
+    const cfxPedible = r => S.cfx && S.cfx.puede_pedir && r.seccion === "Clientes" && r.estado === "Pendiente" && r.pago_id;
+    const cfxFol = r => !r.folio ? "" : r.ruta_pdf ? `<button class="ptl-link" data-pdf="${esc(r.ruta_pdf)}" title="Ver la factura">${esc(r.folio)}</button>` : r.seccion === "Clientes" ? esc(r.folio) : folios(r.folio);
+    const cfxDet = r => r.seccion === "Clientes" ? [r.cliente, r.obra && "Obra " + r.obra, r.id_pago]
+      : r.seccion === "Materiales" ? [r.proveedor, r.referencia, r.obra && "Obra " + r.obra] : r.seccion === "Franquiciados" ? [r.concepto, r.detalle, r.id_pago] : [r.concepto, r.obra && "Obra " + r.obra, r.cliente];
+    function cfxLista(){ return S.cfx.filas.filter(r => r.seccion === S.cfxSec && (S.cfxEst === "todas" || (S.cfxEst === "pend" ? CFX_P.includes(r.estado) : r.estado === "Emitida"))); }
+    function listaCfx(){
+      const L = cfxLista(), sec = CFX_S[S.cfxSec], ped = L.filter(cfxPedible), nSel = S.cfxSel.size;
+      let h = `<div class="ptl-filtros" style="align-items:center;flex-wrap:wrap">${Object.keys(CFX_S).map(k => { const n = S.cfx.filas.filter(r => r.seccion === k && CFX_P.includes(r.estado)).length;
+          return `<button class="${S.cfxSec === k ? "on" : ""}" data-cfxs="${esc(k)}">${esc(CFX_S[k][0])}${n ? ` · <b>${n}</b>` : ""}</button>`; }).join("")}</div>
+        <div class="ptl-cfx-acc"><div class="ptl-filtros" style="margin:0">${[["pend", "Pendientes"], ["ok", "Emitidas"], ["todas", "Todas"]].map(([k, t]) => `<button class="${S.cfxEst === k ? "on" : ""}" data-cfxe="${k}">${t}</button>`).join("")}</div>
+          <button class="ptl-btn sec chico" data-p="cfxpdf" style="margin-left:auto">Descargar PDF</button></div>
+        ${S.cfxMsg ? `<div class="ptl-aviso azul">${S.cfxMsg}</div>` : ""}
+        <p class="ptl-nota">${esc(sec[1])}</p>`;
+      if (S.cfxSec === "Clientes" && S.cfx.puede_pedir && (ped.length || nSel))
+        h += `<div class="ptl-cfx-acc">${ped.length ? `<button class="ptl-btn sec chico" data-p="cfxtodas">Marcar las ${ped.length} pendientes</button>` : ""}
+          <button class="ptl-btn chico" data-p="cfxpedir" ${nSel ? "" : "disabled"}>Pedir a Contabilidad${nSel ? ` (${nSel})` : ""}</button></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">✓</div>${S.cfxEst === "pend" ? "No hay facturas pendientes aquí." : "Sin facturas."}</div></div>`;
+      h += `<div class="ptl-caja"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Detalle</th><th class="n">Monto</th><th>N° factura</th><th>Estado</th></tr></thead><tbody>
+        ${L.map(r => `<tr><td class="t-fe">${cfxPedible(r) ? `<input type="checkbox" data-cfxsel="${r.pago_id}" ${S.cfxSel.has(r.pago_id) ? "checked" : ""} style="margin-right:6px">` : ""}${fec(r.fecha)}</td>
+          <td class="t-con"><div class="c">${esc(cfxDet(r)[0] || "")}</div><div class="d">${cfxDet(r).slice(1).filter(Boolean).map(esc).join(" · ")}</div></td>
+          <td class="n t-mon"><b>${clp(r.monto)}</b></td><td>${cfxFol(r)}${r.fecha_factura ? `<div class="d">${fec(r.fecha_factura)}</div>` : ""}</td>
+          <td><span class="ptl-est ${r.estado === "Emitida" ? "Pagada" : CFX_P.includes(r.estado) ? "Vencida" : ""}">${esc(r.estado === "Solicitada" && r.seccion === "Clientes" ? "Pedida a Contabilidad" : r.estado)}</span>
+            ${r.motivo_no_corresponde ? `<div class="d">${esc(r.motivo_no_corresponde)}</div>` : ""}${r.seccion === "Clientes" && r.detalle && r.solicitud_estado !== "Solicitada" ? `<div class="d">${esc(r.detalle)}</div>` : ""}
+            ${r.seccion === "Clientes" && r.solicitud_estado === "Solicitada" && S.cfx.puede_pedir ? `<button class="ptl-link" data-cfxret="${r.solicitud_id}">Retirar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+      return h;
+    }
+    async function cfxPedir(btn){
+      const ids = [...S.cfxSel]; if (!ids.length) return;
+      btn.disabled = true; btn.textContent = "Enviando…";
+      const r = await rpc("cfx_pedir_factura_cliente", { p: { pago_ids: ids } });
+      if (r.error) { S.cfxMsg = `<b>No se pudo:</b> ${esc(r.error.message)}`; return dibujar(); }
+      const L = S.cfx.filas.filter(x => ids.includes(x.pago_id));
+      const cuerpo = `Hola Andrea,\n\nTe pedí en el portal la emisión de ${r.data.n} factura(s) a clientes de ${S.ses.razon_social || S.ses.franquicia}:\n\n${L.map(x => `· ${x.cliente || ""} · obra ${x.obra || ""} · pago del ${fec(x.fecha)} por ${clp(x.monto)}`).join("\n")}\n\nGracias.`;
+      S.cfxSel.clear();
+      S.cfxMsg = `✓ ${r.data.n} factura(s) pedida(s) a Contabilidad. <a href="mailto:aruiz@iumbrales.cl?subject=${encodeURIComponent("Emisión de facturas a clientes · " + (S.ses.franquicia || ""))}&body=${encodeURIComponent(cuerpo)}">Avisar a Andrea por correo</a>`;
+      await cargar(); S.tab = "cfx"; dibujar();
+    }
+    function cfxScript(urls){
+      return new Promise((ok, mal) => { const prob = i => { if (i >= urls.length) return mal(new Error("sin librería"));
+        const s = document.createElement("script"); s.src = urls[i]; s.onload = () => ok(); s.onerror = () => { s.remove(); prob(i + 1); }; document.head.appendChild(s); }; prob(0); });
+    }
+    async function cfxPdf(){
+      try {
+        if (!window.jspdf) await cfxScript(["https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"]);
+        if (!window.jspdf.jsPDF.API.autoTable) await cfxScript(["https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"]);
+      } catch (_) { return window.print(); }
+      const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" }), W = doc.internal.pageSize.getWidth(), CAFE = [126, 53, 14];
+      const ahora = new Date().toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" }), limpio = t => String(t ?? "").replace(/[✓“”]/g, "");
+      doc.setTextColor(...CAFE); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(`Control de facturas · ${S.ses.razon_social || ""} (${S.ses.franquicia})`, 12, 15);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 75); doc.text(`Aquí Tu Remodelación · generado el ${ahora} · ${({ pend: "pendientes", ok: "emitidas", todas: "todas" })[S.cfxEst]}`, 12, 21);
+      doc.setDrawColor(...CAFE); doc.setLineWidth(0.7); doc.line(12, 24, W - 12, 24);
+      let y = 30;
+      for (const k of Object.keys(CFX_S)) {
+        const L = S.cfx.filas.filter(r => r.seccion === k && (S.cfxEst === "todas" || (S.cfxEst === "pend" ? CFX_P.includes(r.estado) : r.estado === "Emitida")));
+        if (!L.length) continue;
+        if (y > 180) { doc.addPage(); y = 16; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...CAFE); doc.text(`${CFX_S[k][0]} (${L.length}) · ${clp(L.reduce((a, r) => a + Number(r.monto || 0), 0))}`, 12, y); y += 3;
+        doc.autoTable({ startY: y, head: [["Fecha", "Detalle", "Monto", "N° factura", "Estado"]], body: L.map(r => [fec(r.fecha), cfxDet(r).filter(Boolean).join("\n"), clp(r.monto),
+            r.folio ? `${r.folio}${r.fecha_factura ? "\n" + fec(r.fecha_factura) : ""}` : "", limpio([r.estado === "Solicitada" && k === "Clientes" ? "Pedida a Contabilidad" : r.estado, r.motivo_no_corresponde].filter(Boolean).join("\n"))]),
+          theme: "grid", margin: { left: 12, right: 12 }, styles: { fontSize: 8, cellPadding: 1.4, lineColor: [234, 211, 198], lineWidth: 0.15, textColor: [42, 26, 18] },
+          headStyles: { fillColor: CAFE, textColor: 255 }, columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right", cellWidth: 28 }, 3: { cellWidth: 28 }, 4: { cellWidth: 50 } } });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      if (y === 30) { doc.setFontSize(10); doc.text("Sin facturas para este filtro.", 12, y); }
+      doc.save(`Control de facturas ${S.ses.franquicia} ${hoyISO()}.pdf`);
+    }
+
     // ---------------- eventos ----------------
     S.cont.onclick = e => {
       const t = e.target;
@@ -509,16 +589,25 @@ window.PortalATR = (() => {
       const cm = t.closest("[data-comp]"); if (cm) return verComprobante(cm.dataset.comp);
       const pdf = t.closest("[data-pdf]"); if (pdf) return verPdf(pdf.dataset.pdf);
       const ob = t.closest("[data-obra]"); if (ob) return verObra(ob.dataset.obra);
+      const cs = t.closest("[data-cfxs]"); if (cs) { S.cfxSec = cs.dataset.cfxs; S.cfxMsg = ""; return dibujar(); }
+      const ce = t.closest("[data-cfxe]"); if (ce) { S.cfxEst = ce.dataset.cfxe; return dibujar(); }
+      const cr = t.closest("[data-cfxret]");
+      if (cr) { cr.disabled = true; return rpc("cfx_anular_factura_cliente", { p: { id: +cr.dataset.cfxret } }).then(async r => {
+        S.cfxMsg = r.error ? `<b>No se pudo:</b> ${esc(r.error.message)}` : "Solicitud retirada: vuelve a quedar pendiente."; await cargar(); S.tab = "cfx"; dibujar(); }); }
       const p = t.closest("[data-p]");
       if (p && p.dataset.p === "act") return cargar();
       if (p && p.dataset.p === "limpiar") { S.sel.clear(); return dibujar(); }
       if (p && p.dataset.p === "pagarsel") return abrirPago([...S.sel]);
+      if (p && p.dataset.p === "cfxtodas") { cfxLista().filter(cfxPedible).forEach(r => S.cfxSel.add(r.pago_id)); return dibujar(); }
+      if (p && p.dataset.p === "cfxpedir") return cfxPedir(p);
+      if (p && p.dataset.p === "cfxpdf") return cfxPdf();
     };
     S.cont.oninput = e => {
       if (e.target.dataset.qf) { S.qf = e.target.value; const pos = e.target.selectionStart; dibujar(); const n = S.cont.querySelector("[data-qf]"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }
     };
     S.cont.onchange = e => {
       const t = e.target;
+      if (t.dataset.cfxsel) { t.checked ? S.cfxSel.add(+t.dataset.cfxsel) : S.cfxSel.delete(+t.dataset.cfxsel); return dibujar(); }
       if (t.dataset.sel) { t.checked ? S.sel.add(+t.dataset.sel) : S.sel.delete(+t.dataset.sel); return dibujar(); }
       if (t.dataset.todas) { filtradas().filter(x => PENDIENTE.includes(x.estado)).forEach(x => t.checked ? S.sel.add(x.id) : S.sel.delete(x.id)); return dibujar(); }
     };
