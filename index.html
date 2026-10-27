@@ -1025,6 +1025,11 @@
   .f-ro .f-rov{padding:8px 10px;background:#f6f1ee;border-radius:8px;color:var(--tinta);font-weight:400;min-height:34px}
   .f-calc{color:#a89a92;font-style:italic}
   .f-na{display:flex;gap:10px;align-items:center}.f-na input[type=date]{flex:1}.f-na label{display:flex;gap:4px;align-items:center;font-weight:400}
+
+  /* v55 · transición Excel ↔ Web */
+  .trans-guia{background:#fff8ec;border:1px solid #f0d9a8;border-radius:12px;padding:12px 16px;display:grid;gap:8px;font-size:13.5px}
+  .trans-guia summary{cursor:pointer;color:var(--cafe);font-weight:600}
+  .trans-mini{background:#fff8ec;border:1px solid #f0d9a8;border-radius:10px;padding:8px 12px;font-size:12.5px;margin:0 0 10px}
 </style>
 </head>
 <body>
@@ -1091,6 +1096,7 @@
       <h5 data-area="operaciones">Pagos</h5>
       <button data-rep="pagos" data-area="operaciones">Control de Pagos<small>Revisar · por pagar · Contabilidad · pagadas</small></button>
       <button data-rep="reg" data-area="operaciones">Registro de Pagos<small>Por pagar · comprobantes · falta cartola</small></button>
+      <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web<small>Id T… por anotar en el Excel · duplicados<span class="n-ctrl" id="trans-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
       <h5 data-area="operaciones">Control</h5>
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
@@ -1684,6 +1690,15 @@
       </div></details>
      </section>
 
+     <section id="vista-trans" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Excel ↔ Web (transición)</h1><p>Mientras el Excel sea la fuente oficial: qué se creó en la web y falta anotar en el Excel, y qué quedó duplicado. Así ambos tienen exactamente lo mismo.</p></div>
+        <div class="acciones"><button class="btn sec" id="trans-act">Actualizar</button></div>
+      </div>
+      <div id="trans-cuerpo"></div>
+     </section>
+
      <section id="vista-cobz" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
@@ -1914,7 +1929,7 @@ async function entrarApp(){
       if (puedeArea("facturacion")) { irA("ing", "oc"); arrfmContador(); cprechContador(); respContador(); fpdfCargar(); } else if (puedeArea("contabilidad")) { revisarVersion(); fpdfCargar().then(() => irA("cont", "fobras")); contContadores(); }
       return; }
     if (puedeArea("contabilidad")) contContadores();
-    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar();
+    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar(); transContador(); transAvisos();
   }
   if (SESION.ok) revisarVersion();
   if (location.hash === "#panel" && SESION.ok) { try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {} irA("panel"); }
@@ -2075,7 +2090,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2100,6 +2115,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "fres") cargarFres();
   if (rep === "cuad") cargarCuad(mod || CUAD.mod);
   if (rep === "cobz") cargarCobz(mod || COBZ.mod);
+  if (rep === "trans") cargarTrans();
   if (rep === "ctrl") cargarControl(mod || CTRL.sub);
   if (rep === "panel") { window.scrollTo(0, 0); cargarPanel(); }
   if (rep === "cpi") cargarCPI();
@@ -2124,7 +2140,7 @@ document.querySelectorAll(".menu button[data-rep]").forEach(b => b.onclick = () 
 const NAV = { pila: [] };
 const NOMBRE_VISTA = { pagos: "Control de Pagos", act: "Activación franquicias", ger: "Panorama gerencial", franq: "Resumen Franquiciado",
                        negocio: "Resumen Negocio", sol: "Solicitudes de factura", ing: "Ingreso de datos", reg: "Registro de Pagos",
-                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Control de Facturación", mt: "Mínimos trimestrales", onb: "Estado de activación", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", sugf: "Royalty y Aquí Club", fop: "Facturación Operaciones", arrfm: "Arriendo · solicitar a Contabilidad" };
+                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Control de Facturación", mt: "Mínimos trimestrales", onb: "Estado de activación", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Facturación Operaciones", arrfm: "Arriendo · solicitar a Contabilidad" };
 const vistaActual = () => VISTAS.find(v => !$("vista-" + v).classList.contains("oculto"));
 function actualizarVolver(){
   const prev = NAV.pila[NAV.pila.length - 1];
@@ -9147,7 +9163,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 54;
+const VERSION_PAGINA = 55;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10642,6 +10658,94 @@ $("ing-modo-sel").addEventListener("click", e => { const b = e.target.closest("[
   if (b.dataset.modo === "form") { G.cambios.clear(); G.nuevas = []; G.errores.clear(); }
   formModo(b.dataset.modo); });
 formModo(FORM.modo);
+
+/* =====================================================================
+   v55 · TRANSICIÓN EXCEL ↔ WEB: pagos de la web (Id T…) por anotar en el Excel y posibles duplicados
+   ===================================================================== */
+const TRANS = { pend: [], dup: [], q: "" };
+const TRANS_ORIG = { FRANQUICIA: "Libro Franquiciados › hoja Pagos", OBRA: "Libro BBDD-Clientes Obras › hoja Pagos" };
+async function transContador(){
+  if (!puedeArea("operaciones") || SESION.fuente === "app") return;
+  try {
+    const [p, d] = await Promise.all([db.from("v_trans_por_anotar").select("id", { count: "exact", head: true }), db.from("v_trans_duplicados").select("id_web")]);
+    const np = p.count || 0, nd = (d.data || []).length;
+    if ($("trans-n")) $("trans-n").innerHTML = nd ? ` · <b style="color:#a1281f">${nd} duplicado(s)</b>` : np ? ` · ${np} por anotar` : "";
+    if (nd && !TRANS.avisado) { TRANS.avisado = true;
+      toast(`⚠ Hay <b>${nd} posible(s) pago(s) duplicado(s)</b> entre el Excel y la web. <a href="#" data-ir="trans">Revisar</a>`, 12000); }
+  } catch (_) {}
+}
+async function cargarTrans(){
+  $("trans-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const [p, d] = await Promise.all([todo(() => db.from("v_trans_por_anotar").select("*").order("created_at", { ascending: false })), todo(() => db.from("v_trans_duplicados").select("*"))]);
+  const err = p.error || d.error;
+  if (err) { $("trans-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 55_transicion_excel_web.sql en Supabase." : esc(err.message)}</div>`; return; }
+  TRANS.pend = p.data || []; TRANS.dup = d.data || [];
+  dibujarTrans(); transContador();
+}
+const transCopiar = id => `<button class="cf-btn" data-trcop="${esc(id)}" title="Copiar el Id">📋 ${esc(id)}</button>`;
+function dibujarTrans(){
+  const q = TRANS.q.toLowerCase(), P = TRANS.pend.filter(x => !q || [x.id_pago, x.franquicia, x.obra, x.item, x.observaciones].join(" ").toLowerCase().includes(q));
+  let h = `<div class="trans-guia">
+      <div><b>1 · El Excel manda.</b> Todo se sigue registrando en el Excel y se carga cada mañana (<code>cargar_base.bat</code>) antes de usar la web o el Colab.</div>
+      <div><b>2 · Lo que nace en la web lleva Id T…</b> (ej. TPFRA000012): pagos aceptados en Control de Pagos, cobros de Plataforma tecnológica, Mínimo trimestral y Arriendo al enviarse a Contabilidad.
+        Al anotarlo en el Excel, <b>usa ese mismo Id T…</b> en la columna "Id pago". <u>Nunca</u> le pongas un Id nuevo (PATR…): queda duplicado.</div>
+      <div><b>3 · Royalty, Aquí Club y canon de entrada</b> no crean Id: usan el cobro que ya está en el Excel. Pedirlos por la web no cambia nada en el Excel.</div>
+      <details><summary>¿Y la conciliación?</summary>Para un pago T… anotado en el Excel con su mismo Id, la fecha de conciliación del Excel se copia sola a la web en la carga. Si en la web ya tiene fecha, manda la de la web.</details></div>
+    <div class="kpis" style="grid-template-columns:repeat(2,1fr);margin:12px 0">
+      <div class="kpi ${TRANS.dup.length ? "alerta" : ""}"><div class="t">Posibles duplicados</div><div class="v" style="${TRANS.dup.length ? "color:#a1281f" : ""}">${TRANS.dup.length}</div><div class="s">${TRANS.dup.length ? "Corregir en el Excel (abajo)" : "Todo bien"}</div></div>
+      <div class="kpi"><div class="t">Pagos de la web por anotar en el Excel</div><div class="v">${TRANS.pend.length}</div><div class="s">Desaparecen solos con la próxima carga del Excel</div></div></div>`;
+  if (TRANS.dup.length) h += `<h3 class="fres-h" style="color:#a1281f">⚠ Posibles duplicados <small>la misma operación está en el Excel con otro Id</small></h3>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Libro / hoja</th><th>En el Excel dice</th><th>Debe decir (Id de la web)</th><th>Franquicia / obra</th><th>Ítem</th><th class="n">Monto</th></tr></thead><tbody>
+    ${TRANS.dup.map(x => `<tr><td><small>${esc(TRANS_ORIG[x.origen])}</small></td><td><b style="color:#a1281f;text-decoration:line-through">${esc(x.id_excel)}</b></td><td>${transCopiar(x.id_web)}</td>
+      <td><small>${esc(x.destino)}</small></td><td><small>${esc(x.item)}</small></td><td class="n">${$$(x.monto)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="nota-g"><b>Cómo se corrige:</b> en el Excel busca la fila con el Id tachado y reemplázalo por el Id de la web (no borres la fila). En la próxima carga quedan como un solo pago.</p>`;
+  h += `<h3 class="fres-h" style="margin-top:18px">Pagos creados en la web que faltan en el Excel</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><input id="trans-q" placeholder="Buscar Id, franquicia, obra o ítem" value="${esc(TRANS.q)}" style="flex:1;max-width:360px">
+      <button class="btn sec" id="trans-xlsx">Descargar lista (Excel)</button></div>`;
+  for (const o of ["FRANQUICIA", "OBRA"]) {
+    const L = P.filter(x => x.origen === o); if (!L.length) continue;
+    h += `<h4 style="margin:10px 0 4px">${esc(TRANS_ORIG[o])} · ${L.length}</h4><div class="tabla-wrap"><table class="cp"><thead><tr><th>Id pago</th><th>${o === "OBRA" ? "Id ATR Obra" : "Id ATR Franquicia"}</th><th>Ítem</th><th>Fecha pago</th>
+      <th class="n">Monto</th><th>Fecha conciliación</th><th>Factura venta</th><th>Vencimiento</th><th>Viene de</th></tr></thead><tbody>
+      ${L.map(x => `<tr><td>${transCopiar(x.id_pago)}</td><td><small>${esc(o === "OBRA" ? x.obra : x.franquicia)}</small></td><td><small>${esc(x.item)}</small></td><td>${fecha(x.fecha_pago) || "—"}</td>
+        <td class="n">${$$(x.monto)}</td><td>${x.no_bancario ? "N/A" : fecha(x.fecha_conciliacion) || "—"}</td><td>${esc(x.factura_venta || "")}</td><td>${fecha(x.vencimiento) || ""}</td>
+        <td><small>${esc(x.origen_web)}</small>${x.observaciones ? `<br><small style="color:var(--gris)">${esc(String(x.observaciones).slice(0, 80))}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  if (!P.length) h += `<p class="nota-g">${TRANS.pend.length ? "Sin resultados." : "✓ No hay pagos de la web pendientes de anotar en el Excel."}</p>`;
+  else h += `<p class="nota-g">Anótalos en la hoja Pagos del libro que corresponde, en una fila nueva, con <b>el mismo Id</b> (botón 📋 lo copia) y los mismos datos. Con la próxima carga desaparecen de esta lista.</p>`;
+  $("trans-cuerpo").innerHTML = h;
+}
+$("vista-trans").addEventListener("click", async e => {
+  const c = e.target.closest("[data-trcop]");
+  if (c) { try { await navigator.clipboard.writeText(c.dataset.trcop); } catch (_) {} toast(`Id ${esc(c.dataset.trcop)} copiado. Pégalo en la columna "Id pago" del Excel.`); return; }
+  if (e.target.id === "trans-act") return cargarTrans();
+  if (e.target.id === "trans-xlsx") {
+    const fila = x => x.origen === "OBRA"
+      ? { "Id pago": x.id_pago, "Id ATR Obra (Centro de Costo)": x.obra, "Fecha Pago": fecha(x.fecha_pago), "Item Pago": x.item, "Monto en pesos": Number(x.monto), "Medio de Pago": x.medio || "",
+          "Fecha Conciliación": x.no_bancario ? "N/A" : fecha(x.fecha_conciliacion), "Banco": x.banco || "", "Factura Venta": x.factura_venta || "", "Observaciones Pagos": x.observaciones || "" }
+      : { "Id pago": x.id_pago, "Id ATR Franquicia": x.franquicia, "Fecha Pago": fecha(x.fecha_pago), "Item Pago": x.item, "Monto en pesos": Number(x.monto), "Medio de Pago": x.medio || "",
+          "Fecha Conciliación": x.no_bancario ? "N/A" : fecha(x.fecha_conciliacion), "Observaciones Pagos": x.observaciones || "", "N° Factura Venta": x.factura_venta || "",
+          "Banco": x.banco || "", "Vencimiento": fecha(x.vencimiento) };
+    const wb = XLSX.utils.book_new();
+    for (const o of ["FRANQUICIA", "OBRA"]) { const L = TRANS.pend.filter(x => x.origen === o).map(fila); if (L.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L), o === "OBRA" ? "Pagos obras" : "Pagos franquiciados"); }
+    if (!wb.SheetNames.length) return toast("No hay pagos por anotar.");
+    XLSX.writeFile(wb, `Pagos web por anotar en Excel - ${new Date().toLocaleDateString("es-CL").replace(/\//g, "-")}.xlsx`);
+  }
+});
+$("vista-trans").addEventListener("input", e => { if (e.target.id === "trans-q") { TRANS.q = e.target.value; const pos = e.target.selectionStart; dibujarTrans(); const i = $("trans-q"); i.focus(); i.setSelectionRange(pos, pos); } });
+// aviso fijo en las pantallas donde nacen los Id T…
+function transAvisos(){
+  if (SESION.fuente === "app") return;
+  const txt = {
+    pagos: "Los pagos que aceptas aquí se crean con <b>Id T…</b>. Cuando los anotes en el Excel, usa <b>ese mismo Id</b>.",
+    sol: "Plataforma tecnológica, Mínimo trimestral y Arriendo crean el cobro con <b>Id T…</b> al enviarse a Contabilidad: en el Excel, usa <b>ese mismo Id</b>. Royalty, Aquí Club y canon de entrada <b>no</b> crean Id.",
+    cob: "Los cobros creados aquí llevan <b>Id T…</b>: en el Excel, usa <b>ese mismo Id</b>." };
+  for (const [v, t] of Object.entries(txt)) {
+    const s = $("vista-" + v); if (!s || s.querySelector(".trans-mini")) continue;
+    const d = document.createElement("div"); d.className = "trans-mini";
+    d.innerHTML = `⇄ <b>Transición Excel ↔ Web:</b> ${t} <a href="#" data-ir="trans">Ver pendientes</a>`;
+    const ref = s.querySelector(".cp-head"); ref ? ref.after(d) : s.prepend(d);
+  }
+}
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
