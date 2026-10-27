@@ -314,7 +314,7 @@ window.PortalATR = (() => {
       const L = S.facturas.filter(x => !q || [x.folio, x.conceptos, x.obras, x.receptor, fec(x.fecha)].join(" ").toLowerCase().includes(q));
       let h = `<div class="ptl-filtros" style="align-items:center"><input class="ptl-buscar" data-qf="1" value="${esc(S.qf)}" placeholder="Buscar N°, concepto u obra…">
         <span class="ptl-nota" style="margin:0">${S.facturas.length} factura(s) · ${S.facturas.filter(x => x.ruta).length} con PDF</span></div>`;
-      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas emitidas a tu nombre o al de tus clientes."}</div></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas de Atrium emitidas a tu nombre."}</div></div>`;
       h += `<div class="ptl-caja"><table class="ptl-tabla ptl-fac"><thead><tr><th>N° factura</th><th>Fecha</th><th>Concepto</th><th class="x-movil">A nombre de</th><th class="n">Monto</th><th></th></tr></thead><tbody>
         ${L.map(x => `<tr><td class="t-con"><div class="c">${x.tipo_dte === "Nota Crédito" ? "Nota de crédito" : "Factura"} N° ${esc(x.folio)}</div>${x.obras ? `<div class="d">Obra ${esc(x.obras)}</div>` : ""}</td>
           <td class="t-fe">${fec(x.fecha)}</td><td>${esc(x.conceptos || "")}</td><td class="x-movil"><span class="d">${esc(x.receptor || "")}</span></td>
@@ -352,7 +352,7 @@ window.PortalATR = (() => {
           <p style="margin:16px 0 8px;font-weight:600">Pagos de la obra · ${(d.pagos || []).length}</p>
           <div class="ptl-caja" style="max-height:46vh;overflow:auto"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
           ${(d.pagos || []).map(p => `<tr><td class="t-fe">${fec(p.fecha)}</td><td>${esc(String(p.item || "").replace(" (egreso)", "").replace(" (ingreso)", ""))}</td><td class="n">${clp(p.monto)}</td>
-            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? folios(p.factura) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
+            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? (/^Pago cliente/.test(p.item || "") ? esc(p.factura) : folios(p.factura)) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
       document.body.appendChild(fondo);
       fondo.addEventListener("click", e => {
         if (e.target === fondo || e.target.closest(".mx")) return fondo.remove();

@@ -1030,6 +1030,19 @@
   .trans-guia{background:#fff8ec;border:1px solid #f0d9a8;border-radius:12px;padding:12px 16px;display:grid;gap:8px;font-size:13.5px}
   .trans-guia summary{cursor:pointer;color:var(--cafe);font-weight:600}
   .trans-mini{background:#fff8ec;border:1px solid #f0d9a8;border-radius:10px;padding:8px 12px;font-size:12.5px;margin:0 0 10px}
+
+  /* v57 · Control Facturación › Mapa de facturación */
+  .cfx-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--linea);margin-bottom:12px}
+  .cfx-tabs button{border:0;background:none;padding:9px 14px;font-weight:600;color:var(--gris);border-bottom:3px solid transparent;font-size:13.5px}
+  .cfx-tabs button.on{color:var(--cafe);border-bottom-color:var(--naranjo)}
+  .cfx-tabs button b{background:#fbe6e4;color:#a1281f;border-radius:999px;padding:1px 7px;margin-left:6px;font-size:11.5px}
+  .cfx-tabs button b.amb{background:#fff1dc;color:#9a5b00}
+  .cfx-kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .cfx-card{cursor:pointer}.cfx-card:hover{border-color:var(--naranjo)}
+  .cfx-card .v{font-size:20px}
+  #cfx-cuerpo .cf-btn{white-space:normal;max-width:110px}
+  #cfx-cuerpo td a[data-oblink]{word-break:break-all}
+  @media (max-width:700px){.cfx-tabs{flex-wrap:nowrap;overflow-x:auto}.cfx-tabs button{white-space:nowrap}}
 </style>
 </head>
 <body>
@@ -1116,7 +1129,8 @@
       <button data-rep="ing" data-mod="pagos_franquicia" data-area="operaciones" class="req-ses oculto">Pagos franquiciados<small>Hoja Pagos · Franquiciados</small></button>
       <button data-rep="ing" data-mod="franquicias" data-area="operaciones" class="req-ses oculto">Franquicias<small>Hoja Franquicias</small></button>
 
-      <h4 class="sep">Facturación Operaciones</h4>
+      <h4 class="sep">Control Facturación</h4>
+      <button data-rep="cfx" data-area="operaciones" data-solo-supabase="1">Mapa de facturación<small>Todas las facturas de ATR: qué está OK y qué falta<span class="n-ctrl" id="cfx-n"></span></small></button>
       <button data-rep="fres" data-area="operaciones" data-solo-supabase="1">Resumen del año<small>Qué se emitió y envió cada mes</small></button>
       <h5 data-area="operaciones">Obras</h5>
       <button data-rep="sugf" data-area="operaciones" data-solo-supabase="1">Royalty y Aquí Club<small>Por solicitar y estado de cada factura<span class="n-ctrl" id="sugf-n"></span></small></button>
@@ -1127,7 +1141,7 @@
       <h5 data-area="operaciones">Seguimiento</h5>
       <button data-rep="sol" data-mod="vb" data-area="operaciones" data-solo-supabase="1">Registro de facturas<small>Visto bueno · en Contabilidad · emitidas (N° y PDF)<span class="n-ctrl" id="sol-n-vb"></span></small></button>
       <h5 data-area="operaciones">Control</h5>
-      <button data-rep="cf" data-area="operaciones" data-solo-supabase="1">Control de Facturación<small>Solicitar · emitir · enviar · cobrar</small></button>
+      <button data-rep="cf" data-area="operaciones" data-solo-supabase="1">Facturación mensual<small>Plataforma · cartelería · arriendo: solicitar · emitir · enviar · cobrar</small></button>
 
       <h4 class="sep" data-area="operaciones">Cuadratura Bancaria</h4>
       <button data-rep="cuad" data-mod="resumen" data-area="operaciones" data-solo-supabase="1">Cuadratura<small>Excel bancario vs plataforma · subir Excel</small></button>
@@ -1483,7 +1497,7 @@
      <section id="vista-cf" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
-        <div><h1>Control de Facturación</h1><p>Seguimiento de las facturas a franquiciados: qué solicitar, qué falta registrar, qué está por enviar y qué falta cobrar.
+        <div><h1>Facturación mensual</h1><p>Seguimiento de las facturas mensuales a franquiciados: qué solicitar, qué falta registrar, qué está por enviar y qué falta cobrar.
           Usa los cobros, folios y pagos que ya están en la base; aquí se registran las gestiones (revisión, solicitud, envío a Felipe, correo al franquiciado, cobranza).</p></div>
         <div class="acciones"><button class="btn sec" id="cf-actualizar">Actualizar</button></div>
       </div>
@@ -1688,6 +1702,15 @@
         <p><b>Cerrada:</b> avance 100%, el cliente pagó el contrato y sus pagos están facturados, royalty y Aquí Club cobrados y facturados, sin facturas de proveedor por pagar ni OC vigentes, sin pagos por pagar, en Contabilidad o sin conciliar, y saldo de la obra en $0 (±$1.000).</p>
         <p>Se recalcula solo cada vez que cambia un pago, la obra, una OC o una factura de proveedor, y al cargar el Excel. El estado que escribe el Excel ya no manda: se muestra como referencia cuando no coincide.</p>
       </div></details>
+     </section>
+
+     <section id="vista-cfx" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Mapa de facturación</h1><p>Todas las facturas que deberían existir en ATR, cuáles están emitidas y cuáles faltan: pagos de clientes, materiales (compra ↔ venta), royalty y Aquí Club y lo que ATR factura a los franquiciados.</p></div>
+        <div class="acciones"><button class="btn sec" id="cfx-act">Actualizar</button></div>
+      </div>
+      <div id="cfx-cuerpo"></div>
      </section>
 
      <section id="vista-trans" class="oculto">
@@ -1929,7 +1952,7 @@ async function entrarApp(){
       if (puedeArea("facturacion")) { irA("ing", "oc"); arrfmContador(); cprechContador(); respContador(); fpdfCargar(); } else if (puedeArea("contabilidad")) { revisarVersion(); fpdfCargar().then(() => irA("cont", "fobras")); contContadores(); }
       return; }
     if (puedeArea("contabilidad")) contContadores();
-    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar(); transContador(); transAvisos();
+    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar(); transContador(); transAvisos(); cfxContador();
   }
   if (SESION.ok) revisarVersion();
   if (location.hash === "#panel" && SESION.ok) { try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {} irA("panel"); }
@@ -2074,7 +2097,7 @@ function dibujar({ enc, res, oc, mov }){
       <tbody>${mov.map(m => `<tr>
         <td>${esc(m.item_pago)}</td><td class="f">${fecha(m.fecha_pago)}</td><td class="n">${pesos(m.monto)}</td>
         <td class="f">${m.no_bancario ? "N/A" : fecha(m.fecha_conciliacion)}</td><td class="f">${esc(m.medio_pago || "")}</td>
-        <td class="c">${m.n_factura_venta ? fpdfTxt(m.n_factura_venta) : "0"}</td><td class="c">${esc(m.n_factura_compra || "")}</td>
+        <td class="c">${m.n_factura_venta ? (/^Pago cliente/.test(m.item_pago || "") ? esc(m.n_factura_venta) : fpdfTxt(m.n_factura_venta)) : "0"}</td><td class="c">${esc(m.n_factura_compra || "")}</td>
         <td class="f">${fecha(m.fecha_factura_compra)}</td><td>${esc(m.proveedor || "")}</td></tr>`).join("")
         || `<tr><td colspan="9" class="c">Sin movimientos</td></tr>`}</tbody>
     </table></div>
@@ -2090,7 +2113,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2116,6 +2139,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "cuad") cargarCuad(mod || CUAD.mod);
   if (rep === "cobz") cargarCobz(mod || COBZ.mod);
   if (rep === "trans") cargarTrans();
+  if (rep === "cfx") { CFX.filas = null; cargarCfx(mod); }
   if (rep === "ctrl") cargarControl(mod || CTRL.sub);
   if (rep === "panel") { window.scrollTo(0, 0); cargarPanel(); }
   if (rep === "cpi") cargarCPI();
@@ -2140,7 +2164,7 @@ document.querySelectorAll(".menu button[data-rep]").forEach(b => b.onclick = () 
 const NAV = { pila: [] };
 const NOMBRE_VISTA = { pagos: "Control de Pagos", act: "Activación franquicias", ger: "Panorama gerencial", franq: "Resumen Franquiciado",
                        negocio: "Resumen Negocio", sol: "Solicitudes de factura", ing: "Ingreso de datos", reg: "Registro de Pagos",
-                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Control de Facturación", mt: "Mínimos trimestrales", onb: "Estado de activación", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Facturación Operaciones", arrfm: "Arriendo · solicitar a Contabilidad" };
+                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Facturación mensual", mt: "Mínimos trimestrales", onb: "Estado de activación", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Control Facturación", cfx: "Mapa de facturación", arrfm: "Arriendo · solicitar a Contabilidad" };
 const vistaActual = () => VISTAS.find(v => !$("vista-" + v).classList.contains("oculto"));
 function actualizarVolver(){
   const prev = NAV.pila[NAV.pila.length - 1];
@@ -2574,7 +2598,7 @@ function cpxRechazo(a){
   if (a.tipo === "prov" || Math.abs(cpxN(r.monto) - cpxN(a.monto)) <= TOL_ACC) return { oculta: true, r };
   return { oculta: false, r };
 }
-// D · cobros de royalty y Aquí Club (misma fuente que Facturación Operaciones › Royalty y Aquí Club)
+// D · cobros de royalty y Aquí Club (misma fuente que Control Facturación › Royalty y Aquí Club)
 function cpxCobros(todos){
   const fr = $("cp-franquicia").value, q = $("cp-buscar").value.toLowerCase().trim();
   return (CPX.cobros || []).filter(x => todos ? x.descartada : (x.corresponde && !x.descartada))
@@ -2663,7 +2687,7 @@ function cpxDibRev(sug){
         <td><span class="tipo-acc ${x.concepto === "Aquí Club" ? "aqc" : "prov"}">${esc(x.concepto)}</span> <small>${esc(x.accion || "")}</small><br><small>${esc(x.detalle || "")}</small></td>
         <td class="n"><b>${$$(x.monto)}</b>${x.concepto === "Royalty" && x.monto_canal != null ? `<br><small>canal ${$$(x.monto_canal)} · mkt ${$$(x.monto_marketing)}</small>` : ""}</td>
         ${ed ? `<td class="cpx-acc"><button class="btn-acc" data-cpxcob="${esc(x.clave)}">Aceptar</button><button class="cf-btn" data-cpxcobno="${esc(x.clave)}">Rechazar</button></td>` : ""}</tr>`;
-      return sec("D", "Cobros de royalty y Aquí Club", "Lo que se descuenta de la obra a favor de Atrium. Al aceptar se registra el cobro y se pide la factura (visto bueno de Patricio → Contabilidad). Es la misma lista de Facturación Operaciones › Royalty y Aquí Club: lo que hagas en una se ve en la otra.",
+      return sec("D", "Cobros de royalty y Aquí Club", "Lo que se descuenta de la obra a favor de Atrium. Al aceptar se registra el cobro y se pide la factura (visto bueno de Patricio → Contabilidad). Es la misma lista de Control Facturación › Royalty y Aquí Club: lo que hagas en una se ve en la otra.",
         [D.map(filaD), D], `<th>Obra</th><th>Concepto</th><th class="n">Monto</th>${ed ? "<th></th>" : ""}`); })();
 }
 
@@ -4229,7 +4253,7 @@ function detalleSol(s){
   else if (btnSuplir && SOL.ambito === "vb") acciones += `<div class="acc-sol" style="align-items:center"><span class="nota-sol" style="margin:0">Confirmada: falta el visto bueno de Patricio.</span>${btnSuplir}</div>`;
   if (s.vb_suplido_por) acciones += `<p class="nota-sol" style="background:#fff1dc">⚠ Visto bueno suplido por <b>${esc(s.vb_suplido_por.split("@")[0])}</b> (en lugar de Patricio): ${esc(s.vb_suplido_motivo || "")}.</p>`;
   if (s.estado === "Aprobada") acciones += `<p class="nota-sol">Aprobada por ${esc(s.aprobado_por || "")}${s.comentario_revision ? " · “" + esc(s.comentario_revision) + "”" : ""}. ${s.tipo === "Arriendo"
-    ? "Falta que <b>Felipe Morales</b> la solicite a Contabilidad (Facturación Operaciones › Arriendo · solicitar a Contabilidad)."
+    ? "Falta que <b>Felipe Morales</b> la solicite a Contabilidad (Control Facturación › Arriendo · solicitar a Contabilidad)."
     : `Ya está en <b>Contabilidad › Facturas de ${s.tipo === "Obras" ? "obras" : "franquiciados"}</b> para emitir.`}</p>`;
   if (folios && SOL.ambito !== "vb") acciones += `<p class="nota-sol">Cuando Contabilidad emita las facturas, escribe el folio de cada una y presiona <b>Guardar folios</b>. Queda registrado en los cargos/pagos.</p>`;
   const cab = editable && s.tipo === "Plataforma tecnológica" ? `<div class="cab-sol">
@@ -7112,7 +7136,7 @@ async function contFicha(tipo, cod){
       <h5 style="margin:10px 0 4px">Pagos de la obra · ${(d.pagos || []).length}</h5>
       <div class="tabla-wrap" style="max-height:300px;overflow:auto;margin:0"><table class="ct-t"><thead><tr><th>Fecha</th><th>Id pago</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
       ${(d.pagos || []).map(p => `<tr><td>${fecha(p.fecha)}</td><td>${esc(p.id_pago)}</td><td><small>${esc(String(p.item || "").replace(" (egreso)", ""))}</small></td>
-        <td class="n">${$$(p.monto)}</td><td>${p.conciliacion ? esc(p.conciliacion) : `<small>${esc(p.estado || "")}</small>`}</td><td><small>${p.factura ? fpdfTxt(p.factura) : esc(p.n_factura_compra || "")}</small></td></tr>`).join("")}</tbody></table></div>`;
+        <td class="n">${$$(p.monto)}</td><td>${p.conciliacion ? esc(p.conciliacion) : `<small>${esc(p.estado || "")}</small>`}</td><td><small>${p.factura ? (/^Pago cliente/.test(p.item || "") ? esc(p.factura) : fpdfTxt(p.factura)) : esc(p.n_factura_compra || "")}</small></td></tr>`).join("")}</tbody></table></div>`;
   } else {
     h = `<h3>${esc(d.razon_social || "")} <small style="color:var(--gris)">${esc(d.franquicia)}</small></h3>
       <div class="ct-rec" style="margin:8px 0">${fila("RUT", esc(rut(d.rut)))}${fila("Estado", esc(d.estado || ""))}${fila("Id UMB", esc(d.id_umb || ""))}
@@ -7216,7 +7240,7 @@ async function sugfEjecutar(){
   const { data, error } = await db.rpc("sug_facturas_obras_ejecutar", { p });
   if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 10000);
   invalidarPagos();
-  toast("✓ " + [data.solicitud ? `Solicitud <b>${esc(data.solicitud)}</b> enviada al visto bueno de Patricio. <a href="mailto:${APROBADOR_CORREO}?subject=${encodeURIComponent("Visto bueno solicitud de facturación " + data.solicitud)}&body=${encodeURIComponent(`Hola Patricio,\n\nTe pido el visto bueno de la solicitud de facturación ${data.solicitud} (royalty / Aquí Club de obras). La apruebas en la página › Facturación Operaciones › Registro de facturas.\n\nSaludos.`)}">✉ Avisar a Patricio</a>` : "",
+  toast("✓ " + [data.solicitud ? `Solicitud <b>${esc(data.solicitud)}</b> enviada al visto bueno de Patricio. <a href="mailto:${APROBADOR_CORREO}?subject=${encodeURIComponent("Visto bueno solicitud de facturación " + data.solicitud)}&body=${encodeURIComponent(`Hola Patricio,\n\nTe pido el visto bueno de la solicitud de facturación ${data.solicitud} (royalty / Aquí Club de obras). La apruebas en la página › Control Facturación › Registro de facturas.\n\nSaludos.`)}">✉ Avisar a Patricio</a>` : "",
     ...(data.avisos || []).map(esc)].filter(Boolean).join("<br>"), 12000);
   await cargarSugf(); solContadorVb();
 }
@@ -9165,7 +9189,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 56;
+const VERSION_PAGINA = 57;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9422,7 +9446,7 @@ const AREA_INFO = {
                       ic: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>' },
   "Franquiciados":  { d: "Cobros a franquiciados, tiendas y arriendos, ingreso de franquicias.",
                       ic: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 14.6c2 .7 3.2 2.6 3.5 5.4"/>' },
-  "Facturación Operaciones": { d: "Facturas que gestiona Operaciones. Obras: royalty y Aquí Club. Franquiciados: plataforma tecnológica, mínimo trimestral, canon de entrada y arriendo. Registro de facturas (visto bueno, Contabilidad y emitidas) y control.",
+  "Control Facturación": { d: "Mapa general de todas las facturas de ATR (clientes, materiales, royalty y Aquí Club, franquiciados) y qué falta. Facturas que gestiona Operaciones. Obras: royalty y Aquí Club. Franquiciados: plataforma tecnológica, mínimo trimestral, canon de entrada y arriendo. Registro de facturas (visto bueno, Contabilidad y emitidas) y control.",
                       ic: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3"/><path d="M9 11h6M9 15h6M9 7h3"/>' },
   "Cuadratura Bancaria": { d: "Control y cierre de las conciliaciones: sube tu Excel de cuadratura, compáralo con lo conciliado en la plataforma y resuelve las diferencias con un clic.",
                       ic: '<path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/>' },
@@ -9984,7 +10008,7 @@ window.PortalATR = (() => {
       const L = S.facturas.filter(x => !q || [x.folio, x.conceptos, x.obras, x.receptor, fec(x.fecha)].join(" ").toLowerCase().includes(q));
       let h = `<div class="ptl-filtros" style="align-items:center"><input class="ptl-buscar" data-qf="1" value="${esc(S.qf)}" placeholder="Buscar N°, concepto u obra…">
         <span class="ptl-nota" style="margin:0">${S.facturas.length} factura(s) · ${S.facturas.filter(x => x.ruta).length} con PDF</span></div>`;
-      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas emitidas a tu nombre o al de tus clientes."}</div></div>`;
+      if (!L.length) return h + `<div class="ptl-caja"><div class="ptl-vacio"><div class="ico">—</div>${S.facturas.length ? "Sin resultados." : "Aún no hay facturas de Atrium emitidas a tu nombre."}</div></div>`;
       h += `<div class="ptl-caja"><table class="ptl-tabla ptl-fac"><thead><tr><th>N° factura</th><th>Fecha</th><th>Concepto</th><th class="x-movil">A nombre de</th><th class="n">Monto</th><th></th></tr></thead><tbody>
         ${L.map(x => `<tr><td class="t-con"><div class="c">${x.tipo_dte === "Nota Crédito" ? "Nota de crédito" : "Factura"} N° ${esc(x.folio)}</div>${x.obras ? `<div class="d">Obra ${esc(x.obras)}</div>` : ""}</td>
           <td class="t-fe">${fec(x.fecha)}</td><td>${esc(x.conceptos || "")}</td><td class="x-movil"><span class="d">${esc(x.receptor || "")}</span></td>
@@ -10022,7 +10046,7 @@ window.PortalATR = (() => {
           <p style="margin:16px 0 8px;font-weight:600">Pagos de la obra · ${(d.pagos || []).length}</p>
           <div class="ptl-caja" style="max-height:46vh;overflow:auto"><table class="ptl-tabla"><thead><tr><th>Fecha</th><th>Ítem</th><th class="n">Monto</th><th>Conciliación</th><th>Factura</th></tr></thead><tbody>
           ${(d.pagos || []).map(p => `<tr><td class="t-fe">${fec(p.fecha)}</td><td>${esc(String(p.item || "").replace(" (egreso)", "").replace(" (ingreso)", ""))}</td><td class="n">${clp(p.monto)}</td>
-            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? folios(p.factura) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
+            <td><span class="d">${esc(p.conciliacion || p.estado || "")}</span></td><td>${p.factura ? (/^Pago cliente/.test(p.item || "") ? esc(p.factura) : folios(p.factura)) : ""}</td></tr>`).join("") || `<tr><td colspan="5"><span class="d">Sin pagos.</span></td></tr>`}</tbody></table></div></div></div>`;
       document.body.appendChild(fondo);
       fondo.addEventListener("click", e => {
         if (e.target === fondo || e.target.closest(".mx")) return fondo.remove();
@@ -10834,6 +10858,155 @@ document.addEventListener("input", e => {
   if (e.target.id !== "rf-q") return;
   RF.q = e.target.value; const p = e.target.selectionStart; dibujarSolicitudes(); const i = $("rf-q"); if (i) { i.focus(); i.setSelectionRange(p, p); }
 });
+
+/* =====================================================================
+   v57 · CONTROL FACTURACIÓN › MAPA DE FACTURACIÓN: qué facturas deberían existir, cuáles están emitidas y cuáles faltan
+   ===================================================================== */
+const CFX = { mod: "resumen", filas: null, inc: [], fr: "", est: "pend", q: "", desde: "", hasta: "" };
+const CFX_SEC = {
+  clientes:   { s: "Clientes", t: "Facturas de pago de clientes", d: "Cada pago del cliente (después del contrato) debe tener su factura de venta, que emite el <b>franquiciado</b>. Sin N° de factura queda pendiente: avísale al franquiciado." },
+  materiales: { s: "Materiales", t: "Facturas de materiales", d: "Cada factura de compra de materiales que pagó Atrium debe tener su <b>factura espejo</b> de Atrium al franquiciado. Si no corresponde (p. ej. una habilitación), marca <b>No corresponde</b> con el motivo." },
+  royalty:    { s: "Royalty y Aquí Club", t: "Facturas de royalty y Aquí Club", d: "Cobros de royalty y Aquí Club de cada obra y su factura. <b>Falta el cobro</b> = la obra ya debería tenerlo y no está registrado (se registra en Royalty y Aquí Club)." },
+  franquiciados: { s: "Franquiciados", t: "Facturas emitidas a franquiciados", d: "Todo lo que ATR cobra a los franquiciados (plataforma tecnológica, mínimo trimestral, arriendo, cartelería, canon de entrada…) y su factura." } };
+const CFX_PEND = ["Pendiente", "Solicitada", "Falta el cobro"];
+const CFX_EST = { Emitida: "ok", Pendiente: "no", Solicitada: "parcial", "Falta el cobro": "no", "No corresponde": "sin", "Aún no corresponde": "sin" };
+async function cfxContador(){
+  if (!puedeArea("operaciones")) return;
+  try { const { data } = await db.from("v_cfx_facturas").select("estado").in("estado", CFX_PEND);
+    if ($("cfx-n")) $("cfx-n").textContent = data && data.length ? ` · ${data.length} pendientes` : ""; } catch (_) {}
+}
+async function cargarCfx(mod){
+  CFX.mod = mod || CFX.mod;
+  document.querySelectorAll(".menu button[data-rep='cfx']").forEach(b => b.classList.toggle("activo", true));
+  $("cfx-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  if (!CFX.filas) {
+    const [f, i] = await Promise.all([todo(() => db.from("v_cfx_facturas").select("*")), todo(() => db.from("v_cfx_inconsistencias").select("*"))]);
+    const err = f.error || i.error;
+    if (err) { $("cfx-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 57_control_facturacion.sql en Supabase." : esc(err.message)}</div>`; return; }
+    CFX.filas = f.data || []; CFX.inc = i.data || [];
+  }
+  dibujarCfx(); cfxContador();
+}
+const cfxPasaEst = r => CFX.est === "todas" || (CFX.est === "pend" ? CFX_PEND.includes(r.estado) : CFX.est === "ok" ? r.estado === "Emitida" : ["No corresponde", "Aún no corresponde"].includes(r.estado));
+function cfxFiltradas(sec, conEstado = true){
+  const q = CFX.q.toLowerCase();
+  return CFX.filas.filter(r => (!sec || r.seccion === sec) && (!CFX.fr || r.franquicia === CFX.fr)
+    && (!CFX.desde || String(r.fecha || "") >= CFX.desde) && (!CFX.hasta || String(r.fecha || "").slice(0, 10) <= CFX.hasta)
+    && (!conEstado || cfxPasaEst(r))
+    && (!q || [r.cliente, r.franquicia, r.franquiciado, r.obra, r.concepto, r.folio, r.id_pago, r.proveedor, r.referencia, r.detalle].join(" ").toLowerCase().includes(q)));
+}
+function dibujarCfx(){
+  const tabs = [["resumen", "Resumen"], ["clientes", "Clientes"], ["materiales", "Materiales"], ["royalty", "Royalty y Aquí Club"], ["franquiciados", "Franquiciados"], ["inconsistencias", "Inconsistencias"]];
+  const nPend = sec => cfxFiltradas(sec, false).filter(r => CFX_PEND.includes(r.estado)).length;
+  const frs = [...new Set(CFX.filas.map(r => r.franquicia).filter(Boolean))].sort();
+  let h = `<div class="cfx-tabs">${tabs.map(([k, t]) => { const n = k === "resumen" ? 0 : k === "inconsistencias" ? CFX.inc.length : nPend(CFX_SEC[k].s);
+      return `<button class="${CFX.mod === k ? "on" : ""}" data-cfxtab="${k}">${t}${n ? `<b class="${k === "inconsistencias" ? "amb" : ""}">${n}</b>` : ""}</button>`; }).join("")}</div>
+    <div class="controles cfx-fil">
+      <div class="campo"><label>Franquicia</label><select id="cfx-fr"><option value="">Todas</option>${frs.map(f => `<option ${f === CFX.fr ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></div>
+      ${CFX.mod !== "resumen" && CFX.mod !== "inconsistencias" ? `<div class="campo"><label>Estado</label><div class="chips">${[["pend", "Pendientes"], ["ok", "Emitidas"], ["nc", "No corresponde"], ["todas", "Todas"]]
+          .map(([k, t]) => `<button class="chip ${CFX.est === k ? "activo" : ""}" data-cfxest="${k}">${t}</button>`).join("")}</div></div>` : ""}
+      <div class="campo"><label>Desde</label><input type="date" id="cfx-desde" value="${esc(CFX.desde)}"></div>
+      <div class="campo"><label>Hasta</label><input type="date" id="cfx-hasta" value="${esc(CFX.hasta)}"></div>
+      <div class="campo" style="flex:1;min-width:200px"><label>Buscar</label><input id="cfx-q" value="${esc(CFX.q)}" placeholder="Cliente, obra, N° factura, proveedor…"></div>
+      ${CFX.mod !== "resumen" ? `<div class="campo"><label>&nbsp;</label><button class="btn sec" id="cfx-xlsx">Descargar Excel</button></div>` : ""}</div>`;
+  if (CFX.mod === "resumen") h += cfxResumen();
+  else if (CFX.mod === "inconsistencias") h += cfxInconsistencias();
+  else h += cfxTabla(CFX.mod);
+  $("cfx-cuerpo").innerHTML = h;
+}
+function cfxResumen(){
+  const card = (k) => { const s = CFX_SEC[k].s, L = cfxFiltradas(s, false), P = L.filter(r => CFX_PEND.includes(r.estado)), E = L.filter(r => r.estado === "Emitida");
+    return `<div class="kpi cfx-card ${P.length ? "alerta" : ""}" data-cfxtab="${k}"><div class="t">${esc(CFX_SEC[k].t)}</div>
+      <div class="v" style="${P.length ? "color:#a1281f" : "color:#1e6b2b"}">${P.length ? P.length + " pendiente(s)" : "✓ Al día"}</div>
+      <div class="s">${P.length ? $$(P.reduce((a, r) => a + Number(r.monto || 0), 0)) + " sin factura · " : ""}${E.length} emitida(s) · ${L.length - P.length - E.length} no corresponde</div></div>`; };
+  let h = `<div class="kpis cfx-kpis">${["clientes", "materiales", "royalty", "franquiciados"].map(card).join("")}
+      <div class="kpi cfx-card ${CFX.inc.length ? "alerta" : ""}" data-cfxtab="inconsistencias"><div class="t">Inconsistencias</div><div class="v" style="${CFX.inc.length ? "color:#9a5b00" : "color:#1e6b2b"}">${CFX.inc.length || "✓ 0"}</div><div class="s">Detectadas por el sistema</div></div></div>`;
+  // pendientes por franquicia y a quién avisar
+  const P = cfxFiltradas(null, false).filter(r => CFX_PEND.includes(r.estado));
+  const porFr = {};
+  P.forEach(r => { const k = r.franquicia || "Sin franquicia"; (porFr[k] = porFr[k] || { fr: k, nom: r.franquiciado, correo: r.correo_franquiciado, s: {} });
+    const s = porFr[k].s[r.seccion] = porFr[k].s[r.seccion] || { n: 0, m: 0 }; s.n++; s.m += Number(r.monto || 0); if (r.correo_franquiciado) porFr[k].correo = r.correo_franquiciado; });
+  const secs = ["Clientes", "Materiales", "Royalty y Aquí Club", "Franquiciados"], quien = { Clientes: "Franquiciado", Materiales: "Contabilidad", "Royalty y Aquí Club": "Operaciones → Contabilidad", Franquiciados: "Operaciones → Contabilidad" };
+  const F = Object.values(porFr).sort((a, b) => Object.values(b.s).reduce((x, y) => x + y.n, 0) - Object.values(a.s).reduce((x, y) => x + y.n, 0));
+  h += `<h3 class="fres-h" style="margin-top:18px">Pendientes por franquicia <small>clic en un número para ver el detalle · "Avisar" arma el correo al franquiciado con sus pagos de clientes sin factura</small></h3>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Franquicia</th>${secs.map(s => `<th class="n">${s}<br><small style="font-weight:400">${quien[s]}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${F.map(f => `<tr><td><b>${esc(f.fr)}</b><br><small>${esc(f.nom || "")}</small></td>${secs.map(s => { const x = f.s[s];
+        return `<td class="n">${x ? `<a href="#" data-cfxver="${esc(f.fr)}|${esc(s)}"><b>${x.n}</b></a><br><small>${$$(x.m)}</small>` : "—"}</td>`; }).join("")}
+      <td>${f.s.Clientes ? `<button class="btn-acc" data-cfxavisar="${esc(f.fr)}">Avisar</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="cp-vacio">✓ Sin pendientes.</td></tr>`}</tbody></table></div>
+    <p class="nota-g">Otras facturas que se controlan en su propio menú: el detalle mensual de plataforma, cartelería y arriendo en <a href="#" data-ir="cf">Facturación mensual</a> y el camino de cada solicitud en <a href="#" data-ir="sol">Registro de facturas</a>.</p>`;
+  return h;
+}
+const CFX_COLS = {
+  clientes: [["Cliente", r => `<b>${esc(r.cliente || "")}</b>`], ["Franquicia", r => `${esc(r.franquicia || "")}<br><small>${esc(r.franquiciado || "")}</small>`], ["Obra", r => r.obra ? `<a href="#" data-oblink="${esc(r.obra)}">${esc(r.obra)}</a>` : ""],
+             ["Fecha pago", r => fecha(r.fecha)], ["Monto", r => $$(r.monto), "n"], ["N° factura venta", r => esc(r.folio || "")], ["Fecha emisión", r => fecha(r.fecha_factura)], ["Pago", r => `<small>${esc(r.id_pago || "")}${r.conciliado ? " · conciliado" : ""}</small>`]],
+  materiales: [["Proveedor", r => `<b>${esc(r.proveedor || "")}</b><br><small>${esc(r.id_pago || "")}</small>`], ["Factura de compra", r => `<small>${esc(r.referencia || "")}</small>`], ["Material / detalle", r => `<small>${esc(r.concepto)}${r.detalle ? `<br><span title="${esc(r.detalle)}">${esc(String(r.detalle).slice(0, 60))}${String(r.detalle).length > 60 ? "…" : ""}</span>` : ""}</small>`],
+             ["Obra / destino", r => r.obra && /OPP/.test(r.obra) ? `<a href="#" data-oblink="${esc(r.obra)}">${esc(r.obra)}</a><br><small>${esc(r.franquicia || "")}</small>` : `${esc(r.obra || "")}<br><small>${esc(r.franquicia || "")}</small>`], ["Cliente", r => esc(r.cliente || "")],
+             ["Fecha", r => fecha(r.fecha)], ["Monto", r => $$(r.monto), "n"], ["Factura espejo (venta)", r => r.folio ? `F° ${fpdfTxt(r.folio)}<br><small>${fecha(r.fecha_factura)}</small>` : ""]],
+  royalty: [["Franquicia", r => `${esc(r.franquicia || "")}<br><small>${esc(r.franquiciado || "")}</small>`], ["Obra", r => r.obra ? `<a href="#" data-oblink="${esc(r.obra)}">${esc(r.obra)}</a>` : ""], ["Cliente", r => esc(r.cliente || "")],
+            ["Concepto", r => `<b>${esc(r.concepto)}</b>`], ["Fecha", r => fecha(r.fecha)], ["Monto", r => $$(r.monto), "n"], ["N° factura", r => r.folio ? `F° ${fpdfTxt(r.folio)}<br><small>${fecha(r.fecha_factura)}</small>` : ""], ["Cobro", r => `<small>${esc(r.id_pago || "")}</small>`]],
+  franquiciados: [["Franquicia", r => `<b>${esc(r.franquicia || "")}</b><br><small>${esc(r.franquiciado || "")}</small>`], ["Concepto", r => `<b>${esc(r.concepto)}</b>${r.detalle ? `<br><small>${esc(String(r.detalle).slice(0, 70))}</small>` : ""}`],
+            ["Fecha", r => fecha(r.fecha)], ["Neto", r => r.neto == null ? "" : $$(r.neto), "n"], ["IVA", r => r.iva == null ? "" : $$(r.iva), "n"], ["Total", r => $$(r.monto), "n"], ["UF", r => r.uf ? Number(r.uf).toLocaleString("es-CL") : "", "n"],
+            ["N° factura", r => r.folio ? `F° ${fpdfTxt(r.folio)}<br><small>${fecha(r.fecha_factura)}</small>` : ""], ["Cobro · solicitud", r => `<small>${esc(r.id_pago || "")}${r.referencia ? "<br>" + esc(r.referencia) : ""}</small>`]] };
+function cfxTabla(mod){
+  const sec = CFX_SEC[mod], L = cfxFiltradas(sec.s).sort((a, b) => (CFX_PEND.includes(b.estado) - CFX_PEND.includes(a.estado)) || String(b.fecha || "").localeCompare(String(a.fecha || "")));
+  const cols = CFX_COLS[mod], ed = puedeEditar();
+  const tot = L.reduce((a, r) => a + Number(r.monto || 0), 0);
+  return `<p class="nota-g" style="margin-top:0">${sec.d}</p>
+    <p class="nota-g"><b>${L.length}</b> factura(s) · ${$$(tot)}</p>
+    <div class="tabla-wrap"><table class="cp"><thead><tr>${cols.map(c => `<th class="${c[2] || ""}">${c[0]}</th>`).join("")}<th>Estado</th><th></th></tr></thead><tbody>
+    ${L.slice(0, 600).map(r => `<tr>${cols.map(c => `<td class="${c[2] || ""}">${c[1](r)}</td>`).join("")}
+      <td><span class="pill ${CFX_EST[r.estado] || "sin"}">${esc(r.estado)}</span>${r.motivo_no_corresponde ? `<br><small>${esc(r.motivo_no_corresponde)}</small>` : ""}
+        ${CFX_PEND.includes(r.estado) ? `<br><small style="color:var(--gris)">${esc(r.responsable || "")}</small>` : ""}</td>
+      <td>${ed && r.clave && !r.clave.startsWith("sug:") ? (r.estado === "No corresponde" && r.motivo_no_corresponde && !/^La pagó|^Nota de crédito|^Sin pagador/.test(r.motivo_no_corresponde)
+          ? `<button class="cf-btn" data-cfxquitar="${esc(r.seccion)}|${esc(r.clave)}" title="Vuelve a quedar pendiente">Deshacer</button>`
+          : CFX_PEND.includes(r.estado) || (r.seccion === "Materiales" && r.estado === "No corresponde" && /^Sin pagador/.test(r.motivo_no_corresponde || "")) ? `<button class="cf-btn" data-cfxnc="${esc(r.seccion)}|${esc(r.clave)}">No corresponde…</button>` : "") : ""}</td></tr>`).join("")
+      || `<tr><td colspan="${cols.length + 2}" class="cp-vacio">${CFX.est === "pend" ? "✓ No hay pendientes con este filtro." : "Sin facturas con este filtro."}</td></tr>`}</tbody></table></div>
+    ${L.length > 600 ? `<p class="nota-g">Se muestran 600 de ${L.length}: usa los filtros o descarga el Excel.</p>` : ""}`;
+}
+function cfxInconsistencias(){
+  return `<p class="nota-g" style="margin-top:0">Cosas que el sistema detecta y conviene revisar con Contabilidad. Las facturas a clientes no se consideran: cada franquiciado usa su propia numeración.</p>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Tipo</th><th>Referencia</th><th>Detalle</th></tr></thead><tbody>
+    ${CFX.inc.map(r => `<tr><td><b>${esc(r.tipo)}</b></td><td>${esc(r.referencia)}</td><td><small>${esc(r.detalle || "")}</small></td></tr>`).join("") || `<tr><td colspan="3" class="cp-vacio">✓ Sin inconsistencias.</td></tr>`}</tbody></table></div>`;
+}
+$("vista-cfx").addEventListener("click", async e => {
+  const t = e.target;
+  const tab = t.closest("[data-cfxtab]"); if (tab) { CFX.mod = tab.dataset.cfxtab; if (CFX.mod !== "resumen") CFX.est = "pend"; return dibujarCfx(); }
+  const es = t.closest("[data-cfxest]"); if (es) { CFX.est = es.dataset.cfxest; return dibujarCfx(); }
+  const ver = t.closest("[data-cfxver]"); if (ver) { e.preventDefault(); const [fr, s] = ver.dataset.cfxver.split("|");
+    CFX.fr = fr; CFX.est = "pend"; CFX.mod = Object.keys(CFX_SEC).find(k => CFX_SEC[k].s === s); return dibujarCfx(); }
+  if (t.id === "cfx-act") { CFX.filas = null; return cargarCfx(); }
+  if (t.id === "cfx-xlsx") {
+    const L = cfxFiltradas(CFX_SEC[CFX.mod].s);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(L.map(r => ({ Sección: r.seccion, Franquicia: r.franquicia, Franquiciado: r.franquiciado, Obra: r.obra, Cliente: r.cliente, Concepto: r.concepto,
+      Fecha: fecha(r.fecha), Monto: Number(r.monto || 0), Neto: r.neto == null ? "" : Number(r.neto), IVA: r.iva == null ? "" : Number(r.iva), UF: r.uf || "", "N° factura": r.folio || "", "Fecha factura": fecha(r.fecha_factura),
+      Estado: r.estado, Motivo: r.motivo_no_corresponde || "", Responsable: r.responsable || "", "Id pago / factura compra": r.id_pago || "", Proveedor: r.proveedor || "", Referencia: r.referencia || "", Detalle: r.detalle || "" }))), CFX_SEC[CFX.mod].s.slice(0, 30));
+    XLSX.writeFile(wb, `Control Facturación - ${CFX_SEC[CFX.mod].s} - ${new Date().toLocaleDateString("es-CL").replace(/\//g, "-")}.xlsx`); return;
+  }
+  const nc = t.closest("[data-cfxnc]");
+  if (nc) { const [sec, clave] = nc.dataset.cfxnc.split("|");
+    const ok = await modal(`<h3>No corresponde factura</h3><p class="nota-g">Deja de aparecer como pendiente. Queda registrado quién y por qué (se puede deshacer).</p>
+        <label class="campo">Motivo<input id="cfx-mot" placeholder="Ej.: habilitación de tienda, la paga el franquiciado, se facturó en otra…"></label>`,
+      [{ t: "Cancelar", sec: 1 }, { t: "Guardar", fn: async f => {
+        const { error } = await db.rpc("cfx_no_corresponde", { p: { seccion: sec, clave, motivo: f.querySelector("#cfx-mot").value } });
+        if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 8000); return false; } return true; } }]);
+    if (ok) { CFX.filas = null; await cargarCfx(); toast("Marcada como No corresponde."); }
+    return; }
+  const qu = t.closest("[data-cfxquitar]");
+  if (qu) { const [sec, clave] = qu.dataset.cfxquitar.split("|");
+    const { error } = await db.rpc("cfx_no_corresponde", { p: { seccion: sec, clave, motivo: null } });
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 8000);
+    CFX.filas = null; await cargarCfx(); return toast("Vuelve a quedar pendiente."); }
+  const av = t.closest("[data-cfxavisar]");
+  if (av) { const fr = av.dataset.cfxavisar, L = CFX.filas.filter(r => r.seccion === "Clientes" && r.franquicia === fr && CFX_PEND.includes(r.estado));
+    const correo = (L.find(r => r.correo_franquiciado) || {}).correo_franquiciado || "";
+    const cuerpo = `Hola,\n\nSegún nuestros registros, estos pagos de clientes aún no tienen su factura de venta:\n\n${L.map(r => `· ${r.cliente || ""} · obra ${r.obra || ""} · pago del ${fecha(r.fecha)} por ${$$(r.monto)}`).join("\n")}\n\n¿Nos puedes enviar el N° de factura de cada uno o confirmar cuándo las emites?\n\nGracias.`;
+    location.href = `mailto:${encodeURIComponent(correo)}?subject=${encodeURIComponent(`Facturas pendientes a clientes · ${fr}`)}&body=${encodeURIComponent(cuerpo)}`; }
+});
+$("vista-cfx").addEventListener("change", e => {
+  const m = { "cfx-fr": "fr", "cfx-desde": "desde", "cfx-hasta": "hasta" }; if (m[e.target.id]) { CFX[m[e.target.id]] = e.target.value; dibujarCfx(); }
+});
+$("vista-cfx").addEventListener("input", e => { if (e.target.id === "cfx-q") { CFX.q = e.target.value; const p = e.target.selectionStart; dibujarCfx(); const i = $("cfx-q"); i.focus(); i.setSelectionRange(p, p); } });
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
