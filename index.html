@@ -1116,6 +1116,7 @@
       <h5 data-area="operaciones">Pagos</h5>
       <button data-rep="pagos" data-area="operaciones">Control de Pagos<small>Revisar · por pagar · Contabilidad · pagadas</small></button>
       <button data-rep="reg" data-area="operaciones">Registro de Pagos<small>Por pagar · comprobantes · falta cartola</small></button>
+      <button data-rep="cprech" data-mod="ob" data-area="operaciones" data-solo-supabase="1">Pagos rechazados<small>Contabilidad no los pagó · corregir o anular<span class="n-ctrl" id="cprechob-n"></span></small></button>
       <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web<small>Id T… por anotar en el Excel · duplicados<span class="n-ctrl" id="trans-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
       <h5 data-area="operaciones">Control</h5>
@@ -1178,7 +1179,7 @@
       <button data-ptarea="aquiclub" data-area="operaciones" data-solo-supabase="1">Enviar facturas Aquí Club<small><span class="tag-p">PANEL</span>Sube los PDF · correo con su desglose</small></button>
       <h5 data-area="facturacion">Pagos a proveedores</h5>
       <button data-rep="resp" data-area="facturacion" data-solo-supabase="1">Respaldos de facturas (PDF)<small>Sube el PDF de cada factura por pagar<span class="n-ctrl" id="resp-n"></span></small></button>
-      <button data-rep="cprech" data-area="facturacion" data-solo-supabase="1">Pagos rechazados<small>Facturas que Operaciones no pagará · motivo<span class="n-ctrl" id="cprech-n"></span></small></button>
+      <button data-rep="cprech" data-mod="aq" data-area="facturacion" data-solo-supabase="1">Pagos rechazados<small>Por Contabilidad u Operaciones · corregir o anular<span class="n-ctrl" id="cprech-n"></span></small></button>
       <button data-rep="ctrl" data-mod="oc" data-area="operaciones" data-solo-supabase="1">Órdenes de compra · cierre<small>Cierre automático o manual<span class="n-ctrl" data-ctrl-n="oc"></span></small></button>
       <h5 data-area="facturacion">Centros de costo</h5>
       <button data-rep="cc" data-mod="obras" data-area="facturacion" data-solo-supabase="1">Centros de costo · Obras<small>Id franquicia, Id OPP, CC y cliente</small></button>
@@ -2140,7 +2141,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "sol") { SOL.ambito = ["obras", "franq", "vb"].includes(mod) ? mod : (SOL.ambito || "franq"); cargarSolicitudes(); }
   if (rep === "reg") cargarRegistro();
   if (rep === "solp") cargarSolicitudesPago();
-  if (rep === "cprech") cargarCprech();
+  if (rep === "cprech") cargarCprech(mod);
   if (rep === "eo") cargarEo();
   if (rep === "resp") cargarResp();
   if (rep === "fres") cargarFres();
@@ -2590,6 +2591,7 @@ async function cpxCargar(){
   CPX.rech = r.data || [];
   const porId = Object.fromEntries((reg.data || []).map(x => [x.id_pago, x]));
   CPX.porPagar = (pp.data || []).filter(x => porId[x.id_pago]).map(x => ({ ...x, ...porId[x.id_pago], id: porId[x.id_pago].id }));
+  CPX.porPagar = CPX.porPagar.filter(x => !cpxBloqueado(x));     // rechazados por Contabilidad: esperan corrección
   CPX.sps = sp.data || [];
   CPX.spLin = {};
   if (CPX.irSp) { const x = CPX.sps.find(y => y.id === CPX.irSp); if (x) CPX.tab = x.estado === "Pagada" ? "pag" : "cont"; CPX.irSp = null; }
@@ -2718,8 +2720,8 @@ function cpxDibPP(_, pp){
       <td style="min-width:170px"><b>${esc(x.razon_social_destinatario || "")}</b><br><small>${esc(rut(x.rut_destinatario))}</small></td>
       <td>${x.numero_cuenta ? `<small>${esc(x.banco || "")} · ${esc(x.cuenta_destinatario || "")}<br><b>${esc(x.numero_cuenta)}</b></small>` : '<span class="ct-falta">Sin datos bancarios</span>'}</td>
       <td><small>${esc(x.telefono || "")}${x.correo ? "<br>" + esc(x.correo) : ""}</small></td>
-      <td><small>${esc(x.origen_registro || "")}</small></td>
-      ${ed ? `<td><button class="cf-btn" data-cpxnopp="${x.id}">Rechazar</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+      <td><small>${esc(x.origen_registro || "")}</small>${cpxNotaCorregido(x)}</td>
+      ${ed ? `<td style="white-space:nowrap">${["Control de Pagos", "Bandeja"].includes(x.origen_registro) ? `<button class="cf-btn" data-cpxvolrev="${x.id}" title="Sale de Por pagar y la sugerencia vuelve a Por revisar">↩ Por revisar</button> ` : ""}<button class="cf-btn" data-cpxnopp="${x.id}">Rechazar</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
   return `<p class="nota-g" style="margin-top:0">Revisa cada pago: es exactamente lo que recibirá Contabilidad y lo que el Panel informará al franquiciado. Para corregir un monto, edítalo y presiona Enter.</p>`
     + grupo("Pagos a proveedores", pp.filter(x => x.tipo_solicitud === "Pago proveedores"))
     + grupo("Transferencias a franquiciados", pp.filter(x => x.tipo_solicitud !== "Pago proveedores"))
@@ -2781,9 +2783,9 @@ function cpxDibRech(){
     ${L.map(x => `<tr class="${x.vigente ? "" : "hecha"}"><td style="white-space:nowrap">${fecha(x.rechazado_en)}</td><td><small>${esc(x.tipo)}</small></td>
       <td class="ob"><b>${x.obra ? obraLink(x.obra) : ""}</b><span>${esc(x.franquicia || "")}${x.id_pago ? " · " + esc(x.id_pago) : ""}</span></td>
       <td><small>${esc(x.id_factura ? x.id_factura + " · " : "")}${esc(String(x.detalle || "").replace(/<[^>]+>/g, " "))}</small></td>
-      <td class="n">${$$(x.monto)}</td><td>${esc(x.motivo)}</td><td><small>${esc(String(x.rechazado_por || "").split("@")[0])}</small></td>
+      <td class="n">${$$(x.monto)}</td><td>${esc(x.motivo)}</td><td><small>${x.origen === "Contabilidad" ? "<b>Contabilidad</b> · " + esc(x.solicitud_codigo || "") + "<br>" : ""}${esc(String(x.rechazado_por || "").split("@")[0])}</small></td>
       <td>${!x.aquiclub ? '<small style="color:var(--gris)">No aplica</small>' : x.visto_en ? `<span class="pill ok">Visto por ${esc(String(x.visto_por).split("@")[0])}</span>` : '<span class="pill parcial">Avisado · sin ver</span>'}</td>
-      ${ed ? `<td>${x.vigente ? `<button class="cf-btn" data-cpxreact="${x.id}">Volver a proponer</button>` : `<small>Repropuesta ${fecha(x.reactivado_en)}</small>`}</td>` : ""}</tr>`).join("")
+      ${ed ? `<td>${cpxRechAcc(x)}</td>` : ""}</tr>`).join("")
       || `<tr><td colspan="9" class="cp-vacio">No hay rechazos.</td></tr>`}</tbody></table></div>`
     + (() => { const D = cpxCobros(true); if (!D.length) return "";
       return `<h4 class="cpx-h4" style="margin-top:14px">Cobros de royalty y Aquí Club rechazados · ${D.length}</h4><div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Concepto</th><th>Obra</th><th class="n">Monto</th><th>Motivo</th><th>Rechazó</th>${ed ? "<th></th>" : ""}</tr></thead><tbody>
@@ -6280,7 +6282,7 @@ function contDibujarPagos(){
           : s.cont_recibida_en ? `<p class="nota-sol">Recibida por ${contUser(s.cont_recibida_por)} el ${fecha(s.cont_recibida_en)}.</p>` : ""}
         ${s.observaciones ? `<p class="nota-sol"><b>Nota de Operaciones:</b> ${esc(s.observaciones)}</p>` : ""}
         ${[["Transferencia franquiciado", "Transferencias a franquiciados"], ["Pago proveedores", "Pagos a proveedores"]].map(([t, n]) => contTablaPagos(s, lin.filter(l => l.tipo_solicitud === t), n, ed)).join("")}
-        <div class="acc-sol">${ed && s.estado !== "Pagada" ? `<button class="btn" data-ctpagada="${s.id}">Marcar solicitud pagada…</button><button class="btn sec" data-ctpagar="${s.id}">Marcar sólo los seleccionados</button>` : ""}
+        <div class="acc-sol">${ed && s.estado !== "Pagada" ? `<button class="btn" data-ctpagada="${s.id}">Marcar solicitud pagada…</button><button class="btn sec" data-ctpagar="${s.id}">Marcar sólo los seleccionados</button><button class="btn sec" data-ctrechsel="${s.id}" style="color:#a1281f">Rechazar los seleccionados…</button>` : ""}
           <button class="btn sec" data-ctspxlsx="${s.id}">Descargar Excel de ${esc(s.codigo)}</button>
           ${s.n_proveedores ? `<button class="btn sec" data-ctzip="${s.id}">Respaldos PDF (ZIP)</button>` : ""}
           ${SESION.retira_pagos && s.estado !== "Pagada" ? `<button class="btn sec" data-ctretirar="${s.id}" style="margin-left:auto">Retirar de Contabilidad…</button>` : ""}</div></div>` : ""}</div>`;
@@ -6307,7 +6309,7 @@ function contTablaPagos(s, g, titulo, ed){
       <td style="white-space:nowrap">${esc(rut(l.rut_destinatario))}</td><td style="min-width:180px"><b>${esc(l.razon_social_destinatario || "")}</b></td>
       ${l.numero_cuenta ? `<td>${esc(l.cuenta_destinatario || "")}</td><td>${esc(l.banco || "")}</td><td style="white-space:nowrap"><b>${esc(l.numero_cuenta)}</b></td>` : '<td colspan="3"><span class="ct-falta">Sin datos bancarios</span></td>'}
       <td style="white-space:nowrap"><small>${esc(l.telefono || "")}</small></td><td><small>${esc(l.correo || "")}</small></td>
-      <td>${l.estado_pago === "Pagado" ? `<span class="pill ok">Pagado</span><br><small>${fecha(l.fecha_pago)}${l.referencia_banco ? " · " + esc(l.referencia_banco) : ""}</small>` : '<span class="pill parcial">Por pagar</span>'}</td></tr>`).join("")}
+      <td>${l.estado_pago === "Pagado" ? `<span class="pill ok">Pagado</span><br><small>${fecha(l.fecha_pago)}${l.referencia_banco ? " · " + esc(l.referencia_banco) : ""}</small>` : '<span class="pill parcial">Por pagar</span>' + (ed && s.estado !== "Pagada" ? `<br><button class="cf-btn" data-ctrech="${l.pago_id}" style="margin-top:4px">Rechazar…</button>` : "")}</td></tr>`).join("")}
     </tbody></table></div>`;
 }
 const CT_COLS_PAGOS = [["Solicitud", "solicitud_pago"], ["Fecha de pago", "fecha_pago"], ["Id pago", "id_pago"], ["ID Obra", "obra"], ["Centro Costo", "centro_costo"], ["ID Franquicia", "id_franquicia"],
@@ -7097,17 +7099,20 @@ $("eo-q").oninput = () => { clearTimeout(EO._t); EO._t = setTimeout(dibujarEo, 2
    v48 · AQUÍ CLUB › PAGOS RECHAZADOS (aviso a Felipe Morales)
    ===================================================================== */
 const CPRECH = { lista: [], todas: false };
-async function cprechContador(){
+async function cprechContador(){ return cprechContador2(); }
+async function cprechContadorV48(){
   try { const { data } = await db.from("v_cp_rechazos_aquiclub").select("id,visto_en,vigente");
     const n = (data || []).filter(x => !x.visto_en && x.vigente).length; if ($("cprech-n")) $("cprech-n").textContent = n ? ` · ${n} sin ver` : ""; } catch (_) {}
 }
-async function cargarCprech(){
+async function cargarCprech(mod){
+  if (mod) CPRECH.mod = mod;
   $("cprech-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
-  const { data, error } = await todo(() => db.from("v_cp_rechazos_aquiclub").select("*").order("rechazado_en", { ascending: false }));
+  const { data, error } = await todo(() => db.from("v_cp_rechazos").select("*").order("rechazado_en", { ascending: false }));
   if (error) { $("cprech-cuerpo").innerHTML = `<div class="cf-aviso rojo">Ejecuta 48_control_pagos_simple.sql en Supabase (${esc(error.message)}).</div>`; return; }
   CPRECH.lista = data || []; dibujarCprech(); cprechContador();
 }
-function dibujarCprech(){
+function dibujarCprech(){ return cprechDibujar(); }
+function dibujarCprechV48(){
   const sinVer = CPRECH.lista.filter(x => !x.visto_en && x.vigente), L = CPRECH.todas ? CPRECH.lista : sinVer;
   $("cprech-cuerpo").innerHTML = `<div class="chips" style="margin-bottom:10px"><button class="chip ${CPRECH.todas ? "" : "activo"}" data-cprf="0">Sin ver<b>${sinVer.length}</b></button>
       <button class="chip ${CPRECH.todas ? "activo" : ""}" data-cprf="1">Todas<b>${CPRECH.lista.length}</b></button></div>
@@ -9200,7 +9205,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 58;
+const VERSION_PAGINA = 59;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -11392,6 +11397,182 @@ function transFcHTML(){
     ${L.map(x => `<tr><td>${transCopiar(x.id_pago)}</td><td><small>${esc(x.obra || "")}</small></td><td>${fecha(x.fecha_pago)}</td><td class="n">${$$(x.monto)}</td><td><b style="font-size:15px">${esc(x.folio)}</b></td><td>${fecha(x.fecha_emision)}</td></tr>`).join("")}</tbody></table></div>
     <p class="nota-g">En el libro BBDD-Clientes Obras › hoja Pagos, busca el Id pago y anota el N° en la columna "Factura Venta". Con la próxima carga desaparecen de esta lista.</p>`;
 }
+
+/* =====================================================================
+   v59 · CONTABILIDAD RECHAZA PAGOS · PAGOS RECHAZADOS (Aquí Club / Obras) · VOLVER A POR REVISAR
+   ===================================================================== */
+const RECH_TXT = { "Pago a proveedor": "pago a proveedor", "Transferencia franquiciado": "transferencia a franquiciado", "Otro pago": "pago" };
+const rechMail = (para, asunto, cuerpo, txt) => `<a href="mailto:${encodeURIComponent(para)}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}">✉ ${txt}</a>`;
+
+/* ---------------- Contabilidad › Pagos para la semana: rechazar ---------------- */
+function contRechLineas(ids){ return Object.values(CONT.pagos.lineas).flat().filter(l => ids.includes(l.pago_id)); }
+async function contRechazar(ids){
+  const L = contRechLineas(ids).filter(l => l.estado_pago !== "Pagado");
+  if (!L.length) return toast("Marca con la casilla los pagos que quieres rechazar.");
+  const r = await modal(`<h3>Rechazar ${L.length} pago(s)</h3>
+      <p class="nota-g">Salen de la solicitud y quedan detenidos hasta que se corrijan. Los <b>pagos a proveedor</b> los corrige Aquí Club (Felipe Morales);
+        las <b>transferencias a franquiciados</b>, Operaciones (Matías). Después vuelven a llegarte en una nueva solicitud, o se anulan si no correspondían.</p>
+      <ul class="nota-g" style="max-height:170px;overflow:auto;margin:6px 0">${L.map(l => `<li><b>${esc(l.id_pago)}</b> · ${esc(l.tipo_solicitud)} · ${esc(l.razon_social_destinatario || "")} · ${$$(l.monto_total)}</li>`).join("")}</ul>
+      <label class="campo">Motivo del rechazo (le llega a quien debe corregirlo)<textarea id="ct-rech-mot" rows="3" placeholder="Ej.: la cuenta bancaria no coincide con la factura · falta el respaldo · el monto no cuadra"></textarea></label>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Rechazar", fn: async f => {
+      const { data, error } = await db.rpc("cont_rechazar_pagos", { p: { ids: L.map(l => l.pago_id), motivo: f.querySelector("#ct-rech-mot").value } });
+      if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return data; } }]);
+  if (!r) return;
+  CONT.pagos.sel.clear();
+  const prov = r.pagos.filter(x => x.tipo === "Pago a proveedor"), otros = r.pagos.filter(x => x.tipo !== "Pago a proveedor");
+  const cuerpo = (L, quien, donde) => `Hola ${quien},\n\nContabilidad rechazó ${L.length === 1 ? "este pago" : "estos pagos"} de la solicitud ${L[0].solicitud}:\n\n`
+    + L.map(x => `· ${x.id_pago} · ${RECH_TXT[x.tipo] || x.tipo}${x.id_factura ? " · factura " + x.id_factura : ""} · obra ${x.obra || ""} · ${$$(x.monto)}`).join("\n")
+    + `\n\nMotivo: ${r.motivo}\n\nPuedes corregirlo (vuelve a Por pagar) o anularlo en ${donde}.\n\nGracias.`;
+  const links = [prov.length ? rechMail(r.aviso_proveedor, `Pago(s) rechazado(s) por Contabilidad · ${prov[0].solicitud}`, cuerpo(prov, "Felipe", "la página › Aquí Club › Pagos rechazados"), "Avisar a Felipe Morales") : "",
+                 otros.length ? rechMail(r.aviso_transferencia, `Transferencia(s) rechazada(s) por Contabilidad · ${otros[0].solicitud}`, cuerpo(otros, "Matías", "la página › Obras › Pagos rechazados"), "Avisar a Matías") : ""].filter(Boolean);
+  toast(`✓ ${r.n} pago(s) rechazado(s). ${links.join(" · ")}`, 16000);
+  await contCargarPagos();
+}
+const _contCargarPagos59 = contCargarPagos;
+contCargarPagos = async function(){
+  try { const r = await todo(() => db.from("v_cont_pagos_rechazados").select("*").order("rechazado_en", { ascending: false })); CONT.pagos.rech = r.error ? [] : (r.data || []); }
+  catch (_) { CONT.pagos.rech = []; }
+  await _contCargarPagos59();
+};
+const _contDibujarPagos59 = contDibujarPagos;
+contDibujarPagos = function(){
+  _contDibujarPagos59();
+  const hace = new Date(Date.now() - 45 * 864e5).toISOString();
+  const R = (CONT.pagos.rech || []).filter(x => x.estado === "Rechazado" || String(x.resuelto_en || "") >= hace);
+  if (!R.length || !$("cont-cuerpo")) return;
+  const est = x => x.estado === "Rechazado" ? '<span class="pill no">Esperando corrección</span>'
+    : x.estado === "Corregido" ? `<span class="pill ok">Corregido</span><br><small>${esc(x.resolucion || "")}${x.monto_corregido ? " · nuevo monto " + $$(x.monto_corregido) : ""} · te llegará en una nueva solicitud</small>`
+    : `<span class="pill sin">Anulado</span><br><small>${esc(x.resolucion || "")}</small>`;
+  $("cont-cuerpo").insertAdjacentHTML("beforeend", `<h5 style="margin:18px 0 6px">Pagos que rechazaste · ${R.length}</h5>
+    <div class="tabla-wrap"><table class="ct-t"><thead><tr><th>Fecha</th><th>Solicitud</th><th>Id pago</th><th>Tipo</th><th>Obra · franquicia</th><th class="n">Monto</th><th>Motivo</th><th>En qué quedó</th></tr></thead><tbody>
+    ${R.map(x => `<tr><td style="white-space:nowrap">${fecha(x.rechazado_en)}<br><small>${contUser(x.rechazado_por)}</small></td><td>${esc(x.solicitud_codigo || "")}</td><td><b>${esc(x.id_pago || "")}</b></td>
+      <td><small>${esc(x.tipo)}${x.proveedor ? "<br>" + esc(x.proveedor) : ""}</small></td><td><small>${esc(x.obra || "")}<br>${esc(x.franquicia || "")}</small></td>
+      <td class="n">${$$(x.monto)}</td><td>${esc(x.motivo)}</td><td>${est(x)}</td></tr>`).join("")}</tbody></table></div>`);
+};
+$("vista-cont").addEventListener("click", e => {
+  const a = e.target.closest("[data-ctrech]"); if (a) return contRechazar([+a.dataset.ctrech]);
+  const b = e.target.closest("[data-ctrechsel]");
+  if (b) { const lin = (CONT.pagos.lineas[+b.dataset.ctrechsel] || []).map(l => l.pago_id); return contRechazar([...CONT.pagos.sel].filter(id => lin.includes(id))); }
+});
+
+/* ---------------- Pagos rechazados (Aquí Club = proveedores · Obras = lo que rechazó Contabilidad) ---------------- */
+CPRECH.mod = "aq"; CPRECH.f = "pend";
+const CPRECH_TXT = {
+  aq: ["Pagos rechazados", "Pagos a proveedor rechazados por <b>Contabilidad</b> (corrige el problema y vuelve a enviarlo, o anúlalo) y facturas que <b>Operaciones</b> decidió no pagar en Control de Pagos (márcalas como vistas)."],
+  ob: ["Pagos rechazados", "Pagos que <b>Contabilidad</b> rechazó, con su motivo. Las <b>transferencias a franquiciados</b> las corriges tú; los <b>pagos a proveedor</b> los corrige Aquí Club (también puedes hacerlo aquí). Corregido = vuelve a Control de Pagos › Por pagar para enviarlo de nuevo. Anulado = no correspondía: se elimina el pago."] };
+const cprPuede = x => puedeEditar() && (puedeArea("operaciones") || (x.aquiclub && puedeArea("facturacion")));
+function cprechDibujar(){
+  const ob = CPRECH.mod === "ob", T = CPRECH_TXT[ob ? "ob" : "aq"];
+  const sec = $("vista-cprech"); sec.querySelector("h1").textContent = T[0]; sec.querySelector(".cp-head p").innerHTML = T[1];
+  const base = CPRECH.lista.filter(x => ob ? x.origen === "Contabilidad" : x.aquiclub);
+  const pend = base.filter(x => (x.origen === "Contabilidad" && x.estado === "Rechazado") || (!ob && x.origen !== "Contabilidad" && x.vigente && !x.visto_en));
+  const L = CPRECH.f === "pend" ? pend : base;
+  const est = x => x.origen === "Contabilidad"
+    ? (x.estado === "Rechazado" ? '<span class="pill no">Por corregir</span>'
+      : x.estado === "Corregido" ? `<span class="pill ok">Corregido</span><br><small>${esc(x.resolucion || "")}${x.monto_corregido ? " · nuevo monto " + $$(x.monto_corregido) : ""}<br>${esc(String(x.resuelto_por || "").split("@")[0])} · ${fecha(x.resuelto_en)}${x.estado_pago_actual === "Solicitado" ? " · ya reenviado a Contabilidad" : x.estado_pago_actual === "Pagado" ? " · pagado" : x.estado_pago_actual === "Pendiente" ? " · en Por pagar" : ""}</small>`
+      : `<span class="pill sin">Anulado</span><br><small>${esc(x.resolucion || "")}<br>${esc(String(x.resuelto_por || "").split("@")[0])} · ${fecha(x.resuelto_en)}</small>`)
+    : (!x.vigente ? '<span class="pill ok">Se volvió a proponer</span>' : x.visto_en ? `<span class="pill ok">Visto ${fecha(x.visto_en)}</span>` : '<span class="pill parcial">Sin ver</span>');
+  const acc = x => {
+    if (x.origen === "Contabilidad" && x.estado === "Rechazado" && cprPuede(x))
+      return `<button class="btn-acc" data-cprcorr="${x.id}">Corregido · volver a Por pagar…</button><br><button class="cf-btn" data-cpranul="${x.id}" style="margin-top:4px">Anular…</button>`;
+    if (x.origen !== "Contabilidad" && x.vigente && !x.visto_en) return `<button class="btn-acc" data-cprvisto="${x.id}">Visto</button>`;
+    return "";
+  };
+  $("cprech-cuerpo").innerHTML = `<div class="chips" style="margin-bottom:10px"><button class="chip ${CPRECH.f === "pend" ? "activo" : ""}" data-cprf2="pend">Por resolver<b>${pend.length}</b></button>
+      <button class="chip ${CPRECH.f === "todas" ? "activo" : ""}" data-cprf2="todas">Todos (historial)<b>${base.length}</b></button></div>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Rechazó</th><th>Pago</th><th>${ob ? "Obra · destinatario" : "Factura · proveedor"}</th><th class="n">Monto</th><th>Motivo</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${L.map(x => `<tr class="${pend.includes(x) ? "" : "hecha"}"><td style="white-space:nowrap">${fecha(x.rechazado_en)}</td>
+      <td>${x.origen === "Contabilidad" ? `<b>Contabilidad</b><br><small>${esc(String(x.rechazado_por || "").split("@")[0])}${x.solicitud_codigo ? " · " + esc(x.solicitud_codigo) : ""}</small>` : `Operaciones<br><small>${esc(String(x.rechazado_por || "").split("@")[0])}</small>`}</td>
+      <td><b>${esc(x.id_pago || "—")}</b><br><small>${esc(x.tipo)}</small></td>
+      <td class="ob">${x.aquiclub ? `<b>${esc(x.proveedor || "")}</b><span>${esc(x.id_factura || "")}${x.n_factura ? " · F° " + esc(x.n_factura) : ""}${x.numero_oc ? " · OC " + esc(x.numero_oc) : ""}</span><span>${x.obra ? obraLink(x.obra) : ""} · ${esc(x.franquicia || "")}</span>`
+          : `<b>${esc(x.cliente || "")}</b><span>${x.obra ? obraLink(x.obra) : ""} · ${esc(x.franquicia || "")}</span>`}</td>
+      <td class="n">${$$(x.monto)}${x.monto_actual != null && Math.round(x.monto_actual) !== Math.round(x.monto) ? `<br><small>ahora ${$$(x.monto_actual)}</small>` : ""}</td>
+      <td><b>${esc(x.motivo)}</b></td><td>${est(x)}</td><td>${acc(x)}</td></tr>`).join("")
+      || `<tr><td colspan="8" class="cp-vacio">${CPRECH.f === "pend" ? "✓ No hay pagos rechazados por resolver." : "No hay pagos rechazados."}</td></tr>`}</tbody></table></div>`;
+}
+async function cprechContador2(){
+  try {
+    const { data } = await db.from("v_cp_rechazos").select("id,origen,estado,aquiclub,vigente,visto_en,tipo");
+    const D = data || [], contP = D.filter(x => x.origen === "Contabilidad" && x.estado === "Rechazado");
+    const aq = D.filter(x => x.aquiclub && ((x.origen === "Contabilidad" && x.estado === "Rechazado") || (x.origen !== "Contabilidad" && x.vigente && !x.visto_en)));
+    if ($("cprech-n")) $("cprech-n").textContent = aq.length ? ` · ${aq.length} por resolver` : "";
+    if ($("cprechob-n")) $("cprechob-n").innerHTML = contP.length ? ` · <b style="color:#a1281f">${contP.length} por corregir</b>` : "";
+    if (CPRECH.avisado) return; CPRECH.avisado = true;
+    const tr = contP.filter(x => !x.aquiclub), pv = contP.filter(x => x.aquiclub);
+    if (puedeArea("operaciones") && contP.length)
+      toast(`⚠ Contabilidad rechazó <b>${contP.length} pago(s)</b>${tr.length ? ` (${tr.length} transferencia(s) a franquiciado)` : ""}. <a href="#" data-ircprech="ob">Ver en Obras › Pagos rechazados</a>`, 12000);
+    else if (puedeArea("facturacion") && pv.length)
+      toast(`⚠ Contabilidad rechazó <b>${pv.length} pago(s) a proveedor</b>: corrígelos o anúlalos. <a href="#" data-ircprech="aq">Ver Pagos rechazados</a>`, 12000);
+  } catch (_) {}
+}
+document.addEventListener("click", e => { const a = e.target.closest("[data-ircprech]"); if (!a) return; e.preventDefault(); irA("cprech", a.dataset.ircprech); });
+async function cprCorregir(id){
+  const x = (CPRECH.lista || []).find(r => r.id === id) || (CPX.rech || []).find(r => r.id === id); if (!x) return;
+  const ok = await modal(`<h3>Corregido · volver a Por pagar</h3>
+      <p class="nota-g">${esc(x.id_pago || "")} · ${esc(x.tipo)} · ${$$(x.monto_actual ?? x.monto)}<br>Motivo de Contabilidad: <b>${esc(x.motivo)}</b></p>
+      <p class="nota-g">El pago vuelve a <b>Control de Pagos › Por pagar</b> y Operaciones lo envía de nuevo a Contabilidad en la próxima solicitud.
+        ${x.aquiclub ? "Si el problema era la cuenta del proveedor o la factura, corrígelo antes en Ingreso de datos." : "Si el problema era la cuenta bancaria, corrígela antes en Ingreso de datos."}</p>
+      <label class="campo">¿Qué se corrigió?<input id="cpr-nota" placeholder="Ej.: se actualizó la cuenta del proveedor · se adjuntó el acta"></label>
+      <label class="campo">Monto (sólo si cambió)<input id="cpr-monto" inputmode="numeric" value="${nf.format(Math.round(x.monto_actual ?? x.monto))}"></label>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Volver a Por pagar", fn: async f => {
+      const { error } = await db.rpc("cp_corregir_rechazo", { p: { id, nota: f.querySelector("#cpr-nota").value, monto: f.querySelector("#cpr-monto").value } });
+      if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
+  if (!ok) return;
+  toast(`✓ ${esc(x.id_pago || "")} vuelve a Control de Pagos › Por pagar.` + (!puedeArea("operaciones")
+    ? ` ${rechMail(CONT_CORREO_OPER, `Pago corregido · ${x.id_pago}`, `Hola,\n\nCorregí el pago ${x.id_pago} que había rechazado Contabilidad (${x.motivo}). Ya está en Control de Pagos › Por pagar para enviarlo de nuevo.\n\nGracias.`, "Avisar a Operaciones")}` : ""), 12000);
+  cprRecargarTodo();
+}
+const CONT_CORREO_OPER = "matias.hurtado@aquituremodelacion.cl";
+async function cprAnular(id){
+  const x = (CPRECH.lista || []).find(r => r.id === id) || (CPX.rech || []).find(r => r.id === id); if (!x) return;
+  const ok = await modal(`<h3>Anular el pago</h3><p class="nota-g">${esc(x.id_pago || "")} · ${esc(x.tipo)} · ${$$(x.monto)}<br>Se elimina el pago (no correspondía) y la sugerencia no vuelve a aparecer en Control de Pagos.</p>
+      <label class="campo">¿Por qué se anula?<input id="cpr-nota" placeholder="Ej.: la factura ya se pagó por otro medio · no correspondía transferir"></label>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Anular", fn: async f => {
+      const { error } = await db.rpc("cp_anular_rechazo", { p: { id, nota: f.querySelector("#cpr-nota").value } });
+      if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
+  if (!ok) return;
+  toast(`✓ Pago ${esc(x.id_pago || "")} anulado.`); cprRecargarTodo();
+}
+function cprRecargarTodo(){
+  if (!$("vista-cprech").classList.contains("oculto")) cargarCprech(); else cprechContador2();
+  if (!$("vista-pagos").classList.contains("oculto")) cpxRecargar(); else { CPX.cargado = false; if (typeof CP !== "undefined") CP.cargado = false; }
+}
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-cprcorr]"); if (c) return cprCorregir(+c.dataset.cprcorr);
+  const a = e.target.closest("[data-cpranul]"); if (a) return cprAnular(+a.dataset.cpranul);
+  const f = e.target.closest("[data-cprf2]"); if (f) { CPRECH.f = f.dataset.cprf2; return cprechDibujar(); }
+});
+
+/* ---------------- Control de Pagos ---------------- */
+const cpxBloqueado = x => (CPX.rech || []).some(r => r.origen === "Contabilidad" && r.estado === "Rechazado" && r.pago_id === x.id);
+function cpxNotaCorregido(x){
+  const r = (CPX.rech || []).filter(r => r.origen === "Contabilidad" && r.estado === "Corregido" && r.pago_id === x.id).pop();
+  return r ? `<br><span class="pill parcial" title="Rechazado por Contabilidad: ${esc(r.motivo)}">Corregido</span><small> ${esc(r.resolucion || "")}</small>` : "";
+}
+function cpxRechAcc(x){
+  if (x.origen === "Contabilidad") {
+    if (x.estado === "Rechazado") return cprPuede(x) ? `<button class="cf-btn" data-cprcorr="${x.id}">Corregido…</button> <button class="cf-btn" data-cpranul="${x.id}">Anular…</button>` : "<small>Por corregir</small>";
+    return `<small>${esc(x.estado)} ${fecha(x.resuelto_en)}</small>`;
+  }
+  return x.vigente ? `<button class="cf-btn" data-cpxreact="${x.id}">Volver a proponer</button>` : `<small>Repropuesta ${fecha(x.reactivado_en)}</small>`;
+}
+const _cpxDibPP59 = cpxDibPP;
+cpxDibPP = function(...a){
+  const n = (CPX.rech || []).filter(r => r.origen === "Contabilidad" && r.estado === "Rechazado").length;
+  return (n ? `<div class="trans-mini" style="background:#fbe6e4;border-color:#e6a19b">⚠ Contabilidad rechazó <b>${n} pago(s)</b>: no están aquí hasta que se corrijan. <a href="#" data-ircprech="ob">Ver Pagos rechazados</a></div>` : "") + _cpxDibPP59(...a);
+};
+async function cpxVolverRevision(id){
+  const x = CPX.porPagar.find(p => p.id === id); if (!x) return;
+  const ok = await modal(`<h3>Volver a Por revisar</h3><p class="nota-g">${esc(x.id_pago)} · ${esc(x.tipo_solicitud || "")} · ${esc(x.razon_social_destinatario || "")} · ${$$(x.monto_total)}</p>
+      <p class="nota-g">Sale de Por pagar y la sugerencia vuelve a aparecer en <b>Por revisar</b> (con el monto que corresponda en ese momento). Cuando esté lista, la aceptas de nuevo.</p>
+      <label class="campo">Motivo / gestión pendiente (opcional)<input id="cpx-volrev-mot" placeholder="Ej.: confirmar avance con el franquiciado"></label>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Volver a Por revisar", fn: async f => {
+      const { error } = await db.rpc("cp_devolver_revision", { p: { pago_id: id, motivo: f.querySelector("#cpx-volrev-mot").value } });
+      if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
+  if (!ok) return;
+  CPX.sel.delete(id); toast("✓ Volvió a Por revisar."); await cpxRecargar();
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-cpxvolrev]"); if (b) cpxVolverRevision(+b.dataset.cpxvolrev); });
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
