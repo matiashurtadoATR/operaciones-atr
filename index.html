@@ -1124,8 +1124,8 @@
       <button data-rep="sol" data-mod="franq" data-area="operaciones" data-solo-supabase="1">Solicitudes de factura<small>Plataforma tecnológica · Mínimo trimestral · Canon de entrada · Arriendo</small></button>
       <button data-rep="arr" data-area="operaciones" data-solo-supabase="1">Arriendo · facturas del mall<small>Condiciones por tienda · validación</small></button>
       <button data-rep="arrfm" data-area="facturacion" data-solo-supabase="1">Arriendo · solicitar a Contabilidad<small>Aprobados por Matías → Contabilidad<span class="n-ctrl" id="arrfm-n"></span></small></button>
-      <h5 data-area="operaciones">Aprobaciones</h5>
-      <button data-rep="sol" data-mod="vb" data-area="operaciones" data-solo-supabase="1">Aprobaciones<small>Visto bueno de Patricio (arriendos: Matías)<span class="n-ctrl" id="sol-n-vb"></span></small></button>
+      <h5 data-area="operaciones">Seguimiento</h5>
+      <button data-rep="sol" data-mod="vb" data-area="operaciones" data-solo-supabase="1">Registro de facturas<small>Visto bueno · en Contabilidad · emitidas (N° y PDF)<span class="n-ctrl" id="sol-n-vb"></span></small></button>
       <h5 data-area="operaciones">Control</h5>
       <button data-rep="cf" data-area="operaciones" data-solo-supabase="1">Control de Facturación<small>Solicitar · emitir · enviar · cobrar</small></button>
 
@@ -4140,9 +4140,9 @@ document.addEventListener("mousemove", e => { if (TIP.style.opacity === "1") {
    ===================================================================== */
 const SOL = { lista: [], abiertas: new Set(), lineas: {}, eventos: {}, filtro: "activas", ambito: "franq" };
 const SOL_AMB = {
-  obras: { t: "Facturas de obras · solicitudes", n: "Royalty y Aquí Club de las obras. Se piden desde <b>Facturas por solicitar</b> y quedan en visto bueno de Patricio (ver <b>Aprobaciones</b>); aquí sigues su estado, folios e historial." },
-  franq: { t: "Solicitudes de factura · franquiciados", n: "Plataforma tecnológica, Mínimo trimestral, Canon de entrada y Arriendo: <b>Generar → revisar → Confirmar</b>; el visto bueno se da en <b>Aprobaciones</b> (los arriendos los aprueba Matías y después Felipe Morales los solicita a Contabilidad)." },
-  vb: { t: "Aprobaciones", n: "Solicitudes de factura que esperan visto bueno, separadas en obras y franquiciados. Las aprueba <b>Patricio</b> (Matías y Felipe De Quevedo pueden <b>suplirlo</b>; queda registrado); los <b>arriendos</b> los aprueba Matías. Al aprobarlas pasan a Contabilidad (los arriendos, cuando Felipe Morales los envía)." } };
+  obras: { t: "Facturas de obras · solicitudes", n: "Royalty y Aquí Club de las obras. Se piden desde <b>Facturas por solicitar</b> y quedan en visto bueno de Patricio (ver <b>Registro de facturas</b>); aquí sigues su estado, folios e historial." },
+  franq: { t: "Solicitudes de factura · franquiciados", n: "Plataforma tecnológica, Mínimo trimestral, Canon de entrada y Arriendo: <b>Generar → revisar → Confirmar</b>; el visto bueno se da en <b>Registro de facturas</b> (los arriendos los aprueba Matías y después Felipe Morales los solicita a Contabilidad)." },
+  vb: { t: "Registro de facturas", n: "Todo el camino de cada solicitud de factura: <b>visto bueno</b> (Patricio; arriendos Matías; Matías y Felipe De Quevedo pueden <b>suplirlo</b>) → <b>Contabilidad</b> → <b>emitida</b> con su N° de factura, fecha y PDF. Las facturas a franquiciados que se cobran quedan además en <b>Franquiciados › Cobros a franquiciados</b>. Clic en una solicitud para ver el detalle." } };
 const solEsObra = x => x.tipo === "Obras";
 const solPorAprobar = x => x.estado === "En revisión" || (x.estado === "Borrador" && !!x.confirmada_en);
 const ESTADO_SOL = { "Borrador": "sin", "En revisión": "parcial", "Aprobada": "ok", "Rechazada": "no",
@@ -4153,7 +4153,7 @@ async function cargarSolicitudes(){
   $("sol-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Cargando…</td></tr></tbody>`;
   const { data, error } = await todo(() => db.from("v_solicitudes_factura").select("*").order("id", { ascending: false }));
   if (error) { $("sol-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Error: ${esc(error.message)}<br>¿Ejecutaste 11_reglas_y_solicitudes.sql?</td></tr></tbody>`; return; }
-  SOL.lista = data || []; SOL.lineas = {}; SOL.eventos = {};
+  SOL.lista = data || []; SOL.lineas = {}; SOL.eventos = {}; RF.cont = null;
   for (const id of SOL.abiertas) await cargarDetalleSol(id);
   dibujarSolicitudes();
   cargarAjustes();
@@ -4170,6 +4170,8 @@ async function cargarDetalleSol(id){
 
 function dibujarSolicitudes(){
   const A = SOL.ambito || "franq", vb = A === "vb";
+  if (vb) return dibujarRegFact();
+  $("sol-filtro").classList.remove("oculto"); if ($("rf-chips")) $("rf-chips").classList.add("oculto");
   $("sol-titulo").textContent = SOL_AMB[A].t; $("sol-nota-amb").innerHTML = SOL_AMB[A].n;
   $("sol-controles").classList.toggle("oculto", A !== "franq");
   $("vista-sol").classList.toggle("sol-solo-lista", A !== "franq");      // franquicias PT y mínimos: sólo en Solicitudes de factura
@@ -4179,8 +4181,8 @@ function dibujarSolicitudes(){
              : amb.filter(s => SOL.filtro === "todas" || !["Facturada", "Anulada"].includes(s.estado));
   if (vb) L = [...L.filter(solEsObra), ...L.filter(s => !solEsObra(s))];
   const pend = SOL.lista.filter(s => s.estado === "En revisión" && (s.tipo === "Arriendo" ? SESION.aprueba_arriendo : SESION.aprueba)).length;
-  $("sol-sub").innerHTML = (SESION.aprueba || SESION.aprueba_arriendo) && pend ? `<b style="color:#9a5b00">Tienes ${pend} solicitud(es) esperando tu visto bueno.</b>${vb ? "" : " Están en <b>Aprobaciones</b>."}` :
-    vb ? "" : "Se generan aquí, Patricio da el visto bueno en Aprobaciones y pasan a Contabilidad.";
+  $("sol-sub").innerHTML = (SESION.aprueba || SESION.aprueba_arriendo) && pend ? `<b style="color:#9a5b00">Tienes ${pend} solicitud(es) esperando tu visto bueno.</b>${vb ? "" : " Están en <b>Registro de facturas</b>."}` :
+    vb ? "" : "Se generan aquí, Patricio da el visto bueno en Registro de facturas y pasan a Contabilidad.";
   let h = `<thead><tr><th>Solicitud</th><th>Tipo</th><th>Período</th><th>Estado</th><th class="n">Líneas</th><th class="n">Neto</th>
            <th class="n">IVA</th><th class="n">Total</th><th>Creada por</th><th>Visto bueno</th></tr></thead><tbody>`;
   if (!L.length) h += `<tr><td colspan="10" class="cp-vacio">${vb ? (SOL.filtro === "activas" ? "No hay solicitudes esperando visto bueno." : "Sin historial.") : `No hay solicitudes ${SOL.filtro === "activas" ? "en curso" : ""}.`}</td></tr>`;
@@ -4220,7 +4222,7 @@ function detalleSol(s){
   const esArr = s.tipo === "Arriendo";
   const btnSuplir = !esArr && SESION.suple && !SESION.aprueba && !enExcel() && (s.estado === "En revisión" || (borrador && confirmada && s.estado === "Borrador"))
     ? `<button class="btn sec" data-suplir-sol="${s.id}" title="Aprueba en lugar de Patricio. Queda registrado quién, cuándo y el motivo.">Suplir a Patricio…</button>` : "";
-  if (SOL.ambito !== "vb" && solPorAprobar(s)) acciones += `<div class="acc-sol" style="align-items:center"><span class="nota-sol" style="margin:0">${s.estado === "En revisión" ? `Esperando el visto bueno de ${esArr ? "Matías" : "Patricio"}.` : `Confirmada: falta ${esArr ? "enviarla a la aprobación de Matías" : "el visto bueno de Patricio"}.`}</span>${esArr && s.estado === "Borrador" && puedeEditar() ? `<button class="btn" data-env-rev="${s.id}">Enviar a aprobación de Matías</button>` : `<button class="btn sec" data-ir-vb="${s.id}">Ir a Aprobaciones</button>`}</div>`;
+  if (SOL.ambito !== "vb" && solPorAprobar(s)) acciones += `<div class="acc-sol" style="align-items:center"><span class="nota-sol" style="margin:0">${s.estado === "En revisión" ? `Esperando el visto bueno de ${esArr ? "Matías" : "Patricio"}.` : `Confirmada: falta ${esArr ? "enviarla a la aprobación de Matías" : "el visto bueno de Patricio"}.`}</span>${esArr && s.estado === "Borrador" && puedeEditar() ? `<button class="btn" data-env-rev="${s.id}">Enviar a aprobación de Matías</button>` : `<button class="btn sec" data-ir-vb="${s.id}">Ir a Registro de facturas</button>`}</div>`;
   else if (s.estado === "En revisión") acciones += (esArr ? SESION.aprueba_arriendo : SESION.aprueba)
     ? `<div class="acc-sol"><button class="btn" data-aprobar="${s.id}">✓ Dar visto bueno</button><button class="btn sec" data-rechazar="${s.id}">Rechazar…</button></div>`
     : `<div class="acc-sol" style="align-items:center"><span class="nota-sol" style="margin:0">Esperando el visto bueno de ${esArr ? "Matías" : "Patricio"} (enviada ${fecha(s.revision_enviada_en)}).</span>${btnSuplir}</div>`;
@@ -4229,7 +4231,7 @@ function detalleSol(s){
   if (s.estado === "Aprobada") acciones += `<p class="nota-sol">Aprobada por ${esc(s.aprobado_por || "")}${s.comentario_revision ? " · “" + esc(s.comentario_revision) + "”" : ""}. ${s.tipo === "Arriendo"
     ? "Falta que <b>Felipe Morales</b> la solicite a Contabilidad (Facturación Operaciones › Arriendo · solicitar a Contabilidad)."
     : `Ya está en <b>Contabilidad › Facturas de ${s.tipo === "Obras" ? "obras" : "franquiciados"}</b> para emitir.`}</p>`;
-  if (folios) acciones += `<p class="nota-sol">Cuando Contabilidad emita las facturas, escribe el folio de cada una y presiona <b>Guardar folios</b>. Queda registrado en los cargos/pagos.</p>`;
+  if (folios && SOL.ambito !== "vb") acciones += `<p class="nota-sol">Cuando Contabilidad emita las facturas, escribe el folio de cada una y presiona <b>Guardar folios</b>. Queda registrado en los cargos/pagos.</p>`;
   const cab = editable && s.tipo === "Plataforma tecnológica" ? `<div class="cab-sol">
       <label>Fecha de emisión<input type="date" id="sol-ed-fecha-${s.id}" value="${esc(String(s.fecha_emision || "").slice(0, 10))}"></label>
       <label>Valor UF<input id="sol-ed-uf-${s.id}" value="${s.uf_valor ? Number(s.uf_valor).toLocaleString("es-CL") : ""}" size="10"></label>
@@ -4251,7 +4253,7 @@ function detalleSol(s){
       <td class="n">${netoEd ? `<input class="n" data-campo="neto" value="${nf.format(Math.round(l.neto))}">` : $$(l.neto)}${editable && l.pago_id ? `<br><small title="El monto viene del cargo ya registrado">del cargo</small>` : ""}</td>
       <td class="n">${$$(l.iva)}</td><td class="n"><b>${$$(l.total)}</b></td>
       <td>${esc(l.id_pago || "")}${editable ? `<br><input type="date" data-campo="vencimiento" value="${esc(String(l.vencimiento || "").slice(0, 10))}" title="Vencimiento">` : l.vencimiento ? `<br><small>vence ${fecha(l.vencimiento)}</small>` : ""}</td>
-      <td>${folios ? `<input class="folio" data-linea="${l.id}" value="${esc(l.folio || "")}" placeholder="Folio" size="7">` : esc(l.folio || "")}</td>
+      <td>${SOL.ambito === "vb" ? rfFolioLinea(l) : folios ? `<input class="folio" data-linea="${l.id}" value="${esc(l.folio || "")}" placeholder="Folio" size="7">` : esc(l.folio || "")}</td>
       <td>${editable ? `<button class="x" data-quitar="${l.id}" title="Quitar de la solicitud">✕</button>` : ""}</td></tr>`; }).join("");
   return `<div class="det-sol">${pasos}${acciones}${cab}
     <table class="calc lineas"><thead><tr><th>Franquicia / obra</th><th>Glosa</th><th class="n">UF · días</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th>Cargo</th><th>Folio</th><th></th></tr></thead>
@@ -4259,7 +4261,7 @@ function detalleSol(s){
     <div class="acc-sol">
       ${editable ? `<button class="btn sec" data-guardar-sol="${s.id}">Guardar cambios</button><button class="btn" data-confirmar-sol="${s.id}">Confirmar solicitud</button>` : ""}
       ${editable && s.tipo === "Plataforma tecnológica" ? `<button class="btn sec" data-pt-sol="${s.id}">+ Agregar franquicia</button>` : ""}
-      ${folios ? `<button class="btn" data-folios="${s.id}">Guardar folios</button>` : ""}
+      ${folios && SOL.ambito !== "vb" ? `<button class="btn" data-folios="${s.id}">Guardar folios</button>` : ""}
       <button class="btn sec" data-xlsx-sol="${s.id}">Descargar Excel</button>
       ${!["Enviada a contabilidad", "Facturada", "Anulada"].includes(s.estado) && puedeEditar() ? `<button class="btn sec" data-anular="${s.id}">Anular…</button>` : ""}
     </div>
@@ -4309,7 +4311,7 @@ $("sol-tabla").addEventListener("click", async e => {
     return rpc("confirmar_solicitud_factura", { p_id: +t.dataset.confirmarSol }, "✓ Solicitud confirmada. Siguiente paso: Panel de operaciones › Enviar a Patricio."); }
   if (t.dataset.reabrirSol) return rpc("reabrir_solicitud_factura", { p_id: +t.dataset.reabrirSol }, "Solicitud reabierta: ya puedes editarla.");
   if (t.dataset.envRev) { if (!confirm("¿Enviar la solicitud de arriendo a la aprobación de Matías?")) return;
-    return rpc("marcar_solicitud_en_revision", { p_id: +t.dataset.envRev }, "✓ Enviada a la aprobación de Matías (Aprobaciones)."); }
+    return rpc("marcar_solicitud_en_revision", { p_id: +t.dataset.envRev }, "✓ Enviada a la aprobación de Matías (Registro de facturas)."); }
   if (t.dataset.irVb) { SOL.abiertas.add(+t.dataset.irVb); SOL.filtro = "activas"; return irA("sol", "vb"); }
   if (t.dataset.suplirSol) { const c = prompt("Suplir el visto bueno de Patricio.\nMotivo (queda en el registro interno):"); if (!c) return;
     return rpc("suplir_vb_solicitud_factura", { p_id: +t.dataset.suplirSol, p_motivo: c }, "✓ Aprobada (suplido): ya está en Contabilidad."); }
@@ -7214,7 +7216,7 @@ async function sugfEjecutar(){
   const { data, error } = await db.rpc("sug_facturas_obras_ejecutar", { p });
   if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 10000);
   invalidarPagos();
-  toast("✓ " + [data.solicitud ? `Solicitud <b>${esc(data.solicitud)}</b> enviada al visto bueno de Patricio. <a href="mailto:${APROBADOR_CORREO}?subject=${encodeURIComponent("Visto bueno solicitud de facturación " + data.solicitud)}&body=${encodeURIComponent(`Hola Patricio,\n\nTe pido el visto bueno de la solicitud de facturación ${data.solicitud} (royalty / Aquí Club de obras). La apruebas en la página › Facturación Operaciones › Aprobaciones.\n\nSaludos.`)}">✉ Avisar a Patricio</a>` : "",
+  toast("✓ " + [data.solicitud ? `Solicitud <b>${esc(data.solicitud)}</b> enviada al visto bueno de Patricio. <a href="mailto:${APROBADOR_CORREO}?subject=${encodeURIComponent("Visto bueno solicitud de facturación " + data.solicitud)}&body=${encodeURIComponent(`Hola Patricio,\n\nTe pido el visto bueno de la solicitud de facturación ${data.solicitud} (royalty / Aquí Club de obras). La apruebas en la página › Facturación Operaciones › Registro de facturas.\n\nSaludos.`)}">✉ Avisar a Patricio</a>` : "",
     ...(data.avisos || []).map(esc)].filter(Boolean).join("<br>"), 12000);
   await cargarSugf(); solContadorVb();
 }
@@ -9163,7 +9165,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 55;
+const VERSION_PAGINA = 56;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9420,7 +9422,7 @@ const AREA_INFO = {
                       ic: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>' },
   "Franquiciados":  { d: "Cobros a franquiciados, tiendas y arriendos, ingreso de franquicias.",
                       ic: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 14.6c2 .7 3.2 2.6 3.5 5.4"/>' },
-  "Facturación Operaciones": { d: "Facturas que gestiona Operaciones. Obras: royalty y Aquí Club. Franquiciados: plataforma tecnológica, mínimo trimestral, canon de entrada y arriendo. Aprobaciones y control.",
+  "Facturación Operaciones": { d: "Facturas que gestiona Operaciones. Obras: royalty y Aquí Club. Franquiciados: plataforma tecnológica, mínimo trimestral, canon de entrada y arriendo. Registro de facturas (visto bueno, Contabilidad y emitidas) y control.",
                       ic: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3"/><path d="M9 11h6M9 15h6M9 7h3"/>' },
   "Cuadratura Bancaria": { d: "Control y cierre de las conciliaciones: sube tu Excel de cuadratura, compáralo con lo conciliado en la plataforma y resuelve las diferencias con un clic.",
                       ic: '<path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/>' },
@@ -10746,6 +10748,92 @@ function transAvisos(){
     const ref = s.querySelector(".cp-head"); ref ? ref.after(d) : s.prepend(d);
   }
 }
+
+/* =====================================================================
+   v55b · FACTURACIÓN OPERACIONES › REGISTRO DE FACTURAS (antes "Aprobaciones")
+   Todo el hilo de cada solicitud: visto bueno → Contabilidad → emitida (N° de factura, fecha y PDF).
+   ===================================================================== */
+const RF = { cont: null, lin: null, filtro: "curso", q: "", cargando: false };
+async function rfCargar(){
+  if (RF.cargando) return; RF.cargando = true;
+  const [c, l] = await Promise.all([todo(() => db.from("v_cont_solicitudes_factura").select("id,estado_cont,n_lineas,n_facturadas,cont_tomada_por,cont_tomada_en,facturada_en,cont_observacion")),
+                                    todo(() => db.from("v_solicitud_lineas").select("solicitud_id,folio,fecha_factura"))]);
+  RF.cont = new Map((c.data || []).map(x => [x.id, x])); RF.lin = {};
+  (l.data || []).forEach(x => (RF.lin[x.solicitud_id] = RF.lin[x.solicitud_id] || []).push(x));
+  RF.cargando = false; dibujarSolicitudes();
+}
+function rfEtapa(s){
+  const c = RF.cont.get(s.id), esArr = s.tipo === "Arriendo";
+  if (s.estado === "Anulada") return ["Anulada", "no", 9];
+  if (s.estado === "Rechazada") return ["Rechazada · corregir y reenviar", "no", 1];
+  if (s.estado === "Borrador") return s.confirmada_en ? [`Confirmada · falta enviar al visto bueno de ${esArr ? "Matías" : "Patricio"}`, "parcial", 1] : ["Borrador · por confirmar", "sin", 0];
+  if (s.estado === "En revisión") return [`Esperando visto bueno de ${esArr ? "Matías" : "Patricio"}`, "parcial", 2];
+  if (s.estado === "Facturada") return ["Emitida", "ok", 5];
+  if (esArr && s.estado === "Aprobada" && !c) return ["Aprobada · falta que Felipe Morales la pase a Contabilidad", "parcial", 3];
+  if (c && Number(c.n_facturadas) > 0) return [`En Contabilidad · emitidas ${c.n_facturadas} de ${c.n_lineas}`, "parcial", 4];
+  if (c && c.cont_tomada_por) return [`En Contabilidad · tomada por ${contUser ? contUser(c.cont_tomada_por) : c.cont_tomada_por}`, "parcial", 4];
+  return ["En Contabilidad · por emitir", "parcial", 4];
+}
+const RF_FILTROS = [["curso", "En curso"], ["vb", "Por aprobar"], ["cont", "En Contabilidad"], ["emit", "Emitidas"], ["todas", "Todas"]];
+function rfPasa(s, f){
+  const e = rfEtapa(s)[2];
+  return f === "todas" ? true : f === "curso" ? e >= 1 && e <= 4 : f === "vb" ? solPorAprobar(s) : f === "cont" ? e === 3 || e === 4 : e === 5;
+}
+function rfFolios(s){
+  const L = (RF.lin[s.id] || []).filter(l => l.folio);
+  const fs = [...new Set(L.map(l => String(l.folio)))].sort((a, b) => a - b);
+  if (!fs.length) return "";
+  const fe = L.map(l => l.fecha_factura).filter(Boolean).sort();
+  return `F° ${fs.map(f => fpdfTxt(f)).join(", ")}${fe.length ? `<br><small>${fecha(fe[0])}${fe[fe.length - 1] !== fe[0] ? " – " + fecha(fe[fe.length - 1]) : ""}</small>` : ""}`;
+}
+function dibujarRegFact(){
+  if (!RF.cont) { $("sol-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Cargando…</td></tr></tbody>`; rfCargar(); return; }
+  $("sol-titulo").textContent = SOL_AMB.vb.t; $("sol-nota-amb").innerHTML = SOL_AMB.vb.n;
+  $("sol-controles").classList.add("oculto"); $("vista-sol").classList.add("sol-solo-lista");
+  $("sol-filtro").classList.add("oculto");
+  let ch = $("rf-chips");
+  if (!ch) { ch = document.createElement("div"); ch.id = "rf-chips"; ch.className = "chips"; ch.style.marginBottom = "10px"; $("sol-filtro").after(ch); }
+  ch.classList.remove("oculto");
+  const base = SOL.lista.filter(s => s.estado !== "Anulada" || RF.filtro === "todas");
+  const q = RF.q.toLowerCase();
+  ch.innerHTML = RF_FILTROS.map(([k, t]) => `<button class="chip ${RF.filtro === k ? "activo" : ""}" data-rf="${k}">${t}<b>${SOL.lista.filter(s => rfPasa(s, k)).length}</b></button>`).join("")
+    + `<input id="rf-q" placeholder="Buscar código, tipo, período o N° factura" value="${esc(RF.q)}" style="margin-left:auto;min-width:240px">`;
+  const pend = SOL.lista.filter(s => s.estado === "En revisión" && (s.tipo === "Arriendo" ? SESION.aprueba_arriendo : SESION.aprueba)).length;
+  $("sol-sub").innerHTML = pend ? `<b style="color:#9a5b00">Tienes ${pend} solicitud(es) esperando tu visto bueno.</b>` : "";
+  let L = base.filter(s => rfPasa(s, RF.filtro) && (!q || [s.codigo, s.tipo, s.periodo, ...(RF.lin[s.id] || []).map(l => l.folio)].join(" ").toLowerCase().includes(q)));
+  L.sort((a, b) => rfEtapa(a)[2] - rfEtapa(b)[2] || b.id - a.id);
+  L = [...L.filter(solEsObra), ...L.filter(s => !solEsObra(s))];
+  let h = `<thead><tr><th>Solicitud</th><th>Tipo · período</th><th>Etapa</th><th class="n">Total</th><th>Visto bueno</th><th>Contabilidad</th><th>Facturas emitidas</th></tr></thead><tbody>`;
+  if (!L.length) h += `<tr><td colspan="7" class="cp-vacio">Sin solicitudes en esta lista.</td></tr>`;
+  let grupo = null;
+  for (const s of L) {
+    const ab = SOL.abiertas.has(s.id), [et, cls] = rfEtapa(s), c = RF.cont.get(s.id);
+    if (grupo !== solEsObra(s)) { grupo = solEsObra(s);
+      h += `<tr><td colspan="7" style="background:#f3eeea;font-weight:700;color:var(--cafe);padding:8px 10px">${grupo ? "Facturas de obras · royalty y Aquí Club" : "Facturas a franquiciados"} · ${L.filter(x => solEsObra(x) === grupo).length}</td></tr>`; }
+    h += `<tr class="fila ${ab ? "abierta" : ""}" data-sol="${s.id}">
+      <td><b>${esc(s.codigo)}</b><br><small>${fecha(s.creado_en)} · ${esc((s.creado_por || "").split("@")[0])}</small></td>
+      <td>${esc(s.tipo)}<br><small>${esc(s.tipo === "Plataforma tecnológica" ? mesTxt(s.periodo) : s.periodo || "")} · ${s.n_lineas} línea(s)</small></td>
+      <td><span class="pill ${cls}">${esc(et)}</span>${c && c.cont_observacion ? `<br><small style="color:#a1281f">Obs. Contabilidad: ${esc(c.cont_observacion)}</small>` : ""}</td>
+      <td class="n"><b>${$$(s.total)}</b></td>
+      <td><small>${s.aprobado_por ? esc(s.aprobado_por.split("@")[0]) + "<br>" + fecha(s.aprobado_en) : "—"}${s.vb_suplido_por ? "<br>(suplido)" : ""}</small></td>
+      <td><small>${c ? (c.cont_tomada_por ? `Tomada por ${esc(contUser ? contUser(c.cont_tomada_por) : c.cont_tomada_por)}<br>${fecha(c.cont_tomada_en)}` : "Recibida, sin tomar") : "—"}</small></td>
+      <td>${rfFolios(s) || (rfEtapa(s)[2] >= 3 && rfEtapa(s)[2] <= 4 ? '<span class="pill parcial">Por emitir</span>' : "—")}
+        ${!solEsObra(s) && [4, 5].includes(rfEtapa(s)[2]) ? `<br><a href="#" data-ir="cob" title="Los cobros de esta solicitud">Ver en Cobros a franquiciados</a>` : ""}</td></tr>`;
+    if (ab) h += `<tr class="detalle"><td colspan="7">${detalleSol(s)}</td></tr>`;
+  }
+  $("sol-tabla").innerHTML = h + `</tbody>`;
+  if ($("sol-n-vb")) { const n = SOL.lista.filter(solPorAprobar).length; $("sol-n-vb").textContent = n ? ` · ${n} por aprobar` : ""; }
+}
+// folio de cada línea en el detalle (Registro de facturas): sólo lectura, con fecha y PDF
+const rfFolioLinea = l => l.folio ? `F° ${fpdfTxt(l.folio)}${l.fecha_factura ? `<br><small>${fecha(l.fecha_factura)}</small>` : ""}` : '<span class="pill parcial">Por emitir</span>';
+document.addEventListener("click", e => {
+  const c = e.target.closest("#rf-chips [data-rf]"); if (!c) return;
+  RF.filtro = c.dataset.rf; dibujarSolicitudes();
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "rf-q") return;
+  RF.q = e.target.value; const p = e.target.selectionStart; dibujarSolicitudes(); const i = $("rf-q"); if (i) { i.focus(); i.setSelectionRange(p, p); }
+});
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
