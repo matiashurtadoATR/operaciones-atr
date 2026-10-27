@@ -1004,6 +1004,27 @@
 .ptl-tabs{flex-wrap:wrap}
 @media (max-width:700px){.ptl-hoja{grid-template-columns:1fr}.ptl-buscar{min-width:0;flex:1}
   .ptl-fac tr,.ptl-ob tr{grid-template-columns:1fr auto}.ptl-fac td,.ptl-ob td{grid-column:auto!important;grid-row:auto!important}}
+
+  /* v55 · ingreso en formulario */
+  .f-seg{display:inline-flex;border:1px solid var(--linea);border-radius:999px;overflow:hidden;background:#fff}
+  .f-seg button{border:0;background:none;padding:7px 14px;font-weight:600;color:var(--gris)}
+  .f-seg button.activo{background:var(--cafe);color:#fff}
+  table.f-lista{border-collapse:collapse;width:100%}
+  table.f-lista th{position:sticky;top:0;background:var(--naranjo);color:#fff;text-align:left;padding:8px 10px;font-size:12.5px;white-space:nowrap}
+  table.f-lista th.n,table.f-lista td.n{text-align:right}
+  table.f-lista td{padding:9px 10px;border-bottom:1px solid #f1e6df;font-size:13px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#fff}
+  table.f-lista tr.f-fila{cursor:pointer}table.f-lista tr.f-fila:hover td{background:#fff5ee}
+  .f-abrir{color:var(--naranjo);font-weight:600;font-size:12px}
+  .modal.f-modal{width:min(880px,96vw);max-height:92vh;overflow:auto}
+  .f-secc{border:1px solid var(--linea);border-radius:10px;padding:4px 14px 6px;margin:12px 0;min-width:0}
+  .f-form .m-grid>*{min-width:0}.f-form .m-campo input,.f-form .m-campo select{min-width:0;width:100%;box-sizing:border-box}
+  .f-secc legend{font-weight:700;color:var(--cafe);padding:0 6px;font-size:13px}
+  .f-form .m-campo.f-ancho{grid-column:1/-1}
+  .f-form .m-campo textarea{padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font:inherit;font-weight:400;color:var(--tinta);resize:vertical}
+  .f-ayuda{font-weight:400;color:var(--gris);font-size:11px}
+  .f-ro .f-rov{padding:8px 10px;background:#f6f1ee;border-radius:8px;color:var(--tinta);font-weight:400;min-height:34px}
+  .f-calc{color:#a89a92;font-style:italic}
+  .f-na{display:flex;gap:10px;align-items:center}.f-na input[type=date]{flex:1}.f-na label{display:flex;gap:4px;align-items:center;font-weight:400}
 </style>
 </head>
 <body>
@@ -1741,6 +1762,7 @@
       </div>
       <div id="ing-modo"></div>
       <div class="ing-barra">
+        <span class="f-seg" id="ing-modo-sel" title="Formulario: un registro a la vez, ordenado por secciones · Planilla: varias filas, pegar desde Excel"><button data-modo="form">Formulario</button><button data-modo="planilla">Planilla</button></span>
         <button class="btn" id="ing-nueva">+ Nueva fila</button>
         <input type="search" id="ing-buscar" placeholder="Buscar en esta hoja…">
         <span id="ing-fr-wrap"><select id="ing-fr"><option value="">Todas</option></select></span>
@@ -3308,7 +3330,7 @@ function filasVisibles(){
   return { total: filas.length, keys: [...G.nuevas.map(n => n.key), ...filas.slice(0, G.limite).map(claveFila)] };
 }
 
-function dibujarGrilla(){
+function dibujarGrillaPlanilla(){
   const cols = G.cfg.cols, { total, keys } = filasVisibles();
   G.visibles = keys;
   const ed = puedeEditar();
@@ -10404,6 +10426,222 @@ document.addEventListener("input", async e => {
   if (x && FPDF.existe) FPDF.existe.set(x.folio, x);
 });
 document.addEventListener("click", e => { if (e.target.closest("#ct-pdfs")) { e.preventDefault(); fpdfCargaMasiva(); } });
+
+/* =====================================================================
+   v55 · INGRESO DE DATOS EN FORMULARIO (como Registro de Pagos)
+   Cada hoja de Ingreso de datos se ve como una lista; "+ Nuevo" o clic en una fila abre un formulario ordenado por secciones.
+   La planilla sigue disponible (botón Planilla) para pegar muchas filas desde Excel. Mismo guardado que la planilla.
+   ===================================================================== */
+const FORM = { modo: (() => { try { return localStorage.getItem("atr_ing_modo") || "form"; } catch (_) { return "form"; } })() };
+// secciones y columnas de la lista por hoja (lo que no se nombra va a "Otros datos")
+const FORM_CFG = {
+  pagos_obra: { lista: ["id_pago", "obra", "cliente", "fecha_pago", "item", "monto", "fecha_conciliacion", "estado_pago"],
+        secc: [["Obra", ["id_pago", "obra", "cliente", "id_umb"]], ["Pago", ["fecha_pago", "item", "monto", "medio", "estado_pago", "solicitud_pago"]],
+               ["Banco", ["fecha_conciliacion", "banco", "referencia_banco"]], ["Facturas", ["factura_venta", "id_factura"]], ["Observaciones", ["observaciones"]]] },
+  pagos_franquicia: { lista: ["id_pago", "franquicia", "franquiciado", "fecha_pago", "item", "monto", "fecha_conciliacion"],
+        secc: [["Franquicia", ["id_pago", "franquicia", "franquiciado"]], ["Pago", ["fecha_pago", "item", "monto", "medio", "vencimiento"]],
+               ["Banco", ["fecha_conciliacion", "banco", "referencia_banco"]],
+               ["Facturas", ["factura_venta", "fecha_factura_venta", "monto_factura_venta", "factura_compra"]], ["Observaciones", ["observaciones"]]] },
+  oc: { lista: ["codigo", "numero_oc", "fecha_oc", "proveedor", "destino", "monto_total", "facturado", "estado"],
+        secc: [["Orden de compra", ["numero_oc", "estado", "fecha_oc", "fecha_envio"]],
+               ["Proveedor y obra", ["proveedor", "rut_proveedor", "destino", "centro_costo"]],
+               ["Montos", ["monto_neto", "descuento_neto", "pct_descuento", "despacho_otros", "monto_neto_final", "iva", "monto_total", "facturado"]],
+               ["Observaciones", ["observaciones"]]] },
+  facturas: { lista: ["codigo", "numero", "fecha", "proveedor", "id_oc", "destino", "monto_total", "saldo_por_pagar", "estado_pago"],
+        secc: [["Documento", ["id_oc", "numero_oc", "proveedor", "destino", "tipo_documento", "numero", "fecha", "documento_relacionado", "factura_espejo"]],
+               ["Montos", ["monto_neto", "iva", "monto_total"]],
+               ["Pago", ["pagador", "pagada_externa", "estado_pago", "pagado", "pagado_conciliado", "saldo_por_pagar"]],
+               ["Observaciones", ["observaciones"]]] },
+  proveedores: { lista: ["rut", "razon_social", "giro", "email", "banco", "numero_cuenta"],
+        secc: [["Proveedor", ["rut", "razon_social", "giro"]], ["Contacto", ["contacto", "email", "telefono", "direccion", "comuna", "ciudad"]],
+               ["Datos de transferencia", ["banco", "tipo_cuenta", "numero_cuenta"]]] },
+  obras: { lista: ["codigo_atr", "codigo_umb", "cliente", "fecha_contrato", "monto_total", "estado", "avance", "saldo_en_obra"],
+        secc: [["Obra", ["codigo_atr", "codigo_umb", "franquicia", "estado", "canal", "tipo_remodelacion"]],
+               ["Cliente", ["cliente", "rut_cliente", "rrll", "rut_rrll"]],
+               ["Contrato", ["monto_neto", "iva", "monto_total", "fecha_reserva", "fecha_contrato"]],
+               ["Avance", ["fecha_inicio", "fecha_termino", "fecha_mail_seguro", "avance", "fecha_renuncia", "saldo_en_obra"]],
+               ["Comentarios", ["comentarios"]]] },
+  franquicias: { lista: ["codigo_atr", "codigo_umb", "franquiciado", "tipo", "estado", "fecha_contrato", "n_obras"],
+        secc: [["Franquicia", ["codigo_atr", "codigo_umb", "tipo", "estado", "expansion_manager", "n_obras"]],
+               ["Franquiciado", ["franquiciado", "rut_franquiciado", "direccion", "comuna", "ciudad", "telefono", "email"]],
+               ["Representantes legales", ["rrll1", "rut_rrll1", "rrll2", "rut_rrll2"]],
+               ["Contrato y canon", ["monto_reserva", "canon_entrada_neto", "canon_entrada_total", "fecha_reserva", "fecha_contrato", "fecha_renuncia", "fecha_termino_carencia", "fecha_apertura_tienda", "fecha_activacion"]],
+               ["Activación", ["vb_legal", "formacion_inicial", "entrevista_tecnica", "test_crm"]],
+               ["Seguros", ["trc_desde", "trc_hasta", "rc_desde", "rc_hasta"]],
+               ["Correos corporativos", ["nombre_correo_1", "correo_corporativo_1", "nombre_correo_2", "correo_corporativo_2", "nombre_correo_3", "correo_corporativo_3",
+                                         "nombre_correo_4", "correo_corporativo_4", "nombre_correo_5", "correo_corporativo_5"]],
+               ["Comentarios", ["comentarios"]]] },
+  arriendos: { lista: ["franquicia", "tienda", "mes", "arrendador", "n_factura", "total_factura", "validacion", "diferencia"],
+        secc: [["Factura del mall", ["franquicia", "tienda", "mes", "arrendador", "n_factura", "fecha_factura", "fecha_vencimiento"]],
+               ["Montos facturados", ["neto_afecto", "neto_exento", "total_neto", "iva", "total_factura"]],
+               ["Datos para el cálculo", ["uf_m2", "revision_arq_uf", "incorporacion_fp_uf", "otras_obligaciones", "costos_directos", "valor_uf_fecha", "valor_uf_utilizado",
+                                          "venta_neta_tienda_uf", "tap_pct", "factor_mes", "fondo_promocion_pct", "inicio_arriendo"]],
+               ["Validación (calculada)", ["validacion", "detalle_validacion", "superficie", "uf_m2_contrato", "tam_uf", "tap_uf", "tap_maxima_uf", "tap_vs_tam",
+                                            "monto_neto_uf", "canon_neto", "monto_exento", "a_facturar", "diferencia"]],
+               ["Observaciones", ["observaciones"]]] },
+  tiendas: { lista: ["franquicia", "franquiciado", "centro_comercial", "tienda", "inicio_arriendo", "termino_arriendo", "validacion"],
+        secc: [["Tienda", ["franquicia", "franquiciado", "tipo_franquicia", "centro_comercial", "tienda", "comuna", "direccion", "visitas_anuales", "superficie_m2", "numero_local", "piso"]],
+               ["Contrato de arriendo", ["inicio_arriendo", "termino_arriendo", "inicio_subarriendo", "termino_subarriendo", "inicio_cobro"]],
+               ["Condiciones", ["tam", "uf_m2_hoy", "tap_pct", "tap_maxima_uf", "fondo_promocion_pct", "incorporacion_fp_uf", "revision_arquitectura_uf", "garantia_uf"]],
+               ["Validación", ["validacion", "n_facturas"]], ["Observaciones", ["observaciones"]]] },
+  movimientos: { lista: ["fecha", "monto", "banco", "descripcion", "referencia", "estado", "dias"],
+        secc: [["Movimiento de la cartola", ["estado", "fecha", "monto", "banco", "descripcion", "referencia", "dias"]],
+               ["Asignar", ["asignar_obra", "asignar_franquicia", "item", "id_pago"]], ["Observaciones", ["observaciones"]]] },
+  usuarios: { lista: ["email", "nombre", "rol", "areas", "creado"], secc: [["Usuario", ["email", "nombre", "rol", "areas", "creado"]]] },
+};
+const formCfg = () => FORM_CFG[G.mod] || {};
+const formCols = () => { const c = formCfg(); const cols = G.cfg.cols;
+  return c.lista ? c.lista.map(k => cols.find(x => x.k === k)).filter(Boolean) : cols.slice(0, 7); };
+
+function formModo(m){
+  FORM.modo = m; try { localStorage.setItem("atr_ing_modo", m); } catch (_) {}
+  document.querySelectorAll("#ing-modo-sel button").forEach(b => b.classList.toggle("activo", b.dataset.modo === m));
+  const plan = m === "planilla", ed = puedeEditar();
+  if (!plan) G.sel = null;
+  $("ing-tabla").classList.toggle("f-lista", !plan);
+  document.querySelector("#vista-ing .fx").classList.toggle("oculto", !plan);
+  document.querySelector("#vista-ing .leyenda").classList.toggle("oculto", !plan);
+  ["ing-guardar", "ing-descartar"].forEach(id => $(id).classList.toggle("oculto", !plan || !ed));
+  $("ing-nueva").textContent = plan ? "+ Nueva fila" : "+ Nuevo";
+  if (G.mod) dibujarGrilla();
+}
+function formBarra(){
+  const plan = FORM.modo === "planilla", ed = puedeEditar();
+  ["ing-guardar", "ing-descartar"].forEach(id => $(id).classList.toggle("oculto", !plan || !ed));
+  document.querySelector("#vista-ing .fx").classList.toggle("oculto", !plan);
+  document.querySelector("#vista-ing .leyenda").classList.toggle("oculto", !plan);
+  $("ing-tabla").classList.toggle("f-lista", !plan);
+  $("ing-nueva").textContent = plan ? "+ Nueva fila" : "+ Nuevo";
+}
+function dibujarGrilla(){
+  formBarra();
+  if (FORM.modo === "planilla" || !G.cfg) return dibujarGrillaPlanilla();
+  const cols = formCols(), { total, keys } = filasVisibles();
+  G.visibles = keys;
+  const filas = keys.filter(k => !k.startsWith("n:"));
+  let h = `<thead><tr>${cols.map(c => `<th class="${c.tipo === "monto" || c.tipo === "pct" ? "n" : ""}" data-fsort="${esc(c.k)}" style="cursor:pointer">${esc(c.t)}${G.orden === c.k ? (G.desc ? " ▼" : " ▲") : ""}</th>`).join("")}<th></th></tr></thead><tbody>`;
+  h += filas.map(key => { const d = datosFila(key);
+    return `<tr class="f-fila" data-fkey="${key}" title="Clic para ver o editar">${cols.map(c => `<td class="${c.tipo === "monto" || c.tipo === "pct" ? "n" : ""}">${esc(mostrarValor(c, d[c.k]))}</td>`).join("")}
+      <td class="n"><span class="f-abrir">${puedeEditar() ? "Editar ›" : "Ver ›"}</span></td></tr>`; }).join("")
+    || `<tr><td colspan="${cols.length + 1}" class="cp-vacio">${puedeEditar() ? "Sin registros. Presiona “+ Nuevo”." : "Sin registros."}</td></tr>`;
+  $("ing-tabla").innerHTML = h + "</tbody>";
+  $("ing-info").textContent = `${total} registro${total === 1 ? "" : "s"}${total > G.limite ? ` · se muestran ${G.limite}` : ""}`;
+  $("ing-mas").classList.toggle("oculto", total <= G.limite);
+}
+// valor de la base → valor para el campo del formulario
+function formValor(c, v){
+  if (v === null || v === undefined) return "";
+  if (c.tipo === "fecha" || c.tipo === "fecha_na") { const s = String(v); if (/^n\/?a$/i.test(s)) return "N/A";
+    const m = s.match(/^(\d{2})-(\d{2})-(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s.slice(0, 10); }
+  if (c.tipo === "monto") { const n = numTxt(v); return n === null ? String(v) : nf.format(Math.round(n * 100) / 100); }
+  if (c.tipo === "pct") return mostrarValor(c, v);
+  return String(v);
+}
+function formCampo(c, v, ro){
+  const id = `ff-${c.k}`, req = c.req && !c.ro ? ' <b style="color:#a1281f">*</b>' : "";
+  const ayuda = c.ayuda ? `<small class="f-ayuda">${esc(c.ayuda)}</small>` : "";
+  if (c.ro || ro) return `<div class="m-campo f-ro" data-fro="${esc(c.k)}"><span>${esc(c.t)}</span><div class="f-rov">${esc(mostrarValor(c, v)) || '<span class="f-calc">se calcula al guardar</span>'}</div></div>`;
+  const val = formValor(c, v);
+  let inp;
+  if (c.tipo === "fecha") inp = `<input type="date" id="${id}" value="${esc(/^\d{4}-\d{2}-\d{2}$/.test(val) ? val : "")}">`;
+  else if (c.tipo === "fecha_na") inp = `<span class="f-na"><input type="date" id="${id}" value="${esc(/^\d{4}-\d{2}-\d{2}$/.test(val) ? val : "")}" ${val === "N/A" ? "disabled" : ""}>
+      <label><input type="checkbox" id="${id}-na" ${val === "N/A" ? "checked" : ""}> N/A</label></span>`;
+  else if (c.tipo === "lista") {
+    const L = LISTAS[c.lista] || [];
+    inp = !c.libre && L.length && L.length <= 15
+      ? `<select id="${id}"><option value=""></option>${L.map(o => `<option value="${esc(o.valor)}" ${o.valor === val ? "selected" : ""}>${esc(o.valor)}${o.etiqueta && o.etiqueta !== o.valor ? " · " + esc(o.etiqueta) : ""}</option>`).join("")}${val && !L.some(o => o.valor === val) ? `<option selected>${esc(val)}</option>` : ""}</select>`
+      : `<input id="${id}" list="dl-${c.lista}" value="${esc(val)}" autocomplete="off" placeholder="Escribe para buscar…">`;
+  }
+  else if (c.tipo === "monto") inp = `<input id="${id}" inputmode="decimal" value="${esc(val)}" placeholder="0">`;
+  else if (c.tipo === "pct") inp = `<input id="${id}" inputmode="decimal" value="${esc(val)}" placeholder="0%">`;
+  else if (/comentario|observacion|detalle|tam$/i.test(c.k)) inp = `<textarea id="${id}" rows="2">${esc(val)}</textarea>`;
+  else inp = `<input id="${id}" value="${esc(val)}">`;
+  return `<label class="m-campo ${/comentario|observacion|tam$/i.test(c.k) || c.w >= 260 ? "f-ancho" : ""}"><span>${esc(c.t)}${req}</span>${inp}${ayuda}</label>`;
+}
+// lee el formulario → objeto con los valores en el formato de la planilla
+function formLeer(fondo){
+  const o = {};
+  G.cfg.cols.filter(c => !c.ro).forEach(c => {
+    const el = fondo.querySelector(`#ff-${CSS.escape(c.k)}`); if (!el) return;
+    let v = (el.value || "").trim();
+    if (c.tipo === "fecha_na" && fondo.querySelector(`#ff-${CSS.escape(c.k)}-na`)?.checked) v = "N/A";
+    if (c.tipo === "monto" && v) { const n = numTxt(v); v = n === null ? v : String(n); }
+    o[c.k] = v;
+  });
+  return o;
+}
+function formDerivar(fondo, base){
+  const d = { ...base, ...formLeer(fondo) };
+  G.cfg.cols.filter(c => c.ro && c.deriva).forEach(c => {
+    const box = fondo.querySelector(`[data-fro="${CSS.escape(c.k)}"] .f-rov`); if (!box) return;
+    let v; try { v = c.deriva(d); } catch (_) { v = ""; }
+    box.innerHTML = esc(mostrarValor(c, v)) || '<span class="f-calc">se calcula al guardar</span>';
+  });
+}
+async function abrirFormulario(key){
+  const cfg = G.cfg, ed = puedeEditar(), nueva = !key, base = nueva ? {} : datosFila(key);
+  const cols = cfg.cols, secc = (formCfg().secc || []).map(([t, ks]) => [t, ks.map(k => cols.find(c => c.k === k)).filter(Boolean)]);
+  const usadas = new Set(secc.flatMap(s => s[1].map(c => c.k)));
+  const resto = cols.filter(c => !usadas.has(c.k));
+  if (resto.length) secc.push([secc.length ? "Otros datos" : "Datos", resto]);
+  const titulo = nueva ? `Nuevo · ${cfg.titulo}` : `${cfg.titulo} · ${esc(base[cfg.codigo] || "")}`;
+  const html = `<h3>${titulo}</h3>${!ed ? '<p class="nota-g">Sólo lectura.</p>' : ""}
+    ${secc.map(([t, cs]) => `<fieldset class="f-secc"><legend>${esc(t)}</legend><div class="m-grid">${cs.map(c => formCampo(c, base[c.k], !ed)).join("")}</div></fieldset>`).join("")}
+    <div class="error" id="ff-error"></div>`;
+  const botones = [{ t: ed ? "Cancelar" : "Cerrar", sec: 1 }];
+  if (ed && !nueva && cfg.eliminar) botones.push({ t: "Eliminar", sec: 1, fn: async () => {
+    if (!confirm(`¿Eliminar ${base[cfg.codigo] || "este registro"}? No se puede deshacer.`)) return false;
+    const { error } = await db.rpc(cfg.eliminar, { p_id: base.id });
+    if (error) { $("ff-error").textContent = errorAmigable(error.message); return false; }
+    G.filas = G.filas.filter(r => claveFila(r) !== key); if (cfg.recargaListas) await cargarListas();
+    dibujarGrilla(); toast("Registro eliminado."); return true; } });
+  if (ed) botones.push({ t: nueva ? "Guardar" : "Guardar cambios", fn: async fondo => {
+    const datos = formLeer(fondo), err = m => { fondo.querySelector("#ff-error").textContent = m; return false; };
+    if (!nueva) {                         // sin cambios: no se guarda (evita revalidar datos antiguos que nadie tocó)
+      const norm = (c, v) => { v = v ?? ""; if (c.tipo === "monto" || c.tipo === "pct") { const n = numTxt(String(v).replace("%", "")); return n === null ? String(v).trim() : String(n); }
+        if (c.tipo === "fecha" || c.tipo === "fecha_na") return formValor(c, v); return String(v).trim(); };
+      const cambio = cols.some(c => !c.ro && norm(c, datos[c.k]) !== norm(c, c.tipo === "monto" ? base[c.k] : formValor(c, base[c.k])));
+      if (!cambio) { toast("Sin cambios."); return true; }
+    }
+    const faltan = cols.filter(c => c.req && !c.ro && !String(datos[c.k] || "").trim()).map(c => c.t);
+    if (faltan.length) return err("Falta: " + faltan.join(", "));
+    const p = { ...(cfg.extra || {}), id: nueva ? null : base.id };
+    cols.filter(c => !c.ro).forEach(c => { p[c.k] = datos[c.k] ?? ""; });
+    const { data, error } = await db.rpc(cfg.guardar, { p });
+    if (error) return err(errorAmigable(error.message));
+    const { data: fila } = await db.from(cfg.vista).select("*").eq("id", data.id).maybeSingle();
+    if (!nueva) G.filas = G.filas.filter(r => claveFila(r) !== key);
+    if (fila) G.filas.unshift(fila);
+    if (cfg.recargaListas) await cargarListas();
+    CP.cargado = false; dibujarGrilla();
+    toast(`✓ ${esc(data.codigo || "Guardado")}${nueva ? " creado" : " actualizado"}.` + ((data.avisos || []).length ? `<ul>${data.avisos.slice(0, 6).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""), (data.avisos || []).length ? 9000 : 5000);
+    return true; } });
+  const pr = modal(`<div class="f-form">${html}</div>`, botones);
+  const fondo = [...document.querySelectorAll(".modal-fondo")].pop();
+  if (fondo) {
+    fondo.querySelector(".modal").classList.add("f-modal");
+    fondo.addEventListener("input", () => formDerivar(fondo, base));
+    fondo.addEventListener("change", e => { if (e.target.id && e.target.id.endsWith("-na")) { const d = fondo.querySelector("#" + e.target.id.slice(0, -3)); if (d) d.disabled = e.target.checked; } formDerivar(fondo, base); });
+  }
+  return pr;
+}
+$("ing-tabla").addEventListener("click", e => {
+  if (FORM.modo === "planilla") return;
+  const th = e.target.closest("th[data-fsort]");
+  if (th) { const k = th.dataset.fsort; G.desc = G.orden === k ? !G.desc : false; G.orden = k; return dibujarGrilla(); }
+  const tr = e.target.closest("tr[data-fkey]"); if (tr) abrirFormulario(tr.dataset.fkey);
+});
+// "+ Nuevo" abre el formulario (en modo planilla, sigue agregando una fila)
+$("ing-nueva").onclick = () => {
+  if (FORM.modo !== "planilla") return abrirFormulario(null);
+  const key = nuevaFila(); dibujarGrilla();
+  const c = G.cfg.cols.findIndex(c => !c.ro); seleccionar(key, c); $("ing-grid").focus(); editar(key, c);
+};
+$("ing-modo-sel").addEventListener("click", e => { const b = e.target.closest("[data-modo]"); if (!b) return;
+  if (b.dataset.modo === "form" && pendientes() && !confirm("Tienes cambios sin guardar en la planilla. ¿Descartarlos?")) return;
+  if (b.dataset.modo === "form") { G.cambios.clear(); G.nuevas = []; G.errores.clear(); }
+  formModo(b.dataset.modo); });
+formModo(FORM.modo);
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
