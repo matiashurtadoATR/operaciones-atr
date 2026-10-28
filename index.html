@@ -1266,7 +1266,7 @@
       <h4 class="sep" data-area="operaciones">Excel ↔ Web</h4>
       <h5 data-area="operaciones">Transición Excel ↔ Web</h5>
       <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web (transición)<small>Id T… por anotar en el Excel · duplicados · cargas<span class="n-ctrl" id="trans-n"></span></small></button>
-      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Exportar a Excel · historial de descargas<span class="n-ctrl" id="tw-n"></span></small></button>
+      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Pagos, negocios y franquicias → Excel · historial<span class="n-ctrl" id="tw-n"></span></small></button>
 
       <h4 class="sep">Control Facturación</h4>
       <button data-rep="cfx" data-area="operaciones" data-solo-supabase="1">Mapa de facturación<small>Todas las facturas de ATR: qué está OK y qué falta<span class="n-ctrl" id="cfx-n"></span></small></button>
@@ -1892,7 +1892,7 @@
      <section id="vista-tw" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
-        <div><h1>Traspasos web</h1><p>Movimientos registrados en la web que todavía no están en los Excel de obras y franquiciados: se exportan a un Excel listo para pegar, con un ID de descarga y su historial.</p></div>
+        <div><h1>Traspasos web</h1><p>Pagos, negocios y franquicias registrados o modificados en la web que todavía no están en los Excel de obras y franquiciados: se exportan a un Excel listo para pegar, con un ID de descarga y su historial.</p></div>
         <div class="acciones"><button class="btn sec" id="tw-act">Actualizar</button></div>
       </div>
       <div id="tw-cuerpo"></div>
@@ -9451,7 +9451,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 61;   // v62 de la página: sólo diseño (sin cambio de base)
+const VERSION_PAGINA = 62;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -11891,7 +11891,8 @@ document.addEventListener("click", e => {
    v60 · TRASPASOS WEB: movimientos de la web (Id T…) que faltan en los Excel → exportación con ID de descarga (TW-…)
    e historial permanente (el archivo original queda guardado y se vuelve a descargar sin crear otra exportación).
    ===================================================================== */
-const TW = { pend: [], hist: [], seg: [], sel: new Set(), q: "", lib: "", abiertas: new Set(), cargado: false, ocupado: false };
+const TW = { pend: [], hist: [], seg: [], sel: new Set(), q: "", lib: "", abiertas: new Set(), cargado: false, ocupado: false,
+             mae: [], selM: new Set(), vistosM: new Set(), maeOk: true };   // v62: negocios y franquicias (Nuevo / Cambio)
 const TW_LIBRO = { OBRA: "BBDD-Clientes Obras › hoja Pagos", FRANQUICIA: "Franquiciados › hoja Pagos" };
 const TW_HOJA = { OBRA: "Pagos obras", FRANQUICIA: "Pagos franquiciados" };
 // columnas de la hoja Pagos de cada libro, en el mismo orden (A, B, C…), para copiar y pegar filas completas.
@@ -11932,6 +11933,71 @@ const TW_COLS = {
 };
 const TW_COL_LETRA = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : "") + String.fromCharCode(65 + (i % 26));
 const TW_FORMULAS = o => TW_COLS[o].map((c, i) => c[1] && c[1].calc ? TW_COL_LETRA(i) : null).filter(Boolean).join(", ");
+/* v62 · Negocios (BBDD-Clientes Obras) y Franquicias (Franquiciados): columnas del Excel, en orden.
+   f = 1 → en el Excel es fórmula (viene VACÍA: se pega con "Saltar blancos" y la fórmula de la fila queda). */
+const TM_HOJA = { OBRA: "Negocios", FRANQUICIA: "Franquicias" };
+const TM_LIBRO = { OBRA: "BBDD-Clientes Obras › hoja Negocios", FRANQUICIA: "Franquiciados › hoja Franquicias" };
+const TM_COLS = {
+  OBRA: [["A", "Id ATR Obra"], ["B", "Id UMB Obra"], ["C", "Franquicia", 1], ["D", "Nombre Cliente"], ["E", "Cid/RUT Cliente"], ["F", "Nombre RRLL"],
+    ["G", "Cid RRLL"], ["H", "Monto neto contrato"], ["I", "IVA contrato", 1], ["J", "Monto total contrato", 1], ["K", "Fecha reserva"],
+    ["L", "Fecha contrato"], ["M", "Fecha inicio obra"], ["N", "Fecha término obra (Revisar sgn Acta Fin)"], ["O", "Fecha mail seguro"],
+    ["P", "Estado Obra"], ["Q", "Avance obra a la fecha (%)"], ["R", "Pagado a la fecha (%)", 1], ["S", "Canal Cliente"], ["T", "Fee contrato", 1],
+    ["U", "Fee Marketing", 1], ["V", "Tipo de remodelación"], ["W", "Comentarios del Negocio"]],
+  FRANQUICIA: ("A Id ATR Franquicia|B Id UMB Franquicia|C Tipo Franquicia|D Nombre Franquiciado|E RUT Franquiciado|F Dirección Franquiciado|G Comuna Franquiciado|" +
+    "H Ciudad Franquiciado|I Teléfono Franquiciado|J Mail Franquiciado|K Cuenta Corriente Franquiciado|L Banco Franquiciado|M Nombre RRLL 1|N RUT RRLL 1|" +
+    "O Dirección RRLL 1|P Comuna RRLL 1|Q Ciudad RRLL 1|R Teléfono RRLL 1|S Mail RRLL 1|T Nombre RRLL 2|U RUT RRLL 2|V Dirección RRLL 2|W Comuna RRLL 2|" +
+    "X Ciudad RRLL 2|Y Teléfono RRLL 2|Z Mail RRLL 2|AA Centro Comercial Tienda|AB Comuna Centro Comercial / Ciudad Franquicia Digital|AC Dirección Centro Comercial|" +
+    "AD Visitas por Año Centro Comercial|AE Superficie Tienda|AF N° Local|AG Piso Local|AH Fecha Contrato Arriendo|AI Fecha Término Contrato Arriendo|" +
+    "AJ Fecha Subcontrato Arriendo|AK Fecha Término Contrato Subarriendo|AL TAM|AM TAP|AN TAP máxima (UF)|AO Fondo Promoción|AP Gastos comunes|" +
+    "AQ Incorporación Fondo Promoción (UF)|AR Revisión Arquitectura (UF)|AS Monto Garantía (UF)|AT Expansion Manager|AU Monto Reserva|AV Canon Entrada Neto|" +
+    "AW Canon Entrada Total*|AX Canon Entrada cobrado*|AY Canon Entrada por cobrar*|AZ Canon Entrada cobrado conciliado*|BA Canon Entrada por cobrar conciliar*|" +
+    "BB Canon Entrada Conciliado|BC Fecha activación TRC|BD Fecha vencimiento TRC|BE Fecha activación RC|BF Fecha vencimiento RC|BG Pago TRC y RC*|BH Garantía obra*|" +
+    "BI Comentarios del Negocio|BJ Estado Franquicia|BK Fecha Reserva|BL Fecha Contrato|BM Fecha Renuncia|BN Fecha Término Carencia|BO Fecha Apertura Tienda|" +
+    "BP Fecha activación|BQ V°B° legal|BR Formación inicial realizada|BS Entrevista técnica realizada|BT Test CRM|BU Estado del Negocio*|BV Cuentas CRM y GOOGLE|" +
+    "BW Nombre correo 1|BX Correo corporativo 1|BY Nombre correo 2|BZ Correo corporativo 2|CA Nombre correo 3|CB Correo corporativo 3|CC Nombre correo 4|" +
+    "CD Correo corporativo 4|CE Nombre correo 5|CF Correo corporativo 5").split("|").map(x => { const i = x.indexOf(" "), n = x.slice(i + 1);
+      return [x.slice(0, i), n.replace(/\*$/, ""), n.endsWith("*") ? 1 : 0]; })
+};
+const TM_NOMBRE = (t, col) => col === "renuncia" ? "Estado Obra (renuncia)" : ((TM_COLS[t].find(c => c[0] === col) || [])[1] || col);
+const TM_LETRA = col => col === "renuncia" ? "P" : col;
+const TM_FECHA = /^(K|L|M|N|O|BC|BD|BE|BF|BK|BL|BM|BN|BO|BP|renuncia)$/;
+// valor para el Excel (celda): fechas como fecha, RUT con puntos, % y montos como número
+function tmCelda(t, col, f){
+  if (t === "OBRA" && col === "P") return f.renuncia ? "Renuncia" : f.P ?? null;
+  let v = f[col]; if (v == null || v === "") return null;
+  if (TM_FECHA.test(col)) return twFecha(v);
+  if (/^(E|G)$/.test(col) || (t === "FRANQUICIA" && /^(N|U)$/.test(col))) return rut(v);
+  if (t === "OBRA" && col === "Q") return { t: "n", v: Number(v), z: "0%" };
+  if (/^(H|AU|AV)$/.test(col) && !isNaN(Number(v))) return { t: "n", v: Number(v), z: "#,##0" };
+  if (t === "FRANQUICIA" && col === "BJ") return v === "Vigente" ? "Activo" : v;
+  return v;
+}
+// valor para leer en pantalla / hoja Cambios
+function tmTexto(t, col, v){
+  if (v == null || v === "") return "(vacío)";
+  if (TM_FECHA.test(col)) return fecha(v);
+  if (/^(E|G)$/.test(col) || (t === "FRANQUICIA" && /^(N|U)$/.test(col))) return rut(v);
+  if (t === "OBRA" && col === "Q") return Math.round(Number(v) * 1000) / 10 + "%";
+  if (/^(H|AU|AV)$/.test(col)) return $$(v);
+  if (t === "FRANQUICIA" && col === "BJ" && v === "Vigente") return "Activo (Vigente)";
+  return String(v);
+}
+const tmCambios = m => (m.cambios || []).map(c => ({ letra: TM_LETRA(c.col), nombre: TM_NOMBRE(m.tipo, c.col),
+  antes: c.col === "renuncia" ? (c.antes ? "Renuncia (" + fecha(c.antes) + ")" : "(sin renuncia)") : tmTexto(m.tipo, c.col, c.antes),
+  ahora: c.col === "renuncia" ? (c.ahora ? "Renuncia (renunció el " + fecha(c.ahora) + ")" : (m.fila.P || "") + " (se quitó la renuncia)") : tmTexto(m.tipo, c.col, c.ahora) }));
+const tmNombreFila = m => m.tipo === "OBRA" ? (m.fila.D || "") : (m.fila.D || "");
+const tmKey = m => m.tipo + ":" + m.ref_id;
+function tmHojaNuevos(t, M){
+  const C = TM_COLS[t], L = M.filter(m => m.tipo === t && m.clase === "Nuevo");
+  const aoa = [C.map(c => c[1]), ...L.map(m => C.map(([col, , f]) => f ? null : tmCelda(t, col, m.fila)))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa.map(r => r.map(v => (v && typeof v === "object" ? v.v : v))));
+  L.forEach((m, i) => C.forEach(([col, , f], j) => {
+    if (f) return; const v = tmCelda(t, col, m.fila); const c = ws[XLSX.utils.encode_cell({ r: i + 1, c: j })];
+    if (c && v && typeof v === "object") { c.t = "n"; c.z = v.z; }
+  }));
+  ws["!cols"] = C.map(([col, , f]) => ({ wch: col === "A" ? 38 : f ? 6 : 16 }));
+  return ws;
+}
 // fecha como número de serie de Excel (sin desfases de zona horaria)
 function twFecha(v){
   if (!v) return null; const [a, m, d] = String(v).slice(0, 10).split("-").map(Number);
@@ -11955,17 +12021,31 @@ function twHoja(o, filas){
   ws["!cols"] = C.map(([nom], j) => ({ wch: j < 2 ? 36 : /Observ|Proveedor$|Cliente$|Franquiciado$|^Franquicia$/.test(nom) ? 34 : 14 }));
   return ws;
 }
-function twLibro(exp, filas){
+function twLibro(exp, filas, maestros){
   const wb = XLSX.utils.book_new(), cod = exp ? exp.codigo : "(lista sin ID de descarga)";
+  const M = maestros || [], nOb = M.filter(m => m.tipo === "OBRA" && m.clase === "Nuevo"), nFr = M.filter(m => m.tipo === "FRANQUICIA" && m.clase === "Nuevo"), cam = M.filter(m => m.clase === "Cambio");
   const ob = filas.filter(r => r.origen === "OBRA"), fr = filas.filter(r => r.origen === "FRANQUICIA");
   const tot = L => L.reduce((s, r) => s + Number(r.monto || 0), 0);
   XLSX.utils.book_append_sheet(wb, twHoja("OBRA", filas), TW_HOJA.OBRA);
   XLSX.utils.book_append_sheet(wb, twHoja("FRANQUICIA", filas), TW_HOJA.FRANQUICIA);
+  if (M.length) {                      // v62 · negocios y franquicias de la web
+    XLSX.utils.book_append_sheet(wb, tmHojaNuevos("OBRA", M), "Negocios nuevos");
+    XLSX.utils.book_append_sheet(wb, tmHojaNuevos("FRANQUICIA", M), "Franquicias nuevas");
+    const filasC = [];
+    cam.forEach(m => tmCambios(m).forEach(c => filasC.push({ "Libro › hoja": TM_LIBRO[m.tipo], "Buscar este Id (Ctrl + B)": m.codigo, "Nombre": tmNombreFila(m),
+      "Columna": c.letra, "Encabezado": c.nombre, "Hoy en el Excel": c.antes, "Escribir (dato de la web)": c.ahora })));
+    const wsC = XLSX.utils.json_to_sheet(filasC.length ? filasC : [{ "Libro › hoja": "Sin cambios en negocios ni franquicias existentes" }]);
+    wsC["!cols"] = [34, 38, 34, 8, 30, 30, 34].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, wsC, "Cambios");
+  }
   const ins = [
     ["TRASPASOS WEB → EXCEL"], [],
     ["ID de descarga", cod], ["Generada", exp ? twFechaHora(exp.creado_en) : twFechaHora(new Date())], ["Por", exp ? exp.creado_por || "" : ""],
     ["Hoja \"Pagos obras\" → libro BBDD-Clientes Obras › hoja Pagos", ob.length + " fila(s)", "Total $", Math.round(tot(ob))],
-    ["Hoja \"Pagos franquiciados\" → libro Franquiciados › hoja Pagos", fr.length + " fila(s)", "Total $", Math.round(tot(fr))], [],
+    ["Hoja \"Pagos franquiciados\" → libro Franquiciados › hoja Pagos", fr.length + " fila(s)", "Total $", Math.round(tot(fr))],
+    ...(M.length ? [["Hoja \"Negocios nuevos\" → libro BBDD-Clientes Obras › hoja Negocios", nOb.length + " fila(s)"],
+      ["Hoja \"Franquicias nuevas\" → libro Franquiciados › hoja Franquicias", nFr.length + " fila(s)"],
+      ["Hoja \"Cambios\" → datos a corregir en filas que ya existen", cam.length + " registro(s)"]] : []), [],
     ["CÓMO PEGAR (las filas vienen con las MISMAS columnas, de la A a la última, en el mismo orden que la hoja Pagos)"],
     ["1", "En este archivo, hoja \"Pagos obras\": selecciona las filas completas desde la fila 2 hasta la última (clic en el número de fila 2, Shift + clic en la última) y copia (Ctrl + C)."],
     ["2", "En el libro BBDD-Clientes Obras › hoja Pagos: clic en la columna A de la primera fila sin movimiento (columna B vacía). Su Id PATR… pre-cargado se reemplaza por el Id T… de la web."],
@@ -11973,6 +12053,16 @@ function twLibro(exp, filas){
     ["", "Las columnas que en tu Excel eran fórmulas vienen con el VALOR calculado al exportar · obras: " + TW_FORMULAS("OBRA") + "  ·  franquiciados: " + TW_FORMULAS("FRANQUICIA")],
     ["", "Ojo: esos valores quedan fijos (Total pagado, %, Saldo obra son los del día de la exportación)."],
     ["4", "Repite con la hoja \"Pagos franquiciados\" en el libro Franquiciados › hoja Pagos."],
+    ...(M.length ? [
+      ["NEGOCIOS Y FRANQUICIAS NUEVOS (hojas \"Negocios nuevos\" y \"Franquicias nuevas\")"],
+      ["4a", "Selecciona las filas desde la fila 2 hasta la última (clic en el número 2, Shift + clic en la última) y copia (Ctrl + C)."],
+      ["4b", "En el libro BBDD-Clientes Obras › hoja Negocios (o Franquiciados › hoja Franquicias): clic en la columna A de la primera fila con la columna A vacía."],
+      ["4c", "Pega con PEGADO ESPECIAL: Inicio › Pegar › Pegado especial… › marca \"Saltar blancos\" › Aceptar. (O Ctrl + Alt + V → Saltar blancos.)"],
+      ["", "Las columnas que en el Excel son fórmulas vienen VACÍAS a propósito: con \"Saltar blancos\" la fórmula que ya tiene la fila queda intacta."],
+      ["", "Franquicias: los datos de tienda/arriendo (AA–AS), cuenta bancaria (K–L) y dirección de los RRLL (O–S, V–Z) se completan a mano si corresponde."],
+      ["CAMBIOS EN FILAS QUE YA EXISTEN (hoja \"Cambios\")"],
+      ["4d", "Para cada fila: en el libro y hoja indicados busca el Id (Ctrl + B), ve a la columna indicada y escribe el dato de la columna \"Escribir (dato de la web)\"."],
+      ["", "No borres ni muevas filas: sólo cambia esa celda."]] : []),
     ["5", "Guarda y cierra los Excel. Con la próxima carga (cargar_base.bat) quedan como \"anotados en el Excel\" en la web."],
     [], ["IMPORTANTE"],
     ["•", "Usa el Id T… tal cual (no lo cambies por un PATR…): si no, el pago queda duplicado."],
@@ -12007,7 +12097,9 @@ function twBajar(blob, nombre){
 async function twContador(){
   if (!puedeArea("operaciones") || enExcel()) return;
   try { const { data, error } = await db.from("v_traspaso_web_pendientes").select("id_pago").eq("listo", true);
-    if (!error && $("tw-n")) $("tw-n").textContent = data.length ? ` · ${data.length} por exportar` : ""; } catch (_) {}
+    let n = error ? 0 : data.length;
+    const m = await db.from("v_tm_pendientes").select("ref_id"); if (!m.error) n += m.data.length;
+    if ($("tw-n")) $("tw-n").textContent = n ? ` · ${n} por exportar` : ""; } catch (_) {}
 }
 async function cargarTw(){
   $("tw-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
@@ -12017,6 +12109,13 @@ async function cargarTw(){
   const err = p.error || h.error || s.error;
   if (err) { $("tw-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 60_traspasos_web.sql en Supabase." : esc(err.message)}</div>`; return; }
   TW.pend = p.data || []; TW.hist = h.data || []; TW.seg = s.data || [];
+  const m = await todo(() => db.from("v_tm_pendientes").select("*").order("tipo", { ascending: false }).order("codigo"));
+  TW.maeOk = !m.error; TW.mae = m.error ? [] : m.data || [];
+  TW.histM = {};
+  if (TW.maeOk) { const hm = await todo(() => db.from("traspaso_web_maestro").select("tipo,ref_id,export_id").order("export_id"));
+    const cod = Object.fromEntries(TW.hist.map(e => [e.id, e.codigo])); (hm.data || []).forEach(x => { TW.histM[x.tipo + ":" + x.ref_id] = cod[x.export_id]; }); }
+  TW.mae.forEach(x => { const k = tmKey(x); if (!TW.vistosM.has(k)) TW.selM.add(k); TW.vistosM.add(k); });
+  TW.selM = new Set([...TW.selM].filter(k => TW.mae.some(x => tmKey(x) === k)));
   const vivos = new Set(TW.pend.filter(x => x.listo).map(x => x.pago_id));
   TW.vistos = TW.vistos || new Set();             // los nuevos (listos) vienen marcados; los que desmarcaste siguen desmarcados
   TW.pend.forEach(x => { if (x.listo && !TW.vistos.has(x.pago_id)) TW.sel.add(x.pago_id); TW.vistos.add(x.pago_id); });
@@ -12031,9 +12130,10 @@ function twDibujar(){
   const listos = TW.pend.filter(x => x.listo), espera = TW.pend.filter(x => !x.listo);
   const sinExcel = TW.seg.filter(x => !x.en_excel), cambios = TW.seg.filter(x => (x.cambios || []).length || x.eliminado);
   const selL = listos.filter(x => TW.sel.has(x.pago_id)), editable = puedeEditar() && puedeArea("operaciones");
+  const selM = TW.mae.filter(x => TW.selM.has(tmKey(x))), nSel = selL.length + selM.length;
   let h = `<div class="trans-guia">
-      <div><b>1 · Exporta.</b> Marca los movimientos de la web que aún no están en los Excel y presiona <b>Exportar a Excel</b>: se genera un archivo con un <b>ID de descarga (TW-…)</b> y esos movimientos salen de esta lista.</div>
-      <div><b>2 · Pega.</b> El archivo trae una hoja por libro (<i>Pagos obras</i>, <i>Pagos franquiciados</i>) con las mismas columnas y en el mismo orden que la hoja Pagos del Excel. Las instrucciones vienen en el archivo (Pegado especial › Valores + Saltar blancos).</div>
+      <div><b>1 · Exporta.</b> Marca los pagos, negocios y franquicias de la web que aún no están en los Excel y presiona <b>Exportar a Excel</b>: se genera un archivo con un <b>ID de descarga (TW-…)</b> y salen de esta lista.</div>
+      <div><b>2 · Pega.</b> El archivo trae una hoja por destino (<i>Pagos obras</i>, <i>Pagos franquiciados</i>, <i>Negocios nuevos</i>, <i>Franquicias nuevas</i>) con las mismas columnas y en el mismo orden que el Excel, y la hoja <i>Cambios</i> con las celdas a corregir. Las instrucciones vienen en el archivo.</div>
       <div><b>3 · Carga la base.</b> En la próxima carga quedan como <i>anotados en el Excel</i>. Cada descarga queda en el <b>Historial</b> y se puede volver a bajar (es el mismo archivo, no una nueva exportación).</div>
       <details><summary>¿Qué entra y qué no?</summary>Entran los movimientos creados en la web (Id T…: Control de Pagos, solicitudes de factura, mínimo trimestral, ingresos en la web) que ya están <b>pagados</b> y que el Excel no tiene según la última carga.
         Los que esperan pago (Pendiente / En Contabilidad) se muestran aparte y se exportan cuando se paguen. Un movimiento sólo puede estar en una descarga.</details></div>
@@ -12047,7 +12147,7 @@ function twDibujar(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
       <input id="tw-q" placeholder="Buscar Id, obra, cliente, franquicia, ítem, SP-…" value="${esc(TW.q)}" style="flex:1;min-width:220px;max-width:380px">
       <select id="tw-lib"><option value="">Los dos libros</option><option value="OBRA" ${TW.lib === "OBRA" ? "selected" : ""}>BBDD-Clientes Obras</option><option value="FRANQUICIA" ${TW.lib === "FRANQUICIA" ? "selected" : ""}>Franquiciados</option></select>
-      ${editable ? `<button class="btn" id="tw-exportar" ${selL.length && !TW.ocupado ? "" : "disabled"}>${TW.ocupado ? "Exportando…" : `Exportar a Excel (${selL.length})`}</button>` : `<small class="nota-g">Sólo un usuario editor de Operaciones puede exportar.</small>`}</div>`;
+      ${editable ? `<button class="btn" id="tw-exportar" ${nSel && !TW.ocupado ? "" : "disabled"}>${TW.ocupado ? "Exportando…" : `Exportar a Excel (${nSel})`}</button>` : `<small class="nota-g">Sólo un usuario editor de Operaciones puede exportar.</small>`}</div>`;
   if (!TW.pend.length) h += `<p class="nota-g">✓ No hay movimientos de la web pendientes de traspasar a los Excel.</p>`;
   for (const o of ["OBRA", "FRANQUICIA"]) {
     const L = P.filter(x => x.origen === o); if (!L.length) continue;
@@ -12063,19 +12163,38 @@ function twDibujar(){
         <td><small>${esc(x.origen_web)}${x.solicitud_pago ? " · " + esc(x.solicitud_pago) : ""}</small></td></tr>`).join("")}</tbody></table></div>`;
   }
   if (TW.pend.length && !P.length) h += `<p class="nota-g">Sin resultados.</p>`;
+  // ---- v62 · negocios y franquicias
+  if (!TW.maeOk) h += `<div class="cf-aviso" style="margin-top:14px">Para traspasar también negocios y franquicias falta ejecutar <b>62_traspaso_negocios_franquicias.sql</b> en Supabase.</div>`;
+  else {
+    const M = TW.mae.filter(x => (!TW.lib || x.tipo === TW.lib) && (!q || [x.codigo, x.fila.D, x.fila.A].join(" ").toLowerCase().includes(q)));
+    h += `<h3 class="fres-h" style="margin-top:20px">Negocios y franquicias <small>creados o modificados en la web que el Excel no tiene igual</small></h3>`;
+    if (!TW.mae.length) h += `<p class="nota-g">✓ Los negocios y franquicias del Excel están al día con la web.</p>`;
+    else {
+      const todosM = M.length && M.every(x => TW.selM.has(tmKey(x)));
+      h += `<div class="tabla-wrap"><table class="cp"><thead><tr><th>${editable ? `<input type="checkbox" data-twtodosm="1" ${todosM ? "checked" : ""} title="Marcar todos">` : ""}</th>
+        <th>Libro › hoja</th><th>Id</th><th>Nombre</th><th>Qué hay que hacer en el Excel</th></tr></thead><tbody>
+        ${M.map(x => { const ult = (TW.histM || {})[tmKey(x)];
+          return `<tr><td>${editable ? `<input type="checkbox" data-twselm="${esc(tmKey(x))}" ${TW.selM.has(tmKey(x)) ? "checked" : ""}>` : ""}</td>
+          <td><small>${esc(TM_LIBRO[x.tipo])}</small></td><td><b>${esc(x.codigo)}</b></td><td><small>${esc(tmNombreFila(x))}</small></td>
+          <td><small>${x.clase === "Nuevo" ? `<span class="pill parcial">Nuevo</span> agregar la fila completa`
+            : `<span class="pill">Cambio</span> ${tmCambios(x).map(c => `<b>${esc(c.letra)}</b> ${esc(c.nombre)}: ${esc(c.antes)} → <b>${esc(c.ahora)}</b>`).join("<br>")}`}
+            ${x.desde === null && x.clase === "Nuevo" && ult ? `<br><span style="color:#a1281f">Ya salió en ${esc(ult)} pero la última carga no lo encontró en el Excel: revisa si faltó pegarlo (no lo pegues dos veces).</span>` : ""}</small></td></tr>`; }).join("")}
+        </tbody></table></div>`;
+    }
+  }
   // ---- historial
   h += `<h3 class="fres-h" style="margin-top:22px">Historial de descargas <small>cada archivo con su ID, fecha y movimientos · volver a bajarlo no crea otra exportación</small></h3>`;
   if (!TW.hist.length) h += `<p class="nota-g">Aún no hay descargas.</p>`;
   else h += `<div class="tabla-wrap"><table class="cp"><thead><tr><th>ID descarga</th><th>Fecha</th><th>Por</th><th class="n">Obras</th><th class="n">Franquiciados</th>
-      <th class="n">Total obras</th><th class="n">Total franquiciados</th><th>En el Excel</th><th></th></tr></thead><tbody>
+      <th class="n">Total obras</th><th class="n">Total franquiciados</th><th class="n">Negocios · franquicias</th><th>En el Excel</th><th></th></tr></thead><tbody>
     ${TW.hist.map(e => { const ok = e.n_en_excel >= e.n_items, ab = TW.abiertas.has(e.id);
       const items = TW.seg.filter(x => x.descarga === e.codigo);
       return `<tr><td><b>${esc(e.codigo)}</b></td><td style="white-space:nowrap">${twFechaHora(e.creado_en)}</td><td><small>${esc(e.creado_por)}</small></td>
-        <td class="n">${e.n_obras}</td><td class="n">${e.n_franquicias}</td><td class="n">${$$(e.monto_obras)}</td><td class="n">${$$(e.monto_franq)}</td>
-        <td>${ok ? `<span class="pill ok">✓ ${e.n_items} de ${e.n_items}</span>` : `<span class="pill parcial">${e.n_en_excel} de ${e.n_items}</span>`}</td>
+        <td class="n">${e.n_obras}</td><td class="n">${e.n_franquicias}</td><td class="n">${$$(e.monto_obras)}</td><td class="n">${$$(e.monto_franq)}</td><td class="n">${(e.n_negocios || 0) + (e.n_franq_maestro || 0) ? `${e.n_negocios || 0} · ${e.n_franq_maestro || 0}` : "—"}</td>
+        <td>${!e.n_items ? "—" : ok ? `<span class="pill ok">✓ ${e.n_items} de ${e.n_items}</span>` : `<span class="pill parcial">${e.n_en_excel} de ${e.n_items}</span>`}</td>
         <td style="white-space:nowrap"><button class="cf-btn" data-twbajar="${e.id}" title="${e.archivo ? "Descargar el archivo original" : "Se arma con los datos guardados de esta descarga"}">⬇ Descargar</button>
           <button class="cf-btn" data-twver="${e.id}">${ab ? "Ocultar ▲" : "Ver movimientos ▼"}</button></td></tr>
-        ${ab ? `<tr class="detalle"><td colspan="9"><table class="cp tw-det"><thead><tr><th>Libro</th><th>Id pago</th><th>Destino</th><th>Ítem</th><th>Fecha</th><th class="n">Monto</th><th>En el Excel</th></tr></thead><tbody>
+        ${ab ? `<tr class="detalle"><td colspan="10"><table class="cp tw-det"><thead><tr><th>Libro</th><th>Id pago</th><th>Destino</th><th>Ítem</th><th>Fecha</th><th class="n">Monto</th><th>En el Excel</th></tr></thead><tbody>
           ${items.map(x => `<tr><td><small>${esc(TW_HOJA[x.origen])}</small></td><td>${esc(x.id_pago)}</td><td><small>${esc(x.fila.obra || x.fila.franquicia)}</small></td><td><small>${esc(x.fila.item)}</small></td>
             <td>${fecha(x.fila.fecha_pago)}</td><td class="n">${$$(x.fila.monto)}</td><td>${x.en_excel ? "✓" : "aún no"}</td></tr>`).join("")}</tbody></table></td></tr>` : ""}`; }).join("")}</tbody></table></div>`;
   // ---- seguimiento
@@ -12097,29 +12216,42 @@ function twDibujar(){
 
 /* ---------- acciones ---------- */
 async function twExportar(){
-  const L = TW.pend.filter(x => x.listo && TW.sel.has(x.pago_id)); if (!L.length) return toast("Marca al menos un movimiento.");
+  const L = TW.pend.filter(x => x.listo && TW.sel.has(x.pago_id)), MS = TW.mae.filter(x => TW.selM.has(tmKey(x)));
+  if (!L.length && !MS.length) return toast("Marca al menos un movimiento, negocio o franquicia.");
   const ob = L.filter(x => x.origen === "OBRA"), fr = L.filter(x => x.origen === "FRANQUICIA");
   const ok = await modal(`<h3>Exportar ${L.length} movimiento(s) a Excel</h3>
       <p class="nota-g">Se crea una descarga con un <b>ID único (TW-…)</b> y estos movimientos <b>salen de Pendientes</b>. Queda en el Historial para volver a bajarla.</p>
       <ul class="nota-g" style="margin:6px 0"><li>BBDD-Clientes Obras › Pagos: <b>${ob.length}</b> · ${$$(ob.reduce((s, x) => s + Number(x.monto), 0))}</li>
-        <li>Franquiciados › Pagos: <b>${fr.length}</b> · ${$$(fr.reduce((s, x) => s + Number(x.monto), 0))}</li></ul>`,
+        <li>Franquiciados › Pagos: <b>${fr.length}</b> · ${$$(fr.reduce((s, x) => s + Number(x.monto), 0))}</li>
+        ${MS.length ? `<li>Negocios: <b>${MS.filter(x => x.tipo === "OBRA" && x.clase === "Nuevo").length}</b> nuevos, <b>${MS.filter(x => x.tipo === "OBRA" && x.clase === "Cambio").length}</b> con cambios</li>
+        <li>Franquicias: <b>${MS.filter(x => x.tipo === "FRANQUICIA" && x.clase === "Nuevo").length}</b> nuevas, <b>${MS.filter(x => x.tipo === "FRANQUICIA" && x.clase === "Cambio").length}</b> con cambios</li>` : ""}</ul>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Exportar y descargar", fn: async () => true }]);
   if (!ok) return;
   TW.ocupado = true; twDibujar();
   try {
-    const { data, error } = await db.rpc("traspaso_web_exportar", { p: { ids: L.map(x => x.pago_id) } });
-    if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 10000); return; }
-    const nombre = twNombreArchivo(data), blob = twBlob(twLibro(data, data.filas));
+    let data = null;
+    if (L.length) {
+      const r = await db.rpc("traspaso_web_exportar", { p: { ids: L.map(x => x.pago_id) } });
+      if (r.error) { toast("⚠ " + esc(errorAmigable(r.error.message)), 10000); return; }
+      data = r.data;
+    }
+    if (MS.length) {
+      const r = await db.rpc("tm_exportar", { p: { export_id: data ? data.id : null, items: MS.map(x => ({ tipo: x.tipo, ref_id: x.ref_id })) } });
+      if (r.error) { toast("⚠ " + (data ? `Pagos exportados en <b>${esc(data.codigo)}</b>, pero los negocios / franquicias no: ` : "") + esc(errorAmigable(r.error.message)), 12000); if (!data) return; }
+      else data = Object.assign(data || { ...r.data, filas: [] }, { maestros: r.data.maestros });
+    }
+    data.filas = data.filas || []; data.maestros = data.maestros || [];
+    const nombre = twNombreArchivo(data), blob = twBlob(twLibro(data, data.filas, data.maestros));
     twBajar(blob, nombre);
     const ruta = `${data.codigo}.xlsx`;
     const up = await db.storage.from("traspasos").upload(ruta, blob, { contentType: blob.type, upsert: false });
     if (up.error) toast(`✓ Descarga <b>${esc(data.codigo)}</b> creada (${data.filas.length} movimientos). ⚠ No se pudo guardar el archivo en el historial (${esc(up.error.message)}); igual se puede volver a bajar: se arma con los mismos datos.`, 14000);
     else {
       const r = await db.rpc("traspaso_web_archivo", { p: { id: data.id, ruta, nombre } });
-      toast(r.error ? `✓ Descarga <b>${esc(data.codigo)}</b> creada. ⚠ ${esc(r.error.message)}` : `✓ Descarga <b>${esc(data.codigo)}</b>: ${data.filas.length} movimiento(s) exportados. El archivo quedó en el Historial.`, 10000);
+      toast(r.error ? `✓ Descarga <b>${esc(data.codigo)}</b> creada. ⚠ ${esc(r.error.message)}` : `✓ Descarga <b>${esc(data.codigo)}</b>: ${data.filas.length} pago(s)${data.maestros.length ? ` y ${data.maestros.length} negocio(s)/franquicia(s)` : ""} exportados. El archivo quedó en el Historial.`, 10000);
     }
     if (data.filas.length < L.length) toast(`ℹ ${L.length - data.filas.length} movimiento(s) ya no estaban pendientes (otra persona los exportó o ya están en el Excel).`, 10000);
-    TW.sel.clear();
+    TW.sel.clear(); TW.selM.clear();
   } finally { TW.ocupado = false; await cargarTw(); }
 }
 async function twBajarHist(id){
@@ -12130,8 +12262,9 @@ async function twBajarHist(id){
     if (!error && data) return twBajar(data, nombre);
   }
   const r = await db.rpc("traspaso_web_filas", { p_id: id });
-  if (r.error || !r.data) return toast("⚠ No se pudo armar la descarga: " + esc(r.error ? r.error.message : "sin datos"), 9000);
-  twBajar(twBlob(twLibro(e, r.data)), nombre);
+  const m = await db.rpc("tm_filas", { p_id: id });
+  if (r.error || (!r.data && !(m.data || []).length)) return toast("⚠ No se pudo armar la descarga: " + esc(r.error ? r.error.message : "sin datos"), 9000);
+  twBajar(twBlob(twLibro(e, r.data || [], m.error ? [] : m.data || [])), nombre);
   toast(`Descarga ${esc(e.codigo)} armada con los datos guardados (mismos movimientos y valores que al exportarla).`);
 }
 $("vista-tw").addEventListener("click", async e => {
@@ -12145,6 +12278,8 @@ $("vista-tw").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.twsel) { t.checked ? TW.sel.add(+t.dataset.twsel) : TW.sel.delete(+t.dataset.twsel); return twDibujar(); }
   if (t.dataset.twtodos) { TW.pend.filter(x => x.listo && x.origen === t.dataset.twtodos).forEach(x => t.checked ? TW.sel.add(x.pago_id) : TW.sel.delete(x.pago_id)); return twDibujar(); }
+  if (t.dataset.twselm) { t.checked ? TW.selM.add(t.dataset.twselm) : TW.selM.delete(t.dataset.twselm); return twDibujar(); }
+  if (t.dataset.twtodosm) { TW.mae.forEach(x => t.checked ? TW.selM.add(tmKey(x)) : TW.selM.delete(tmKey(x))); return twDibujar(); }
   if (t.id === "tw-lib") { TW.lib = t.value; twDibujar(); }
 });
 $("vista-tw").addEventListener("input", e => { if (e.target.id === "tw-q") { TW.q = e.target.value; const pos = e.target.selectionStart; twDibujar(); const i = $("tw-q"); i.focus(); i.setSelectionRange(pos, pos); } });
