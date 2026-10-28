@@ -53,6 +53,9 @@
   .btn.sec{background:#fff;color:var(--cafe);border:1px solid var(--linea)}
   .tarjeta .btn{width:100%;margin-top:18px}
   .error{color:#b3261e;font-size:13px;margin-top:10px;min-height:18px}
+  .ok-msg{color:#1f7a3d;font-size:13px;margin-top:4px}.ok-msg:empty{display:none}
+  tr.tw-espera td{color:var(--gris)}
+  table.tw-det th,table.tw-det td{padding:6px 10px;white-space:nowrap}
 
   /* ==== App ==== */
   .app{display:flex;min-height:calc(100vh - 56px)}
@@ -1080,8 +1083,30 @@
     <label>Contraseña</label>
     <input id="lg-pass" type="password" autocomplete="current-password" required>
     <button class="btn" type="submit" id="lg-btn">Ingresar</button>
-    <div class="error" id="lg-error"></div>
+    <div class="error" id="lg-error"></div><div class="ok-msg" id="lg-ok"></div>
+    <p style="margin:10px 0 0;text-align:center"><a href="#" id="lg-olvide" style="color:var(--cafe);font-size:13px;font-weight:600">¿Olvidaste tu contraseña?</a></p>
     <p style="margin:14px 0 0;text-align:center"><a href="#" id="lg-cambiar" style="color:var(--gris);font-size:12px">Cambiar base de datos (proyecto Supabase)</a></p>
+  </form>
+  <form class="tarjeta oculto" id="form-olvide">
+    <div class="logo" id="logo-olvide"></div>
+    <h2>Recuperar contraseña</h2>
+    <p>Escribe el correo con el que entras a la plataforma. Te enviaremos un enlace para crear una contraseña nueva.</p>
+    <label>Correo</label>
+    <input id="ol-email" type="email" autocomplete="username" required>
+    <button class="btn" type="submit" id="ol-btn">Enviar enlace</button>
+    <div class="error" id="ol-error"></div><div class="ok-msg" id="ol-ok"></div>
+    <p style="margin:14px 0 0;text-align:center"><a href="#" data-alogin="1" style="color:var(--gris);font-size:13px">← Volver a ingresar</a></p>
+  </form>
+  <form class="tarjeta oculto" id="form-nueva">
+    <div class="logo" id="logo-nueva"></div>
+    <h2>Crea tu nueva contraseña</h2>
+    <p id="nv-quien"></p>
+    <label>Nueva contraseña</label>
+    <input id="nv-pass" type="password" autocomplete="new-password" required>
+    <label>Repite la nueva contraseña</label>
+    <input id="nv-pass2" type="password" autocomplete="new-password" required>
+    <button class="btn" type="submit" id="nv-btn">Guardar contraseña</button>
+    <div class="error" id="nv-error"></div>
   </form>
 </div>
 
@@ -1118,6 +1143,7 @@
       <button data-rep="reg" data-area="operaciones">Registro de Pagos<small>Por pagar · comprobantes · falta cartola</small></button>
       <button data-rep="cprech" data-mod="ob" data-area="operaciones" data-solo-supabase="1">Pagos rechazados<small>Contabilidad no los pagó · corregir o anular<span class="n-ctrl" id="cprechob-n"></span></small></button>
       <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web<small>Id T… por anotar en el Excel · duplicados<span class="n-ctrl" id="trans-n"></span></small></button>
+      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Exportar a Excel · historial de descargas<span class="n-ctrl" id="tw-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
       <h5 data-area="operaciones">Control</h5>
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
@@ -1733,6 +1759,15 @@
       <div id="trans-cuerpo"></div>
      </section>
 
+     <section id="vista-tw" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Traspasos web</h1><p>Movimientos registrados en la web que todavía no están en los Excel de obras y franquiciados: se exportan a un Excel listo para pegar, con un ID de descarga y su historial.</p></div>
+        <div class="acciones"><button class="btn sec" id="tw-act">Actualizar</button></div>
+      </div>
+      <div id="tw-cuerpo"></div>
+     </section>
+
      <section id="vista-cobz" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
@@ -1877,6 +1912,7 @@ function logoHTML(color){                 // logo oficial; en fondos oscuros se 
 }
 $("logo-config").innerHTML = logoHTML("var(--cafe)");
 $("logo-login").innerHTML  = logoHTML("var(--cafe)");
+$("logo-olvide").innerHTML = logoHTML("var(--cafe)"); $("logo-nueva").innerHTML = logoHTML("var(--cafe)");
 $("logo-barra").innerHTML  = logoHTML("#fff");
 
 /* ---------------- conexión ---------------- */
@@ -1900,7 +1936,7 @@ $("cfg-guardar").onclick = () => {
 
 $("form-login").onsubmit = async (e) => {
   e.preventDefault();
-  $("lg-error").textContent = ""; $("lg-btn").disabled = true;
+  $("lg-error").textContent = ""; $("lg-ok").textContent = ""; $("lg-btn").disabled = true;
   const { error } = await sb.auth.signInWithPassword({ email: $("lg-email").value.trim(), password: $("lg-pass").value });
   $("lg-btn").disabled = false;
   if (error) { $("lg-error").textContent = "No se pudo ingresar: " + (error.message === "Invalid login credentials" ? "correo o contraseña incorrectos." : error.message); return; }
@@ -1915,8 +1951,68 @@ $("lg-cambiar").onclick = async (e) => {
 };
 $("btn-salir").onclick = async () => { await sb.auth.signOut(); mostrar("pant-login"); };
 
+/* ---------------- v60 · ¿Olvidaste tu contraseña? (Supabase Auth: enlace al correo registrado) ----------------
+   1) resetPasswordForEmail envía el enlace (vence y sirve una sola vez; no dice si el correo existe).
+   2) El enlace vuelve a esta página con #...type=recovery: se pide la contraseña nueva (updateUser) y se cierra la sesión. */
+const RECUP = (() => {
+  const q = new URLSearchParams((location.hash || "").replace(/^#/, "") + "&" + (location.search || "").replace(/^\?/, ""));
+  return { tipo: q.get("type") === "recovery", error: q.get("error_code") || q.get("error") };
+})();
+const limpiarUrl = () => { try { history.replaceState(null, "", location.pathname); } catch (_) {} };
+function verForm(id){ ["form-login", "form-olvide", "form-nueva"].forEach(f => $(f).classList.toggle("oculto", f !== id)); mostrar("pant-login"); }
+$("lg-olvide").onclick = e => { e.preventDefault(); $("ol-email").value = $("lg-email").value.trim(); $("ol-error").textContent = ""; $("ol-ok").textContent = ""; verForm("form-olvide"); $("ol-email").focus(); };
+document.querySelectorAll("[data-alogin]").forEach(a => a.onclick = e => { e.preventDefault(); verForm("form-login"); });
+$("form-olvide").onsubmit = async e => {
+  e.preventDefault();
+  const email = $("ol-email").value.trim().toLowerCase(); $("ol-error").textContent = ""; $("ol-ok").textContent = "";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $("ol-error").textContent = "Escribe un correo válido."; return; }
+  if (!sb && !conectar()) return;
+  $("ol-btn").disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  $("ol-btn").disabled = false;
+  if (error) {
+    $("ol-error").textContent = /rate|security purposes|seconds|too many/i.test(error.message)
+      ? "Ya se pidió un enlace hace muy poco. Espera un minuto y vuelve a intentarlo (revisa también la carpeta de spam)."
+      : "No se pudo enviar el correo: " + error.message + ". Avisa a quien administra la plataforma.";
+    return;
+  }
+  $("ol-ok").innerHTML = `Listo. Si <b>${esc(email)}</b> está registrado en la plataforma, en unos minutos te llegará un correo con el enlace (revisa también spam). El enlace sirve una sola vez y vence pronto.`;
+};
+$("form-nueva").onsubmit = async e => {
+  e.preventDefault();
+  const a = $("nv-pass").value, b = $("nv-pass2").value; $("nv-error").textContent = "";
+  if (a.length < 8) { $("nv-error").textContent = "La contraseña debe tener al menos 8 caracteres."; return; }
+  if (a !== b) { $("nv-error").textContent = "Las dos contraseñas no coinciden."; return; }
+  $("nv-btn").disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: a });
+  $("nv-btn").disabled = false;
+  if (error) {
+    const m = error.message || "";
+    $("nv-error").textContent = /different from the old/i.test(m) ? "La contraseña nueva debe ser distinta de la anterior."
+      : /weak|at least|characters/i.test(m) ? "La contraseña es muy débil: usa al menos 8 caracteres combinando letras y números."
+      : /session|jwt|expired|not authenticated/i.test(m) ? "El enlace venció. Vuelve a pedir uno con «¿Olvidaste tu contraseña?»."
+      : "No se pudo cambiar: " + m;
+    return;
+  }
+  const email = (data && data.user && data.user.email) || "";
+  try { await sb.auth.signOut(); } catch (_) {}
+  limpiarUrl(); $("nv-pass").value = ""; $("nv-pass2").value = "";
+  $("lg-email").value = email; $("lg-pass").value = ""; $("lg-error").textContent = "";
+  $("lg-ok").textContent = "✓ Tu contraseña se cambió. Ingresa con la nueva.";
+  verForm("form-login"); $("lg-pass").focus();
+};
+async function iniciarRecuperacion(){
+  if (RECUP.error) { limpiarUrl(); verForm("form-olvide"); $("ol-error").textContent = "El enlace no es válido o ya venció (sirve una sola vez). Pide uno nuevo."; return true; }
+  if (!RECUP.tipo) return false;
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { limpiarUrl(); verForm("form-olvide"); $("ol-error").textContent = "El enlace no es válido o ya venció. Pide uno nuevo."; return true; }
+  $("nv-quien").innerHTML = `Para <b>${esc(data.session.user.email || "")}</b>. Mínimo 8 caracteres y distinta de la anterior.`;
+  verForm("form-nueva"); $("nv-pass").focus(); return true;
+}
+
 async function iniciar(){
   if (!conectar()) return;
+  if (await iniciarRecuperacion()) return;
   const { data } = await sb.auth.getSession();
   if (data.session) entrarApp(); else mostrar("pant-login");
 }
@@ -1963,7 +2059,7 @@ async function entrarApp(){
       if (puedeArea("facturacion")) { irA("ing", "oc"); arrfmContador(); cprechContador(); respContador(); fpdfCargar(); } else if (puedeArea("contabilidad")) { revisarVersion(); fpdfCargar().then(() => irA("cont", "fobras")); contContadores(); }
       return; }
     if (puedeArea("contabilidad")) contContadores();
-    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar(); transContador(); transAvisos(); cfxContador();
+    sugfContador(); solContadorVb(); arrfmContador(); cprechContador(); respContador(); cobzContador(); fpdfCargar(); transContador(); twContador(); transAvisos(); cfxContador();
   }
   if (SESION.ok) revisarVersion();
   if (location.hash === "#panel" && SESION.ok) { try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {} irA("panel"); }
@@ -2124,7 +2220,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "tw", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2150,6 +2246,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "cuad") cargarCuad(mod || CUAD.mod);
   if (rep === "cobz") cargarCobz(mod || COBZ.mod);
   if (rep === "trans") cargarTrans();
+  if (rep === "tw") cargarTw();
   if (rep === "cfx") { CFX.filas = null; cargarCfx(mod); }
   if (rep === "ctrl") cargarControl(mod || CTRL.sub);
   if (rep === "panel") { window.scrollTo(0, 0); cargarPanel(); }
@@ -9213,7 +9310,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 59;
+const VERSION_PAGINA = 60;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10839,7 +10936,8 @@ function dibujarTrans(){
     <p class="nota-g"><b>Cómo se corrige:</b> en el Excel busca la fila con el Id tachado y reemplázalo por el Id de la web (no borres la fila). En la próxima carga quedan como un solo pago.</p>`;
   h += `<h3 class="fres-h" style="margin-top:18px">Pagos creados en la web que faltan en el Excel</h3>
     <div style="display:flex;gap:8px;margin-bottom:8px"><input id="trans-q" placeholder="Buscar Id, franquicia, obra o ítem" value="${esc(TRANS.q)}" style="flex:1;max-width:360px">
-      <button class="btn sec" id="trans-xlsx">Descargar lista (Excel)</button></div>`;
+      <button class="btn sec" id="trans-xlsx">Descargar lista (Excel)</button></div>
+    <p class="nota-g" style="margin-top:0">Para traspasarlos con un ID de descarga e historial (y que no se repitan), usa <a href="#" data-ir="tw">Obras › Traspasos web</a>.</p>`;
   for (const o of ["FRANQUICIA", "OBRA"]) {
     const L = P.filter(x => x.origen === o); if (!L.length) continue;
     h += `<h4 style="margin:10px 0 4px">${esc(TRANS_ORIG[o])} · ${L.length}</h4><div class="tabla-wrap"><table class="cp"><thead><tr><th>Id pago</th><th>${o === "OBRA" ? "Id ATR Obra" : "Id ATR Franquicia"}</th><th>Ítem</th><th>Fecha pago</th>
@@ -11612,6 +11710,243 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-cpxcalcd]"); if (!a) return;
   e.preventDefault(); const k = a.dataset.cpxcalcd; CPX.calcD.has(k) ? CPX.calcD.delete(k) : CPX.calcD.add(k); cpxDibujar();
 });
+
+/* =====================================================================
+   v60 · TRASPASOS WEB: movimientos de la web (Id T…) que faltan en los Excel → exportación con ID de descarga (TW-…)
+   e historial permanente (el archivo original queda guardado y se vuelve a descargar sin crear otra exportación).
+   ===================================================================== */
+const TW = { pend: [], hist: [], seg: [], sel: new Set(), q: "", lib: "", abiertas: new Set(), cargado: false, ocupado: false };
+const TW_LIBRO = { OBRA: "BBDD-Clientes Obras › hoja Pagos", FRANQUICIA: "Franquiciados › hoja Pagos" };
+const TW_HOJA = { OBRA: "Pagos obras", FRANQUICIA: "Pagos franquiciados" };
+// columnas de la hoja Pagos de cada libro, en el mismo orden (A, B, C…). "f" = en el Excel es fórmula → se deja vacía.
+const twF = "f", twD = k => r => twFecha(r[k]), twN = k => r => r[k] == null ? null : Number(r[k]), twT = k => r => r[k] ?? null;
+const twFolio = r => { const v = r.factura_venta; return v == null ? null : /^\d+$/.test(v) ? Number(v) : v; };
+const twNum = v => v == null ? null : /^\d+$/.test(v) ? Number(v) : v;
+const TW_COLS = {
+  OBRA: [["Id pago", twT("id_pago")], ["Id ATR Obra\n(Centro de Costo)", twT("obra")], ["Id UMB Obra", twF], ["Nombre Cliente", twF], ["RUT Cliente", twF],
+    ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Monto en pesos", twN("monto")], ["Total pagado pesos", twF], ["Total pagado %", twF],
+    ["Monto contrato", twF], ["Medio de Pago", twT("medio")], ["Fecha Conciliación", r => r.fecha_conciliacion === "N/A" ? "N/A" : twFecha(r.fecha_conciliacion)],
+    ["Banco", twT("banco")], ["Fecha Factura Venta", twD("fecha_factura_venta")], ["ID-Factura", twT("id_factura")], ["Nro Factura Transbank", null],
+    ["Monto Abonado", twF], ["Monto Conciliado", twF], ["Observaciones Pagos", twT("observaciones")], ["N° Abono Dia/Banco", twT("n_abono")],
+    ["Monto OC + IVA", null], ["RUT Proveedor ", twF], ["Proveedor", twF], ["N°Factura compra", twF], ["N°OC", twF], ["Monto OC", twF],
+    ["Factura Venta", twFolio], ["Fecha factura venta", null], ["Facturar a", null], ["Monto Factura venta", null], ["", null], ["Observación", null],
+    ["ID Franquicia", twF], ["Franquicia", twF], ["Fecha Contrato", twF], ["CPI", null], ["Monto Facturado", twF], ["Saldo obra", twF], ["Fecha factura compra", twF]],
+  FRANQUICIA: [["Id pago", twT("id_pago")], ["Id ATR Franquicia", twT("franquicia")], ["Id UMB Franquicia", twF], ["Razón social / Nombre Franquiciado", twF],
+    ["RUT Franquiciado", twF], ["Centro Comercial o Comuna Tienda", twF], ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Centro Costos", twF],
+    ["Monto en pesos", twN("monto")], ["Medio de Pago", twT("medio")], ["Fecha Conciliación", r => r.fecha_conciliacion === "N/A" ? "N/A" : twFecha(r.fecha_conciliacion)],
+    ["Monto Conciliado", twF], ["Observaciones Pagos", twT("observaciones")], ["N° Factura Compra", r => twNum(r.n_factura_compra)], ["Fecha Factura Compra", twD("fecha_factura_compra")],
+    ["N° Factura Venta", twFolio], ["Fecha Factura Venta", twD("fecha_factura_venta")], ["Monto Total Factura Venta", twN("monto_factura_venta")],
+    ["N° Abono Dia/Banco", twT("n_abono")], ["Banco", twT("banco")], ["Monto Neto para CPI", twF], ["Monto Neto acumulado para CPI", twF],
+    ["Monto Neto canon para CPI", twF], ["Vencimiento", twD("vencimiento")], ["UF fecha", null], ["Valor UF", null]]
+};
+const TW_COL_LETRA = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : "") + String.fromCharCode(65 + (i % 26));
+// fecha como número de serie de Excel (sin desfases de zona horaria)
+function twFecha(v){
+  if (!v) return null; const [a, m, d] = String(v).slice(0, 10).split("-").map(Number);
+  if (!a || !m || !d) return null;
+  return { t: "n", v: (Date.UTC(a, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000, z: "dd/mmm/yyyy" };
+}
+const twFechaHora = v => { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }); };
+const twNombreArchivo = e => `Traspasos web ${e.codigo} ${String(e.creado_en).slice(0, 10)}.xlsx`;
+
+/* ---------- arma el Excel de una descarga (siempre igual para la misma descarga: mismos datos guardados) ---------- */
+function twLibro(exp, filas){
+  const wb = XLSX.utils.book_new();
+  const ob = filas.filter(r => r.origen === "OBRA"), fr = filas.filter(r => r.origen === "FRANQUICIA");
+  const tot = L => L.reduce((s, r) => s + Number(r.monto || 0), 0);
+  const ins = [
+    ["TRASPASOS WEB → EXCEL"], [],
+    ["ID de descarga", exp.codigo], ["Generada", twFechaHora(exp.creado_en)], ["Por", exp.creado_por || ""],
+    ["Movimientos", filas.length], ["  Libro BBDD-Clientes Obras › hoja Pagos", ob.length, "Total $", Math.round(tot(ob))],
+    ["  Libro Franquiciados › hoja Pagos", fr.length, "Total $", Math.round(tot(fr))], [],
+    ["CÓMO TRASPASAR (una hoja a la vez)"],
+    ["1", "Abre el libro que indica la hoja (\"Pagos obras\" → BBDD-Clientes Obras · \"Pagos franquiciados\" → Franquiciados) en su hoja Pagos."],
+    ["2", "Busca la primera fila sin movimiento: la columna B (Id ATR Obra / Id ATR Franquicia) vacía. Su Id pago PATR… pre-cargado se reemplaza por el Id T… de la web."],
+    ["3", "En este archivo selecciona desde A2 hasta la última columna y la última fila con datos, y copia (Ctrl + C)."],
+    ["4", "En la hoja Pagos, haz clic en la celda A de esa primera fila vacía › Pegado especial (Ctrl + Alt + V) › marca \"Valores\" y \"Saltar blancos\" › Aceptar."],
+    ["", "Las columnas que en el Excel son fórmulas (nombre, RUT, totales, saldo…) vienen vacías: con \"Saltar blancos\" las fórmulas del Excel se mantienen."],
+    ["5", "Revisa que las columnas calculadas muestren el nombre del cliente / franquiciado (si una fila no tenía fórmulas, cópialas de la fila de arriba). Guarda y cierra el Excel."],
+    ["6", "Con la próxima carga de la base (cargar_base.bat) estos movimientos quedan como \"anotados en el Excel\" en la web (Traspasos web › Historial)."],
+    [], ["IMPORTANTE"],
+    ["•", "Usa el Id T… tal cual (no lo cambies por un PATR…): si no, el pago queda duplicado."],
+    ["•", "No pegues dos veces la misma descarga. Si la vuelves a bajar desde el Historial es la MISMA (mismo ID), no una nueva."],
+    ["•", "La hoja \"Revisión\" tiene los nombres de cada movimiento para revisar, no se pega."]];
+  const wsI = XLSX.utils.aoa_to_sheet(ins); wsI["!cols"] = [{ wch: 44 }, { wch: 120 }, { wch: 9 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsI, "Instrucciones");
+  for (const o of ["OBRA", "FRANQUICIA"]) {
+    const L = filas.filter(r => r.origen === o), C = TW_COLS[o];
+    const aoa = [C.map(c => c[0]), ...L.map(r => C.map(([, f]) => (typeof f === "function" ? f(r) : null)))];
+    const ws = XLSX.utils.aoa_to_sheet(aoa.map(fila => fila.map(v => (v && typeof v === "object" ? v.v : v))));
+    L.forEach((r, i) => C.forEach(([nom, f], j) => {
+      const c = ws[XLSX.utils.encode_cell({ r: i + 1, c: j })]; if (!c || typeof f !== "function") return;
+      const v = f(r); if (v && typeof v === "object") { c.t = "n"; c.z = v.z; }
+      else if (/^Monto/.test(nom) && typeof v === "number") c.z = "#,##0";
+      if (j === 0 || /^(N°|Nro|ID-|Factura Venta|N° Factura)/.test(nom)) { if (typeof v === "string") c.t = "s"; }
+    }));
+    ws["!cols"] = C.map(([nom, f], j) => ({ wch: f === twF ? 6 : j < 2 ? 36 : /Observ/.test(nom) ? 40 : 16 }));
+    ws["!autofilter"] = { ref: `A1:${TW_COL_LETRA(C.length - 1)}${Math.max(1, L.length + 1)}` };
+    XLSX.utils.book_append_sheet(wb, ws, TW_HOJA[o]);
+  }
+  const rev = filas.map(r => ({ "ID descarga": exp.codigo, "Libro / hoja": TW_LIBRO[r.origen], "Id pago": r.id_pago,
+    "Obra": r.obra || "", "Cliente": r.cliente || "", "Franquicia": r.franquicia, "Franquiciado": r.franquiciado || "", "Ítem": r.item,
+    "Fecha pago": fecha(r.fecha_pago), "Monto": Number(r.monto), "Conciliación": r.fecha_conciliacion === "N/A" ? "N/A" : fecha(r.fecha_conciliacion),
+    "Factura venta": r.factura_venta || "", "Viene de": r.origen_web + (r.solicitud_pago ? " · " + r.solicitud_pago : ""), "Creado en la web": twFechaHora(r.created_at) }));
+  const wsR = XLSX.utils.json_to_sheet(rev.length ? rev : [{ "ID descarga": exp.codigo }]);
+  wsR["!cols"] = [10, 34, 14, 36, 30, 10, 34, 30, 11, 12, 12, 12, 30, 16].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, wsR, "Revisión");
+  return wb;
+}
+const twBlob = wb => new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+function twBajar(blob, nombre){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+/* ---------- carga ---------- */
+async function twContador(){
+  if (!puedeArea("operaciones") || enExcel()) return;
+  try { const { data, error } = await db.from("v_traspaso_web_pendientes").select("id_pago").eq("listo", true);
+    if (!error && $("tw-n")) $("tw-n").textContent = data.length ? ` · ${data.length} por exportar` : ""; } catch (_) {}
+}
+async function cargarTw(){
+  $("tw-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const [p, h, s] = await Promise.all([todo(() => db.from("v_traspaso_web_pendientes").select("*").order("origen", { ascending: false }).order("fecha_pago").order("id_pago")),
+    todo(() => db.from("v_traspaso_web_historial").select("*").order("id", { ascending: false })),
+    todo(() => db.from("v_traspaso_web_seguimiento").select("descarga,creado_en,origen,id_pago,fila,en_excel,eliminado,cambios,actual"))]);
+  const err = p.error || h.error || s.error;
+  if (err) { $("tw-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 60_traspasos_web.sql en Supabase." : esc(err.message)}</div>`; return; }
+  TW.pend = p.data || []; TW.hist = h.data || []; TW.seg = s.data || [];
+  const vivos = new Set(TW.pend.filter(x => x.listo).map(x => x.pago_id));
+  TW.vistos = TW.vistos || new Set();             // los nuevos (listos) vienen marcados; los que desmarcaste siguen desmarcados
+  TW.pend.forEach(x => { if (x.listo && !TW.vistos.has(x.pago_id)) TW.sel.add(x.pago_id); TW.vistos.add(x.pago_id); });
+  TW.sel = new Set([...TW.sel].filter(id => vivos.has(id)));
+  TW.cargado = true; twDibujar(); twContador();
+}
+
+/* ---------- pantalla ---------- */
+function twDibujar(){
+  const q = TW.q.toLowerCase();
+  const P = TW.pend.filter(x => (!TW.lib || x.origen === TW.lib) && (!q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.observaciones, x.solicitud_pago].join(" ").toLowerCase().includes(q)));
+  const listos = TW.pend.filter(x => x.listo), espera = TW.pend.filter(x => !x.listo);
+  const sinExcel = TW.seg.filter(x => !x.en_excel), cambios = TW.seg.filter(x => (x.cambios || []).length || x.eliminado);
+  const selL = listos.filter(x => TW.sel.has(x.pago_id)), editable = puedeEditar() && puedeArea("operaciones");
+  let h = `<div class="trans-guia">
+      <div><b>1 · Exporta.</b> Marca los movimientos de la web que aún no están en los Excel y presiona <b>Exportar a Excel</b>: se genera un archivo con un <b>ID de descarga (TW-…)</b> y esos movimientos salen de esta lista.</div>
+      <div><b>2 · Pega.</b> El archivo trae una hoja por libro (<i>Pagos obras</i>, <i>Pagos franquiciados</i>) con las mismas columnas y en el mismo orden que la hoja Pagos del Excel. Las instrucciones vienen en el archivo (Pegado especial › Valores + Saltar blancos).</div>
+      <div><b>3 · Carga la base.</b> En la próxima carga quedan como <i>anotados en el Excel</i>. Cada descarga queda en el <b>Historial</b> y se puede volver a bajar (es el mismo archivo, no una nueva exportación).</div>
+      <details><summary>¿Qué entra y qué no?</summary>Entran los movimientos creados en la web (Id T…: Control de Pagos, solicitudes de factura, mínimo trimestral, ingresos en la web) que ya están <b>pagados</b> y que el Excel no tiene según la última carga.
+        Los que esperan pago (Pendiente / En Contabilidad) se muestran aparte y se exportan cuando se paguen. Un movimiento sólo puede estar en una descarga.</details></div>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:12px 0">
+      <div class="kpi ${listos.length ? "alerta" : ""}"><div class="t">Listos para exportar</div><div class="v">${listos.length}</div><div class="s">${listos.filter(x => x.origen === "OBRA").length} obras · ${listos.filter(x => x.origen === "FRANQUICIA").length} franquiciados</div></div>
+      <div class="kpi"><div class="t">Esperando pago</div><div class="v">${espera.length}</div><div class="s">Se exportan cuando Contabilidad los pague</div></div>
+      <div class="kpi"><div class="t">Descargas</div><div class="v">${TW.hist.length}</div><div class="s">${TW.hist[0] ? "Última: " + esc(TW.hist[0].codigo) + " · " + twFechaHora(TW.hist[0].creado_en) : "Aún no hay"}</div></div>
+      <div class="kpi ${cambios.length ? "alerta" : ""}"><div class="t">Exportados sin ver en el Excel</div><div class="v">${sinExcel.length}</div><div class="s">${cambios.length ? `<b style="color:#a1281f">${cambios.length} cambiaron después</b>` : "Se confirman con la próxima carga"}</div></div></div>`;
+  // ---- pendientes
+  h += `<h3 class="fres-h" style="margin-top:6px">Pendientes de traspasar <small>en la web, todavía no están en los Excel ni en una descarga</small></h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+      <input id="tw-q" placeholder="Buscar Id, obra, cliente, franquicia, ítem, SP-…" value="${esc(TW.q)}" style="flex:1;min-width:220px;max-width:380px">
+      <select id="tw-lib"><option value="">Los dos libros</option><option value="OBRA" ${TW.lib === "OBRA" ? "selected" : ""}>BBDD-Clientes Obras</option><option value="FRANQUICIA" ${TW.lib === "FRANQUICIA" ? "selected" : ""}>Franquiciados</option></select>
+      ${editable ? `<button class="btn" id="tw-exportar" ${selL.length && !TW.ocupado ? "" : "disabled"}>${TW.ocupado ? "Exportando…" : `Exportar a Excel (${selL.length})`}</button>` : `<small class="nota-g">Sólo un usuario editor de Operaciones puede exportar.</small>`}</div>`;
+  if (!TW.pend.length) h += `<p class="nota-g">✓ No hay movimientos de la web pendientes de traspasar a los Excel.</p>`;
+  for (const o of ["OBRA", "FRANQUICIA"]) {
+    const L = P.filter(x => x.origen === o); if (!L.length) continue;
+    const lis = L.filter(x => x.listo), todos = lis.length && lis.every(x => TW.sel.has(x.pago_id));
+    h += `<h4 style="margin:12px 0 4px">${esc(TW_LIBRO[o])} · ${L.length}</h4><div class="tabla-wrap"><table class="cp"><thead><tr>
+      <th>${editable && lis.length ? `<input type="checkbox" data-twtodos="${o}" ${todos ? "checked" : ""} title="Marcar todos">` : ""}</th><th>Id pago</th><th>${o === "OBRA" ? "Obra · cliente" : "Franquicia"}</th><th>Ítem</th>
+      <th>Fecha pago</th><th class="n">Monto</th><th>Conciliación</th><th>Factura venta</th><th>Estado</th><th>Viene de</th></tr></thead><tbody>
+      ${L.map(x => `<tr class="${x.listo ? "" : "tw-espera"}"><td>${x.listo && editable ? `<input type="checkbox" data-twsel="${x.pago_id}" ${TW.sel.has(x.pago_id) ? "checked" : ""}>` : ""}</td>
+        <td><b>${esc(x.id_pago)}</b></td><td><small>${o === "OBRA" ? `${esc(x.obra)}<br>${esc(x.cliente || "")}` : `${esc(x.franquicia)} · ${esc(x.franquiciado || "")}`}</small></td>
+        <td><small>${esc(x.item)}</small></td><td>${fecha(x.fecha_pago) || "—"}</td><td class="n">${$$(x.monto)}</td>
+        <td>${x.fecha_conciliacion === "N/A" ? "N/A" : fecha(x.fecha_conciliacion) || "—"}</td><td>${esc(x.factura_venta || "")}</td>
+        <td>${x.listo ? `<span class="pill ok">Pagado</span>` : `<span class="pill parcial">${x.estado_pago === "Solicitado" ? "En Contabilidad" : "Pendiente"}</span><br><small>esperando pago</small>`}</td>
+        <td><small>${esc(x.origen_web)}${x.solicitud_pago ? " · " + esc(x.solicitud_pago) : ""}</small></td></tr>`).join("")}</tbody></table></div>`;
+  }
+  if (TW.pend.length && !P.length) h += `<p class="nota-g">Sin resultados.</p>`;
+  // ---- historial
+  h += `<h3 class="fres-h" style="margin-top:22px">Historial de descargas <small>cada archivo con su ID, fecha y movimientos · volver a bajarlo no crea otra exportación</small></h3>`;
+  if (!TW.hist.length) h += `<p class="nota-g">Aún no hay descargas.</p>`;
+  else h += `<div class="tabla-wrap"><table class="cp"><thead><tr><th>ID descarga</th><th>Fecha</th><th>Por</th><th class="n">Obras</th><th class="n">Franquiciados</th>
+      <th class="n">Total obras</th><th class="n">Total franquiciados</th><th>En el Excel</th><th></th></tr></thead><tbody>
+    ${TW.hist.map(e => { const ok = e.n_en_excel >= e.n_items, ab = TW.abiertas.has(e.id);
+      const items = TW.seg.filter(x => x.descarga === e.codigo);
+      return `<tr><td><b>${esc(e.codigo)}</b></td><td style="white-space:nowrap">${twFechaHora(e.creado_en)}</td><td><small>${esc(e.creado_por)}</small></td>
+        <td class="n">${e.n_obras}</td><td class="n">${e.n_franquicias}</td><td class="n">${$$(e.monto_obras)}</td><td class="n">${$$(e.monto_franq)}</td>
+        <td>${ok ? `<span class="pill ok">✓ ${e.n_items} de ${e.n_items}</span>` : `<span class="pill parcial">${e.n_en_excel} de ${e.n_items}</span>`}</td>
+        <td style="white-space:nowrap"><button class="cf-btn" data-twbajar="${e.id}" title="${e.archivo ? "Descargar el archivo original" : "Se arma con los datos guardados de esta descarga"}">⬇ Descargar</button>
+          <button class="cf-btn" data-twver="${e.id}">${ab ? "Ocultar ▲" : "Ver movimientos ▼"}</button></td></tr>
+        ${ab ? `<tr class="detalle"><td colspan="9"><table class="cp tw-det"><thead><tr><th>Libro</th><th>Id pago</th><th>Destino</th><th>Ítem</th><th>Fecha</th><th class="n">Monto</th><th>En el Excel</th></tr></thead><tbody>
+          ${items.map(x => `<tr><td><small>${esc(TW_HOJA[x.origen])}</small></td><td>${esc(x.id_pago)}</td><td><small>${esc(x.fila.obra || x.fila.franquicia)}</small></td><td><small>${esc(x.fila.item)}</small></td>
+            <td>${fecha(x.fila.fecha_pago)}</td><td class="n">${$$(x.fila.monto)}</td><td>${x.en_excel ? "✓" : "aún no"}</td></tr>`).join("")}</tbody></table></td></tr>` : ""}`; }).join("")}</tbody></table></div>`;
+  // ---- seguimiento
+  if (cambios.length) h += `<h3 class="fres-h" style="margin-top:22px;color:#a1281f">⚠ Cambiaron en la web después de exportarse <small>corrige esa fila en el Excel (busca el Id pago)</small></h3>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Descarga</th><th>Id pago</th><th>Qué cambió</th><th>En el archivo → ahora en la web</th></tr></thead><tbody>
+    ${cambios.map(x => { const a = x.actual || {}, f = x.fila || {};
+      const det = x.eliminado ? ["Eliminado en la web"] : x.cambios.map(c => ({ "Monto": `${$$(f.monto)} → ${$$(a.monto)}`, "Fecha pago": `${fecha(f.fecha_pago) || "—"} → ${fecha(a.fecha_pago) || "—"}`,
+        "Fecha conciliación": `${f.fecha_conciliacion === "N/A" ? "N/A" : fecha(f.fecha_conciliacion) || "—"} → ${a.fecha_conciliacion === "N/A" ? "N/A" : fecha(a.fecha_conciliacion) || "—"}`,
+        "Ítem": `${f.item} → ${a.item}`, "Factura venta": `${f.factura_venta || "—"} → ${a.factura_venta || "—"}`, "Destino": `${f.obra || f.franquicia} → ${a.obra || a.franquicia}` }[c] || c));
+      return `<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.id_pago)}</b><br><small>${esc(TW_LIBRO[x.origen])}</small></td><td>${esc(x.eliminado ? "Eliminado" : x.cambios.join(", "))}</td>
+        <td><small>${det.map(esc).join("<br>")}</small></td></tr>`; }).join("")}</tbody></table></div>
+    <p class="nota-g">La descarga no se modifica (queda como se exportó). Actualiza esos datos directamente en la fila del Excel; si fue eliminado en la web, avisa antes de borrar la fila.</p>`;
+  if (sinExcel.length) h += `<details style="margin-top:14px"><summary class="fres-h" style="cursor:pointer">Exportados que aún no aparecen en el Excel · ${sinExcel.length} <small>normal hasta la próxima carga; si siguen después de cargar, faltó pegarlos</small></summary>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Descarga</th><th>Fecha descarga</th><th>Libro</th><th>Id pago</th><th>Destino</th><th>Ítem</th><th class="n">Monto</th></tr></thead><tbody>
+    ${sinExcel.map(x => `<tr><td>${esc(x.descarga)}</td><td>${twFechaHora(x.creado_en)}</td><td><small>${esc(TW_HOJA[x.origen])}</small></td><td>${esc(x.id_pago)}</td>
+      <td><small>${esc(x.fila.obra || x.fila.franquicia)}</small></td><td><small>${esc(x.fila.item)}</small></td><td class="n">${$$(x.fila.monto)}</td></tr>`).join("")}</tbody></table></div></details>`;
+  $("tw-cuerpo").innerHTML = h;
+}
+
+/* ---------- acciones ---------- */
+async function twExportar(){
+  const L = TW.pend.filter(x => x.listo && TW.sel.has(x.pago_id)); if (!L.length) return toast("Marca al menos un movimiento.");
+  const ob = L.filter(x => x.origen === "OBRA"), fr = L.filter(x => x.origen === "FRANQUICIA");
+  const ok = await modal(`<h3>Exportar ${L.length} movimiento(s) a Excel</h3>
+      <p class="nota-g">Se crea una descarga con un <b>ID único (TW-…)</b> y estos movimientos <b>salen de Pendientes</b>. Queda en el Historial para volver a bajarla.</p>
+      <ul class="nota-g" style="margin:6px 0"><li>BBDD-Clientes Obras › Pagos: <b>${ob.length}</b> · ${$$(ob.reduce((s, x) => s + Number(x.monto), 0))}</li>
+        <li>Franquiciados › Pagos: <b>${fr.length}</b> · ${$$(fr.reduce((s, x) => s + Number(x.monto), 0))}</li></ul>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Exportar y descargar", fn: async () => true }]);
+  if (!ok) return;
+  TW.ocupado = true; twDibujar();
+  try {
+    const { data, error } = await db.rpc("traspaso_web_exportar", { p: { ids: L.map(x => x.pago_id) } });
+    if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 10000); return; }
+    const nombre = twNombreArchivo(data), blob = twBlob(twLibro(data, data.filas));
+    twBajar(blob, nombre);
+    const ruta = `${data.codigo}.xlsx`;
+    const up = await db.storage.from("traspasos").upload(ruta, blob, { contentType: blob.type, upsert: false });
+    if (up.error) toast(`✓ Descarga <b>${esc(data.codigo)}</b> creada (${data.filas.length} movimientos). ⚠ No se pudo guardar el archivo en el historial (${esc(up.error.message)}); igual se puede volver a bajar: se arma con los mismos datos.`, 14000);
+    else {
+      const r = await db.rpc("traspaso_web_archivo", { p: { id: data.id, ruta, nombre } });
+      toast(r.error ? `✓ Descarga <b>${esc(data.codigo)}</b> creada. ⚠ ${esc(r.error.message)}` : `✓ Descarga <b>${esc(data.codigo)}</b>: ${data.filas.length} movimiento(s) exportados. El archivo quedó en el Historial.`, 10000);
+    }
+    if (data.filas.length < L.length) toast(`ℹ ${L.length - data.filas.length} movimiento(s) ya no estaban pendientes (otra persona los exportó o ya están en el Excel).`, 10000);
+    TW.sel.clear();
+  } finally { TW.ocupado = false; await cargarTw(); }
+}
+async function twBajarHist(id){
+  const e = TW.hist.find(x => x.id === id); if (!e) return;
+  const nombre = e.nombre_archivo || twNombreArchivo(e);
+  if (e.archivo) {
+    const { data, error } = await db.storage.from("traspasos").download(e.archivo);
+    if (!error && data) return twBajar(data, nombre);
+  }
+  const r = await db.rpc("traspaso_web_filas", { p_id: id });
+  if (r.error || !r.data) return toast("⚠ No se pudo armar la descarga: " + esc(r.error ? r.error.message : "sin datos"), 9000);
+  twBajar(twBlob(twLibro(e, r.data)), nombre);
+  toast(`Descarga ${esc(e.codigo)} armada con los datos guardados (mismos movimientos y valores que al exportarla).`);
+}
+$("vista-tw").addEventListener("click", async e => {
+  const t = e.target;
+  if (t.id === "tw-act") return cargarTw();
+  if (t.id === "tw-exportar") return twExportar();
+  if (t.dataset.twbajar) return twBajarHist(+t.dataset.twbajar);
+  if (t.dataset.twver) { const id = +t.dataset.twver; TW.abiertas.has(id) ? TW.abiertas.delete(id) : TW.abiertas.add(id); return twDibujar(); }
+});
+$("vista-tw").addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.twsel) { t.checked ? TW.sel.add(+t.dataset.twsel) : TW.sel.delete(+t.dataset.twsel); return twDibujar(); }
+  if (t.dataset.twtodos) { TW.pend.filter(x => x.listo && x.origen === t.dataset.twtodos).forEach(x => t.checked ? TW.sel.add(x.pago_id) : TW.sel.delete(x.pago_id)); return twDibujar(); }
+  if (t.id === "tw-lib") { TW.lib = t.value; twDibujar(); }
+});
+$("vista-tw").addEventListener("input", e => { if (e.target.id === "tw-q") { TW.q = e.target.value; const pos = e.target.selectionStart; twDibujar(); const i = $("tw-q"); i.focus(); i.setSelectionRange(pos, pos); } });
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
