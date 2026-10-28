@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reportes ATR</title>
+<title>ATRIUM GO · Gestión y Operaciones</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237e350e'/%3E%3Cpath d='M32 14 52.5 50h-41z' fill='none' stroke='%23fff' stroke-width='7' stroke-linejoin='miter'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23492a1d'/%3E%3Cg transform='translate(8 6) scale(.48)' fill='%23faf6f0'%3E%3Cpolygon points='88.8,78.0 46.7,11.1 0.0,78.7 30.2,78.7 30.2,44.4 51.0,30.8 51.4,66.8'/%3E%3Cpolygon points='33.3,67.0 56.4,88.9 100.0,88.9'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23492a1d'/%3E%3Cg transform='translate(8 6) scale(.48)' fill='%23faf6f0'%3E%3Cpolygon points='88.8,78.0 46.7,11.1 0.0,78.7 30.2,78.7 30.2,44.4 51.0,30.8 51.4,66.8'/%3E%3Cpolygon points='33.3,67.0 56.4,88.9 100.0,88.9'/%3E%3C/g%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -24,6 +25,21 @@
   body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--tinta);background:var(--fondo)}
   button{font:inherit;cursor:pointer}
   .oculto{display:none!important}
+  /* v62 · marca ATRIUM GO */
+  .marca{display:flex;align-items:center;gap:10px;line-height:1}
+  .marca svg{width:30px;height:30px;flex-shrink:0}
+  .marca .mt{display:flex;flex-direction:column;gap:3px}
+  .marca .mt b{font-size:17px;font-weight:800;letter-spacing:2.4px}
+  .marca .mt small{font-size:8.5px;letter-spacing:1.6px;text-transform:uppercase;opacity:.82;font-weight:600}
+  .marca.grande{flex-direction:column;align-items:center;text-align:center;gap:12px;margin:0 0 18px}
+  .marca.grande .ico{width:64px;height:64px;border-radius:16px;background:var(--cafe);display:flex;align-items:center;justify-content:center}
+  .marca.grande .ico svg{width:42px;height:42px}
+  .marca.grande .mt b{font-size:24px;color:var(--cafe);letter-spacing:3px}
+  .marca.grande .mt small{font-size:10px;color:var(--gris)}
+  #logo-barra.marca{cursor:pointer}
+  /* v62 · mientras entra a la aplicación no se muestra ninguna pantalla intermedia */
+  body.app-cargando #pant-app > :not(.barra){visibility:hidden}
+  body.app-cargando #pant-app::after{content:"Cargando…";position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--gris);font-size:14px;letter-spacing:.5px}
 
   /* ==== Barra superior ==== */
   .barra{display:flex;align-items:center;gap:16px;background:var(--cafe);color:#fff;padding:10px 20px}
@@ -65,6 +81,10 @@
   .menu button.activo{background:var(--durazno);color:var(--cafe);font-weight:600}
   .menu button:disabled{color:#b9aca5;cursor:default}
   .menu button small{display:block;font-size:11px;color:#b9aca5;font-weight:400}
+  /* v62 · menú lateral: sólo el nombre; la descripción aparece en el ítem abierto (y al pasar el mouse) */
+  .menu button small .desc{display:none}
+  .menu button.activo small .desc{display:inline}
+  .menu button small .n-ctrl{color:var(--naranjo);font-weight:600}
   .contenido{flex:1;padding:20px 24px;min-width:0}
 
   .controles{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:#fff;border:1px solid var(--linea);border-radius:12px;padding:14px 16px;margin-bottom:18px}
@@ -595,6 +615,16 @@
   .ini-head h1{margin:0 0 4px;font-size:26px;color:var(--cafe)}
   .ini-head p{margin:0;color:var(--gris)}
   .areas{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  /* v62 · menú principal: mosaicos con ícono + nombre */
+  #vista-inicio .areas{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+  #vista-inicio .area-card{align-items:center;justify-content:center;text-align:center;gap:14px;padding:26px 14px 22px;min-height:168px;border-radius:18px;
+    box-shadow:0 1px 2px rgba(60,20,0,.04)}
+  #vista-inicio .area-card .ic{width:60px;height:60px;border-radius:18px;transition:background .15s,color .15s}
+  #vista-inicio .area-card .ic svg{width:30px;height:30px}
+  #vista-inicio .area-card h3{margin:0;font-size:15.5px;font-weight:700;line-height:1.25}
+  #vista-inicio .area-card:hover .ic{background:var(--cafe);color:#fff}
+  #vista-inicio .area-card .cnt{font-size:11.5px;color:var(--gris);margin-top:-6px}
+  .ini-head h1{letter-spacing:.2px}
   .area-card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:20px 20px 16px;text-align:left;cursor:pointer;
     display:flex;flex-direction:column;gap:8px;transition:transform .12s, box-shadow .12s, border-color .12s;font:inherit;color:inherit}
   .area-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(60,20,0,.10);border-color:var(--naranjo)}
@@ -1060,7 +1090,7 @@
 <!-- ================= CONFIGURACIÓN (sólo la primera vez) ================= -->
 <div id="pant-config" class="acceso oculto">
   <div class="tarjeta">
-    <div class="logo" id="logo-config"></div>
+    <div id="logo-config"></div>
     <h2>Conectar con la base de datos</h2>
     <p>Sólo la primera vez. Los datos están en Supabase › Project Settings › API.</p>
     <label>Project URL</label>
@@ -1075,9 +1105,9 @@
 <!-- ================= LOGIN ================= -->
 <div id="pant-login" class="acceso oculto">
   <form class="tarjeta" id="form-login">
-    <div class="logo" id="logo-login"></div>
-    <h2>Reportes ATR</h2>
-    <p>Ingresa con tu usuario de la base de datos.</p>
+    <div id="logo-login"></div>
+    <h2>Ingresar</h2>
+    <p>Con tu correo y tu contraseña.</p>
     <label>Correo</label>
     <input id="lg-email" type="email" autocomplete="username" required>
     <label>Contraseña</label>
@@ -1088,7 +1118,7 @@
     <p style="margin:14px 0 0;text-align:center"><a href="#" id="lg-cambiar" style="color:var(--gris);font-size:12px">Cambiar base de datos (proyecto Supabase)</a></p>
   </form>
   <form class="tarjeta oculto" id="form-olvide">
-    <div class="logo" id="logo-olvide"></div>
+    <div id="logo-olvide"></div>
     <h2>Recuperar contraseña</h2>
     <p>Escribe el correo con el que entras a la plataforma. Te enviaremos un enlace para crear una contraseña nueva.</p>
     <label>Correo</label>
@@ -1098,7 +1128,7 @@
     <p style="margin:14px 0 0;text-align:center"><a href="#" data-alogin="1" style="color:var(--gris);font-size:13px">← Volver a ingresar</a></p>
   </form>
   <form class="tarjeta oculto" id="form-nueva">
-    <div class="logo" id="logo-nueva"></div>
+    <div id="logo-nueva"></div>
     <h2>Crea tu nueva contraseña</h2>
     <p id="nv-quien"></p>
     <label>Nueva contraseña</label>
@@ -1114,8 +1144,7 @@
 <div id="pant-app" class="oculto">
   <div class="barra">
     <button class="btn-menu" id="btn-menu" aria-label="Abrir menú" title="Menú">☰</button>
-    <div class="logo chico" id="logo-barra"></div>
-    <div class="titulo-app">Reportes</div>
+    <div class="marca" id="logo-barra" title="Menú principal"></div>
     <div class="esp"></div>
     <div class="fuente-sel" title="Fuente de los datos: los Excel de trabajo (sólo lectura, para comparar) o la base Supabase">
       <button data-fuente="excel">EXCEL</button><button data-fuente="supabase" class="activo">SUPABASE</button></div>
@@ -1245,7 +1274,7 @@
       <div id="menu-ing" class="oculto"></div><div id="menu-admin" class="oculto"></div>
     </nav>
     <main class="contenido">
-     <section id="vista-negocio">
+     <section id="vista-negocio" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="controles">
         <div class="campo">
@@ -1722,7 +1751,7 @@
       <div class="tabla-wrap"><table class="cp" id="cob-tabla"></table></div>
      </section>
      <section id="vista-inicio" class="oculto">
-      <div class="ini-head"><h1>¿Qué quieres revisar?</h1><p>Elige un área. Dentro de cada área el menú de la izquierda muestra sólo lo suyo; con <b>← Menú principal</b> vuelves aquí.</p></div>
+      <div class="ini-head"><h1>¿Qué quieres revisar?</h1><p>Elige un área.</p></div>
       <div class="areas" id="ini-areas"></div>
      </section>
      <section id="vista-eo" class="oculto">
@@ -1933,10 +1962,13 @@ function logoHTML(color){                 // logo oficial; en fondos oscuros se 
   const blanco = /^#fff/i.test(color);
   return `<img class="logo-img" src="${LOGO_PNG}" alt="AQUÍ Tu Remodelación" style="${blanco ? "filter:brightness(0) invert(1)" : ""}">`;
 }
-$("logo-config").innerHTML = logoHTML("var(--cafe)");
-$("logo-login").innerHTML  = logoHTML("var(--cafe)");
-$("logo-olvide").innerHTML = logoHTML("var(--cafe)"); $("logo-nueva").innerHTML = logoHTML("var(--cafe)");
-$("logo-barra").innerHTML  = logoHTML("#fff");
+// v62 · marca ATRIUM GO (los documentos y PDF siguen con el logo AQUÍ)
+const ATRIUM_TRI = (color) => `<svg viewBox="0 -2 100 96" fill="${color}" aria-hidden="true"><polygon points="88.8,78.0 46.7,11.1 0.0,78.7 30.2,78.7 30.2,44.4 51.0,30.8 51.4,66.8"/><polygon points="33.3,67.0 56.4,88.9 100.0,88.9"/></svg>`;
+const marcaHTML = (grande) => grande
+  ? `<div class="marca grande"><div class="ico">${ATRIUM_TRI("#faf6f0")}</div><div class="mt"><b>ATRIUM GO</b><small>Gestión y Operaciones</small></div></div>`
+  : `${ATRIUM_TRI("#fff")}<div class="mt"><b>ATRIUM GO</b><small>Gestión y Operaciones</small></div>`;
+["logo-config", "logo-login", "logo-olvide", "logo-nueva"].forEach(id => $(id).innerHTML = marcaHTML(true));
+$("logo-barra").innerHTML = marcaHTML(false);
 
 /* ---------------- conexión ---------------- */
 let sb = null, OBRAS = [], actual = null;
@@ -2054,6 +2086,8 @@ async function todo(fabrica){
 
 /* ---------------- app ---------------- */
 async function entrarApp(){
+  document.body.classList.add("app-cargando");
+  setTimeout(() => document.body.classList.remove("app-cargando"), 15000);     // por si algo falla, nunca queda oculto
   mostrar("pant-app");
   const { data: u } = await sb.auth.getUser();
   $("usuario").textContent = u?.user?.email || "";
@@ -2067,6 +2101,7 @@ async function entrarApp(){
       $("vacio").innerHTML = `Tu correo (${esc(u?.user?.email || "")}) aún no tiene acceso. Pide a un administrador que lo agregue en <b>Usuarios</b>.`;
       $("menu-nota").innerHTML = `Tu correo <b>${esc(u?.user?.email || "")}</b> no está en la lista de Usuarios.`;
       $("menu-nota").classList.remove("oculto");
+      document.body.classList.remove("app-cargando");
       return;
     }
     $("menu-ing").classList.remove("oculto");
@@ -2252,6 +2287,7 @@ async function irA(rep, mod, desdeDetalle){
   else { G.mod = null; G.cambios.clear(); G.nuevas = []; }
   document.querySelectorAll(".menu button[data-rep]").forEach(x => x.classList.toggle("activo", x === b));
   VISTAS.forEach(v => $("vista-" + v).classList.toggle("oculto", v !== rep));
+  document.body.classList.remove("app-cargando");
   if (rep === "inicio") { MENU.area = null; dibujarInicio(); return; }
   if (b && b.dataset.grupo && (!desdeDetalle || !MENU.area)) ponerArea(b.dataset.grupo); else document.body.classList.remove("en-inicio");
   if (rep === "pagos" && !CP.cargado) { CPX.cargado = false; cpxDibujar(); cargarPagos(); }
@@ -9335,7 +9371,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 61;
+const VERSION_PAGINA = 61;   // v62 de la página: sólo diseño (sin cambio de base)
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9611,6 +9647,14 @@ const AREA_INFO = {
 };
 const icoArea = g => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${(AREA_INFO[g] || {}).ic || '<circle cx="12" cy="12" r="8"/>'}</svg>`;
 const MENU = { area: null };
+(function menuLimpio(){
+  document.querySelectorAll(".menu button small").forEach(sm => {
+    const desc = document.createElement("span"); desc.className = "desc";
+    [...sm.childNodes].forEach(n => { if (!(n.nodeType === 1 && n.classList.contains("n-ctrl")) && !(n.nodeType === 1 && n.classList.contains("tag-p"))) desc.appendChild(n); });
+    const txt = desc.textContent.trim(); if (txt) sm.closest("button").title = txt;
+    sm.prepend(desc);
+  });
+})();
 (function prepararAreas(){
   let g = null;
   document.querySelectorAll(".menu h4, .menu h5, .menu button, .menu a.menu-link").forEach(el => {
@@ -9648,10 +9692,8 @@ function dibujarInicio(){
     const it = itemsArea(g);
     if (!it.length) return "";
     const nombres = it.map(el => (el.childNodes[0]?.textContent || el.textContent).trim()).filter(Boolean);
-    return `<button class="area-card" data-ir-area="${esc(g)}"><div class="ic">${icoArea(g)}</div><h3>${esc(g)}</h3>
-      <div class="d">${esc((AREA_INFO[g] || {}).d || "")}</div>
-      <ul>${nombres.slice(0, 5).map(n => `<li>${esc(n)}</li>`).join("")}${nombres.length > 5 ? `<li>y ${nombres.length - 5} más…</li>` : ""}</ul>
-      <div class="n">Entrar →</div></button>`; }).join("");
+    return `<button class="area-card" data-ir-area="${esc(g)}" title="${esc((AREA_INFO[g] || {}).d || "")}"><div class="ic">${icoArea(g)}</div><h3>${esc(g)}</h3>
+      <div class="cnt">${nombres.length} ${nombres.length === 1 ? "opción" : "opciones"}</div></button>`; }).join("");
   window.scrollTo(0, 0);
 }
 $("ini-areas").addEventListener("click", e => {
