@@ -1261,6 +1261,8 @@
       <div id="cp-cuerpo"></div>
       <details class="reglas-box" id="cp-calc-box" style="margin-top:16px">
         <summary>Cálculo de todas las obras (por qué se sugiere cada transferencia)</summary>
+        <p class="nota-g" style="margin:8px 0 0">Aparecen las obras <b>con fecha de contrato</b> que <b>no están Cerradas</b> (las en reserva sin contrato y las cerradas no tienen transferencias que calcular).
+          Los chips filtran por decisión: <b>Pagar</b>, <b>Anticipo parcial</b>, <b>Sin monto disponible</b> o <b>No pagar</b>; arriba también filtran la franquicia y la búsqueda. Clic en una obra para ver su cálculo.</p>
         <div class="kpis" id="cp-kpis" style="margin-top:10px"></div>
         <div class="chips" id="cp-chips" style="margin-bottom:12px"></div>
         <div class="tabla-wrap">
@@ -2679,8 +2681,8 @@ function cpxDibRev(sug){
   const filaB = a => { const o = CP.filas.find(x => x.codigo_atr === a.obra), ab = CPX.calc.has(a.obra);
     return `<tr><td class="ob"><b>${esc(a.cliente || "")}</b><span>${obraLink(a.obra)} · ${esc(a.franquicia)}</span></td>
       <td>${a.detalle}${a.nota ? `<span class="acc-nota">${esc(a.nota)}</span>` : ""}${cpxNotaRech(a)}
-        ${o ? `<br><a href="#" class="link-chico" data-cpxcalc="${esc(a.obra)}">${ab ? "Ocultar cálculo ▲" : "Ver cálculo ▼"}</a>` : ""}</td>
-      <td class="n"><b>${$$(a.monto)}</b></td>${cpxBotones(a)}</tr>${ab && o ? `<tr class="detalle"><td colspan="4">${detallePago(o)}</td></tr>` : ""}`; };
+        <br><a href="#" class="link-chico" data-cpxcalc="${esc(a.obra)}">${ab ? "Ocultar cálculo ▲" : "Ver cálculo ▼"}</a></td>
+      <td class="n"><b>${$$(a.monto)}</b></td>${cpxBotones(a)}</tr>${ab ? `<tr class="detalle"><td colspan="4">${o ? detallePago(o) : cpxSinCalculo(a.obra)}</td></tr>` : ""}`; };
   const filaC = a => `<tr><td class="ob"><b>${esc(a.cliente || "")}</b><span>${obraLink(a.obra)} · ${esc(a.franquicia)}</span></td>
       <td>${a.detalle}${a.nota ? `<span class="acc-nota ${a.bloqueada ? "rojo" : ""}">${esc(a.nota)}</span>` : ""}${cpxNotaRech(a)}</td>
       <td class="n"><b>${$$(a.monto)}</b></td>${cpxBotones(a)}</tr>`;
@@ -2694,9 +2696,10 @@ function cpxDibRev(sug){
       [C.map(filaC), C], `<th>Obra que recibe</th><th>Desde</th><th class="n">Monto</th>${ed ? "<th></th>" : ""}`)
     + (() => { const D = cpxCobros();
       const filaD = x => `<tr><td class="ob"><a href="#" data-ficha="${esc(x.obra)}" title="Ver la hoja del cliente (Resumen Negocio)" style="color:inherit"><b style="text-decoration:underline;text-decoration-color:#d9b9a6">${esc(x.cliente || "")}</b></a><span>${obraLink(x.obra)} · ${esc(x.franquicia || "")}</span></td>
-        <td><span class="tipo-acc ${x.concepto === "Aquí Club" ? "aqc" : "prov"}">${esc(x.concepto)}</span> <small>${esc(x.accion || "")}</small><br><small>${esc(x.detalle || "")}</small></td>
+        <td><span class="tipo-acc ${x.concepto === "Aquí Club" ? "aqc" : "prov"}">${esc(x.concepto)}</span> <small>${esc(x.accion || "")}</small><br><small>${esc(x.detalle || "")}</small>
+          <br><a href="#" class="link-chico" data-cpxcalcd="${esc(x.clave)}">${CPX.calcD.has(x.clave) ? "Ocultar cálculo ▲" : "Ver cálculo ▼"}</a></td>
         <td class="n"><b>${$$(x.monto)}</b>${x.concepto === "Royalty" && x.monto_canal != null ? `<br><small>canal ${$$(x.monto_canal)} · mkt ${$$(x.monto_marketing)}</small>` : ""}</td>
-        ${ed ? `<td class="cpx-acc"><button class="btn-acc" data-cpxcob="${esc(x.clave)}">Aceptar</button><button class="cf-btn" data-cpxcobno="${esc(x.clave)}">Rechazar</button></td>` : ""}</tr>`;
+        ${ed ? `<td class="cpx-acc"><button class="btn-acc" data-cpxcob="${esc(x.clave)}">Aceptar</button><button class="cf-btn" data-cpxcobno="${esc(x.clave)}">Rechazar</button></td>` : ""}</tr>${CPX.calcD.has(x.clave) ? `<tr class="detalle"><td colspan="4">${cpxCalcCobro(x)}</td></tr>` : ""}`;
       return sec("D", "Cobros de royalty y Aquí Club", "Lo que se descuenta de la obra a favor de Atrium. Al aceptar se registra el cobro y se pide la factura (visto bueno de Patricio → Contabilidad). Es la misma lista de Control Facturación › Royalty y Aquí Club: lo que hagas en una se ve en la otra.",
         [D.map(filaD), D], `<th>Obra</th><th>Concepto</th><th class="n">Monto</th>${ed ? "<th></th>" : ""}`); })();
 }
@@ -11578,6 +11581,37 @@ async function cpxVolverRevision(id){
   CPX.sel.delete(id); toast("✓ Volvió a Por revisar."); await cpxRecargar();
 }
 document.addEventListener("click", e => { const b = e.target.closest("[data-cpxvolrev]"); if (b) cpxVolverRevision(+b.dataset.cpxvolrev); });
+
+/* =====================================================================
+   v59b · CONTROL DE PAGOS › Por revisar: cálculo siempre disponible (transferencias, royalty y Aquí Club)
+   ===================================================================== */
+CPX.calcD = new Set();
+function cpxSinCalculo(obra){
+  return `<p class="nota-g" style="margin:6px 0">Esta obra no tiene cálculo automático: está <b>Cerrada</b> o no tiene <b>fecha de contrato</b>
+    (el cálculo sólo se hace para obras con contrato que no están cerradas). ${obra ? `<a href="#" data-ficha="${esc(obra)}">Ver Resumen Negocio →</a>` : ""}</p>`;
+}
+function cpxCalcCobro(x){
+  const o = CP.filas.find(y => y.codigo_atr === x.obra), fila = (t, v, cl = "") => `<tr class="${cl}"><td>${t}</td><td class="n">${v}</td></tr>`;
+  let t = "";
+  if (x.concepto === "Royalty") {
+    t = (o ? fila("Monto del contrato", $$(o.contrato)) + fila("Royalty esperado (canal + 1% marketing)", $$(o.royalty_esperado))
+           + fila("− Royalty ya cobrado", $$(-o.royalty_cobrado), "sub") : "")
+      + (x.monto_canal != null ? fila("Royalty canal", $$(x.monto_canal)) + fila("Royalty marketing (1%)", $$(x.monto_marketing)) : "")
+      + fila(x.accion === "Pedir factura" ? "Cobro ya registrado · falta la factura" : "A cobrar ahora", $$(x.monto), "tot");
+  } else {
+    t = (o ? fila("Aquí Club debido (20% del descuento de las OC cerradas)", $$(o.aquiclub_debido)) + fila("− Aquí Club ya cobrado", $$(-o.aquiclub_cobrado), "sub")
+           + fila("Pendiente", $$(o.aquiclub_pendiente)) : "")
+      + fila(x.accion === "Pedir factura" ? "Cobro ya registrado · falta la factura" : "A cobrar ahora", $$(x.monto), "tot");
+  }
+  return `<div class="det" style="grid-template-columns:minmax(260px,420px) 1fr"><div><h5>${esc(x.concepto)} · cómo se calcula</h5>
+      <table class="calc">${t}</table>
+      <p class="nota-g" style="margin:6px 0 0">${esc(x.detalle || "")}${x.id_pago ? ` · cobro ${esc(x.id_pago)}` : ""} · saldo en obra ${$$(x.saldo_obra)}${x.avance_pct != null ? ` · avance ${pct(100 * x.avance_pct, 0)}` : ""}</p></div>
+    <div>${o ? `<details><summary style="cursor:pointer;font-weight:600;color:var(--cafe)">Cálculo completo de la obra (transferencias, reservas, control preventivo)</summary>${detallePago(o)}</details>` : cpxSinCalculo(x.obra)}</div></div>`;
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-cpxcalcd]"); if (!a) return;
+  e.preventDefault(); const k = a.dataset.cpxcalcd; CPX.calcD.has(k) ? CPX.calcD.delete(k) : CPX.calcD.add(k); cpxDibujar();
+});
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
