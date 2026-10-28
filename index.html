@@ -1141,9 +1141,8 @@
       <h5 data-area="operaciones">Pagos</h5>
       <button data-rep="pagos" data-area="operaciones">Control de Pagos<small>Revisar · por pagar · Contabilidad · pagadas</small></button>
       <button data-rep="reg" data-area="operaciones">Registro de Pagos<small>Por pagar · comprobantes · falta cartola</small></button>
+      <button data-rep="hpag" data-area="operaciones" data-solo-supabase="1">Historial de pagos<small>Aceptado → Contabilidad → pagado → conciliado</small></button>
       <button data-rep="cprech" data-mod="ob" data-area="operaciones" data-solo-supabase="1">Pagos rechazados<small>Contabilidad no los pagó · corregir o anular<span class="n-ctrl" id="cprechob-n"></span></small></button>
-      <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web<small>Id T… por anotar en el Excel · duplicados<span class="n-ctrl" id="trans-n"></span></small></button>
-      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Exportar a Excel · historial de descargas<span class="n-ctrl" id="tw-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
       <h5 data-area="operaciones">Control</h5>
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
@@ -1162,6 +1161,11 @@
       <h5 data-area="operaciones" class="req-ses oculto">Ingreso de datos</h5>
       <button data-rep="ing" data-mod="pagos_franquicia" data-area="operaciones" class="req-ses oculto">Pagos franquiciados<small>Hoja Pagos · Franquiciados</small></button>
       <button data-rep="ing" data-mod="franquicias" data-area="operaciones" class="req-ses oculto">Franquicias<small>Hoja Franquicias</small></button>
+
+      <h4 class="sep" data-area="operaciones">Excel ↔ Web</h4>
+      <h5 data-area="operaciones">Transición Excel ↔ Web</h5>
+      <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web (transición)<small>Id T… por anotar en el Excel · duplicados · cargas<span class="n-ctrl" id="trans-n"></span></small></button>
+      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Exportar a Excel · historial de descargas<span class="n-ctrl" id="tw-n"></span></small></button>
 
       <h4 class="sep">Control Facturación</h4>
       <button data-rep="cfx" data-area="operaciones" data-solo-supabase="1">Mapa de facturación<small>Todas las facturas de ATR: qué está OK y qué falta<span class="n-ctrl" id="cfx-n"></span></small></button>
@@ -1204,6 +1208,7 @@
       <button data-ptarea="faq" data-area="operaciones" data-solo-supabase="1">Facturas AquiClub → Pagos<small><span class="tag-p">PANEL</span>Estado de cada factura y traspasos</small></button>
       <button data-ptarea="aquiclub" data-area="operaciones" data-solo-supabase="1">Enviar facturas Aquí Club<small><span class="tag-p">PANEL</span>Sube los PDF · correo con su desglose</small></button>
       <h5 data-area="facturacion">Pagos a proveedores</h5>
+      <button data-rep="aqh" data-area="facturacion" data-solo-supabase="1">Historial de pagos<small>Cada factura: solicitada, en Contabilidad, pagada</small></button>
       <button data-rep="resp" data-area="facturacion" data-solo-supabase="1">Respaldos de facturas (PDF)<small>Sube el PDF de cada factura por pagar<span class="n-ctrl" id="resp-n"></span></small></button>
       <button data-rep="cprech" data-mod="aq" data-area="facturacion" data-solo-supabase="1">Pagos rechazados<small>Por Contabilidad u Operaciones · corregir o anular<span class="n-ctrl" id="cprech-n"></span></small></button>
       <button data-rep="ctrl" data-mod="oc" data-area="operaciones" data-solo-supabase="1">Órdenes de compra · cierre<small>Cierre automático o manual<span class="n-ctrl" data-ctrl-n="oc"></span></small></button>
@@ -1759,6 +1764,24 @@
       <div id="trans-cuerpo"></div>
      </section>
 
+     <section id="vista-hpag" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Historial de pagos de obras</h1><p>Cada pago de obra (transferencias, proveedores…) y su recorrido: aceptado en Control de Pagos → solicitud SP-… → Contabilidad → pagado → conciliado. Cuando Contabilidad lo marca pagado, se ve aquí al tiro y no se vuelve a sugerir.</p></div>
+        <div class="acciones"><button class="btn sec" id="hpag-act">Actualizar</button></div>
+      </div>
+      <div id="hpag-cuerpo"></div>
+     </section>
+
+     <section id="vista-aqh" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Historial de pagos a proveedores</h1><p>Cada factura de proveedor de Aquí Club con su OC, dónde se registró, si tiene PDF y el estado de su pago: por pagar, en Contabilidad (SP-…), pagada por Contabilidad, conciliada o rechazada. Una factura pagada o solicitada no se puede volver a pagar.</p></div>
+        <div class="acciones"><button class="btn sec" id="aqh-act">Actualizar</button></div>
+      </div>
+      <div id="aqh-cuerpo"></div>
+     </section>
+
      <section id="vista-tw" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
@@ -2220,7 +2243,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "tw", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2247,6 +2270,8 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "cobz") cargarCobz(mod || COBZ.mod);
   if (rep === "trans") cargarTrans();
   if (rep === "tw") cargarTw();
+  if (rep === "hpag") cargarHist("obra");
+  if (rep === "aqh") cargarHist("aqc");
   if (rep === "cfx") { CFX.filas = null; cargarCfx(mod); }
   if (rep === "ctrl") cargarControl(mod || CTRL.sub);
   if (rep === "panel") { window.scrollTo(0, 0); cargarPanel(); }
@@ -9310,7 +9335,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 60;
+const VERSION_PAGINA = 61;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9567,6 +9592,8 @@ const AREA_INFO = {
                       ic: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>' },
   "Franquiciados":  { d: "Cobros a franquiciados, tiendas y arriendos, ingreso de franquicias.",
                       ic: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 14.6c2 .7 3.2 2.6 3.5 5.4"/>' },
+  "Excel ↔ Web":    { d: "Transición entre los Excel y la plataforma: lo creado en la web que falta en los Excel, traspasos con ID de descarga, duplicados y registro de cada carga.",
+                      ic: '<path d="M4 8h15l-3.5-3.5"/><path d="M20 16H5l3.5 3.5"/>' },
   "Control Facturación": { d: "Mapa general de todas las facturas de ATR (clientes, materiales, royalty y Aquí Club, franquiciados) y qué falta. Facturas que gestiona Operaciones. Obras: royalty y Aquí Club. Franquiciados: plataforma tecnológica, mínimo trimestral, canon de entrada y arriendo. Registro de facturas (visto bueno, Contabilidad y emitidas) y control.",
                       ic: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3"/><path d="M9 11h6M9 15h6M9 7h3"/>' },
   "Cuadratura Bancaria": { d: "Control y cierre de las conciliaciones: sube tu Excel de cuadratura, compáralo con lo conciliado en la plataforma y resuelve las diferencias con un clic.",
@@ -10915,6 +10942,7 @@ async function cargarTrans(){
   if (err) { $("trans-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(err.message) ? "Falta ejecutar 55_transicion_excel_web.sql en Supabase." : esc(err.message)}</div>`; return; }
   TRANS.pend = p.data || []; TRANS.dup = d.data || [];
   try { const r = await db.from("v_trans_folios_clientes").select("*"); TRANS.fc = r.error ? [] : (r.data || []); } catch (_) { TRANS.fc = []; }
+  TRANS.cargas = await transCargasHTML();
   dibujarTrans(); transContador();
 }
 const transCopiar = id => `<button class="cf-btn" data-trcop="${esc(id)}" title="Copiar el Id">📋 ${esc(id)}</button>`;
@@ -10948,7 +10976,7 @@ function dibujarTrans(){
   }
   if (!P.length) h += `<p class="nota-g">${TRANS.pend.length ? "Sin resultados." : "✓ No hay pagos de la web pendientes de anotar en el Excel."}</p>`;
   else h += `<p class="nota-g">Anótalos en la hoja Pagos del libro que corresponde, en una fila nueva, con <b>el mismo Id</b> (botón 📋 lo copia) y los mismos datos. Con la próxima carga desaparecen de esta lista.</p>`;
-  h += transFcHTML();
+  h += transFcHTML() + (TRANS.cargas || "");
   $("trans-cuerpo").innerHTML = h;
 }
 $("vista-trans").addEventListener("click", async e => {
@@ -11720,30 +11748,43 @@ const TW = { pend: [], hist: [], seg: [], sel: new Set(), q: "", lib: "", abiert
 const TW_LIBRO = { OBRA: "BBDD-Clientes Obras › hoja Pagos", FRANQUICIA: "Franquiciados › hoja Pagos" };
 const TW_HOJA = { OBRA: "Pagos obras", FRANQUICIA: "Pagos franquiciados" };
 // columnas de la hoja Pagos de cada libro, en el mismo orden (A, B, C…), para copiar y pegar filas completas.
-// twF = en el Excel es fórmula → la columna va, pero vacía.  Obras: C D E I J K R S AH–AN · Franquiciados: C D E F I M.
-const twF = "f", twD = k => r => twFecha(r[k]), twN = k => r => r[k] == null ? null : Number(r[k]), twT = k => r => r[k] ?? null;
+// Las columnas que en el Excel son fórmulas vienen con su VALOR calculado al exportar (marcadas twCalc: fondo gris en las instrucciones).
+const twD = k => r => twFecha(r[k]), twN = k => r => r[k] == null || r[k] === "" ? null : Number(r[k]), twT = k => r => r[k] ?? null;
 const twNum = v => v == null || v === "" ? null : /^\d+$/.test(String(v)) ? Number(v) : v;
 const twFolio = r => twNum(r.factura_venta);
 const twConc = r => r.fecha_conciliacion === "N/A" ? "N/A" : twFecha(r.fecha_conciliacion);
+const twRut = k => r => r[k] ? rut(r[k]) : null;
+const twPct = r => { const t = Number(r.total_pagado_cliente), c = Number(r.monto_contrato); return r.monto_contrato != null && c ? { t: "n", v: t / c, z: "0.00%" } : null; };
+const twAbonado = r => r.fecha_conciliacion === "N/A" ? null : r.fecha_conciliacion ? Number(r.monto) : 0;   // =SI(M="N/A";"";SI(M>0;H;0))
+const twSiNo = r => r.fecha_conciliacion ? "Si" : "No";                                                       // =SI(M="";"No";"Si")
+const twCalc = f => Object.assign(r => f(r), { calc: true });
 const TW_COLS = {
-  OBRA: [["Id pago", twT("id_pago")], ["Id ATR Obra\n(Centro de Costo)", twT("obra")], ["Id UMB Obra", twF], ["Nombre Cliente", twF], ["RUT Cliente", twF],   // A–E
-    ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Monto en pesos", twN("monto")], ["Total pagado pesos", twF], ["Total pagado %", twF],     // F–J
-    ["Monto contrato", twF], ["Medio de Pago", twT("medio")], ["Fecha Conciliación", twConc], ["Banco", twT("banco")], ["Fecha Factura Venta", twD("fecha_factura_venta")], // K–O
-    ["ID-Factura", twT("id_factura")], ["Nro Factura Transbank", null], ["Monto Abonado", twF], ["Monto Conciliado", twF], ["Observaciones Pagos", twT("observaciones")], // P–T
-    ["N° Abono Dia/Banco", twT("n_abono")], ["Monto OC + IVA", null], ["RUT Proveedor ", r => r.rut_proveedor ? rut(r.rut_proveedor) : null], ["Proveedor", twT("proveedor")], // U–X
-    ["N°Factura compra", r => twNum(r.n_factura_compra)], ["N°OC", r => twNum(r.n_oc)], ["Monto OC", twN("monto_oc")],                                      // Y–AA
+  OBRA: [["Id pago", twT("id_pago")], ["Id ATR Obra\n(Centro de Costo)", twT("obra")],                                                   // A–B
+    ["Id UMB Obra", twCalc(twT("obra_umb"))], ["Nombre Cliente", twCalc(twT("cliente"))], ["RUT Cliente", twCalc(twRut("cliente_rut"))], // C–E
+    ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Monto en pesos", twN("monto")],                                    // F–H
+    ["Total pagado pesos", twCalc(twN("total_pagado_cliente"))], ["Total pagado %", twCalc(twPct)], ["Monto contrato", twCalc(twN("monto_contrato"))], // I–K
+    ["Medio de Pago", twT("medio")], ["Fecha Conciliación", twConc], ["Banco", twT("banco")], ["Fecha Factura Venta", twD("fecha_factura_venta")], // L–O
+    ["ID-Factura", twT("id_factura")], ["Nro Factura Transbank", null], ["Monto Abonado", twCalc(twAbonado)], ["Monto Conciliado", twCalc(twSiNo)], // P–S
+    ["Observaciones Pagos", twT("observaciones")], ["N° Abono Dia/Banco", twT("n_abono")], ["Monto OC + IVA", null],                     // T–V
+    ["RUT Proveedor ", twRut("rut_proveedor")], ["Proveedor", twT("proveedor")], ["N°Factura compra", r => twNum(r.n_factura_compra)],  // W–Y
+    ["N°OC", r => twNum(r.n_oc)], ["Monto OC", twN("monto_oc")],                                                                       // Z–AA
     ["Factura Venta", r => twFolio(r) ?? 0], ["Fecha factura venta", null], ["Facturar a", null], ["Monto Factura venta", null], ["", null], ["Observación", null], // AB–AG
-    ["ID Franquicia", twF], ["Franquicia", twF], ["Fecha Contrato", twF], ["CPI", twF], ["Monto Facturado", twF], ["Saldo obra", twF], ["Fecha factura compra", twF]], // AH–AN
-  FRANQUICIA: [["Id pago", twT("id_pago")], ["Id ATR Franquicia", twT("franquicia")], ["Id UMB Franquicia", twF], ["Razón social / Nombre Franquiciado", twF], // A–D
-    ["RUT Franquiciado", twF], ["Centro Comercial o Comuna Tienda", twF], ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Centro Costos", twF], // E–I
-    ["Monto en pesos", twN("monto")], ["Medio de Pago", twT("medio")], ["Fecha Conciliación", twConc], ["Monto Conciliado", twF], ["Observaciones Pagos", twT("observaciones")], // J–N
-    ["N° Factura Compra", r => twNum(r.n_factura_compra)], ["Fecha Factura Compra", twD("fecha_factura_compra")], ["N° Factura Venta", twFolio],            // O–Q
-    ["Fecha Factura Venta", twD("fecha_factura_venta")], ["Monto Total Factura Venta", twN("monto_factura_venta")], ["N° Abono Dia/Banco", twT("n_abono")], // R–T
-    ["Banco", twT("banco")], ["Monto Neto para CPI", null], ["Monto Neto acumulado para CPI", null], ["Monto Neto canon para CPI", null],                      // U–X
-    ["Vencimiento", twD("vencimiento")], ["UF fecha", null], ["Valor UF", null]]                                                                              // Y–AA
+    ["ID Franquicia", twCalc(r => r.obra ? String(r.obra).slice(0, 6) : r.franquicia)], ["Franquicia", twCalc(twT("franquiciado"))],    // AH–AI
+    ["Fecha Contrato", twCalc(twD("fecha_contrato"))], ["CPI", null],                                                                   // AJ–AK
+    ["Monto Facturado", twCalc(r => r.monto_facturado == null ? null : { t: "n", v: Number(r.monto_facturado), z: "0.00" })],          // AL
+    ["Saldo obra", twCalc(twN("saldo_obra"))], ["Fecha factura compra", twCalc(twD("fecha_factura_compra"))]],                          // AM–AN
+  FRANQUICIA: [["Id pago", twT("id_pago")], ["Id ATR Franquicia", twT("franquicia")],                                                 // A–B
+    ["Id UMB Franquicia", twCalc(twT("franquicia_umb"))], ["Razón social / Nombre Franquiciado", twCalc(twT("franquiciado"))],         // C–D
+    ["RUT Franquiciado", twCalc(twRut("franquiciado_rut"))], ["Centro Comercial o Comuna Tienda", twCalc(twT("centro_comercial"))],     // E–F
+    ["Fecha Pago", twD("fecha_pago")], ["Item Pago", twT("item")], ["Centro Costos", twCalc(twT("centro_costos"))],                    // G–I
+    ["Monto en pesos", twN("monto")], ["Medio de Pago", twT("medio")], ["Fecha Conciliación", twConc], ["Monto Conciliado", twCalc(twSiNo)], // J–M
+    ["Observaciones Pagos", twT("observaciones")], ["N° Factura Compra", r => twNum(r.n_factura_compra)], ["Fecha Factura Compra", twD("fecha_factura_compra")], // N–P
+    ["N° Factura Venta", twFolio], ["Fecha Factura Venta", twD("fecha_factura_venta")], ["Monto Total Factura Venta", twN("monto_factura_venta")], // Q–S
+    ["N° Abono Dia/Banco", twT("n_abono")], ["Banco", twT("banco")], ["Monto Neto para CPI", null], ["Monto Neto acumulado para CPI", null], // T–W
+    ["Monto Neto canon para CPI", null], ["Vencimiento", twD("vencimiento")], ["UF fecha", null], ["Valor UF", null]]                  // X–AA
 };
 const TW_COL_LETRA = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : "") + String.fromCharCode(65 + (i % 26));
-const TW_FORMULAS = o => TW_COLS[o].map((c, i) => c[1] === twF ? TW_COL_LETRA(i) : null).filter(Boolean).join(", ");
+const TW_FORMULAS = o => TW_COLS[o].map((c, i) => c[1] && c[1].calc ? TW_COL_LETRA(i) : null).filter(Boolean).join(", ");
 // fecha como número de serie de Excel (sin desfases de zona horaria)
 function twFecha(v){
   if (!v) return null; const [a, m, d] = String(v).slice(0, 10).split("-").map(Number);
@@ -11762,9 +11803,9 @@ function twHoja(o, filas){
     const c = ws[XLSX.utils.encode_cell({ r: i + 1, c: j })]; if (!c || typeof f !== "function") return;
     const v = f(r);
     if (v && typeof v === "object") { c.t = "n"; c.z = v.z; }
-    else if (/^Monto/.test(nom) && typeof v === "number") c.z = "#,##0";
+    else if (/^(Monto|Total pagado pesos|Saldo obra)/.test(nom) && typeof v === "number") c.z = "#,##0";
   }));
-  ws["!cols"] = C.map(([nom, f], j) => ({ wch: f === twF ? 9 : j < 2 ? 36 : /Observ|Proveedor$/.test(nom) ? 36 : 14 }));
+  ws["!cols"] = C.map(([nom], j) => ({ wch: j < 2 ? 36 : /Observ|Proveedor$|Cliente$|Franquiciado$|^Franquicia$/.test(nom) ? 34 : 14 }));
   return ws;
 }
 function twLibro(exp, filas){
@@ -11781,9 +11822,9 @@ function twLibro(exp, filas){
     ["CÓMO PEGAR (las filas vienen con las MISMAS columnas, de la A a la última, en el mismo orden que la hoja Pagos)"],
     ["1", "En este archivo, hoja \"Pagos obras\": selecciona las filas completas desde la fila 2 hasta la última (clic en el número de fila 2, Shift + clic en la última) y copia (Ctrl + C)."],
     ["2", "En el libro BBDD-Clientes Obras › hoja Pagos: clic en la columna A de la primera fila sin movimiento (columna B vacía). Su Id PATR… pre-cargado se reemplaza por el Id T… de la web."],
-    ["3", "Pega con Pegado especial (Ctrl + Alt + V) › marca \"Saltar blancos\" › Aceptar. Las columnas de fórmula vienen vacías, así que con \"Saltar blancos\" las fórmulas del Excel quedan intactas."],
-    ["", "Si pegas normal (Ctrl + V), después copia las fórmulas de la fila de arriba en las columnas de fórmula y arrástralas hacia abajo."],
-    ["", "Columnas de fórmula (vienen vacías) · obras: " + TW_FORMULAS("OBRA") + "  ·  franquiciados: " + TW_FORMULAS("FRANQUICIA")],
+    ["3", "Pega normal (Ctrl + V). Listo: todas las columnas vienen con su valor, no hay que arrastrar ni copiar fórmulas."],
+    ["", "Las columnas que en tu Excel eran fórmulas vienen con el VALOR calculado al exportar · obras: " + TW_FORMULAS("OBRA") + "  ·  franquiciados: " + TW_FORMULAS("FRANQUICIA")],
+    ["", "Ojo: esos valores quedan fijos (Total pagado, %, Saldo obra son los del día de la exportación)."],
     ["4", "Repite con la hoja \"Pagos franquiciados\" en el libro Franquiciados › hoja Pagos."],
     ["5", "Guarda y cierra los Excel. Con la próxima carga (cargar_base.bat) quedan como \"anotados en el Excel\" en la web."],
     [], ["IMPORTANTE"],
@@ -11960,6 +12001,87 @@ $("vista-tw").addEventListener("change", e => {
   if (t.id === "tw-lib") { TW.lib = t.value; twDibujar(); }
 });
 $("vista-tw").addEventListener("input", e => { if (e.target.id === "tw-q") { TW.q = e.target.value; const pos = e.target.selectionStart; twDibujar(); const i = $("tw-q"); i.focus(); i.setSelectionRange(pos, pos); } });
+
+/* =====================================================================
+   v61 · HISTORIAL DE PAGOS (sólo lectura)
+   Obras › Historial de pagos  ·  Aquí Club › Historial de pagos a proveedores
+   El mismo pago se ve en Control de Pagos, Contabilidad y aquí: cuando Contabilidad lo marca pagado, se refleja al tiro.
+   ===================================================================== */
+const HIST = { obra: null, aqc: null, q: { obra: "", aqc: "" }, etapa: { obra: "", aqc: "" }, dias: { obra: 120, aqc: 0 } };
+const histFH = v => v ? new Date(v).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "";
+const histQuien = v => v ? String(v).split("@")[0] : "";
+const HIST_PILL = e => /conciliad/i.test(e) ? "ok" : /Rechazado/i.test(e) ? "no" : /Pagad/i.test(e) ? "ok" : /Contabilidad|solicitud/i.test(e) ? "parcial" : "";
+function histRecorrido(x){
+  const p = [];
+  if (x.origen_registro === "Excel" || x.fuente === "EXCEL") p.push("Registrado en el Excel");
+  else if (x.pago_creado || x.created_at) p.push(`Creado ${histFH(x.pago_creado || x.created_at)}${x.origen_registro ? " (" + esc(x.origen_registro) + ")" : ""}`);
+  if (x.solicitud) p.push(`${esc(x.solicitud)} ${histFH(x.solicitud_creada)}${x.vb_estado ? " · VB " + esc(x.vb_estado) : ""}`);
+  if (x.cont_recibida_en) p.push(`Recibida por Contabilidad ${histFH(x.cont_recibida_en)}`);
+  if (x.pagado_en) p.push(`<b>Pagado ${fecha(x.fecha_pago) || histFH(x.pagado_en)}</b>${x.pagado_por ? " por " + esc(histQuien(x.pagado_por)) : ""}${x.referencia_banco ? " · ref. " + esc(x.referencia_banco) : ""}`);
+  if (x.fecha_conciliacion) p.push(`Conciliado ${fecha(x.fecha_conciliacion)}`);
+  else if (x.no_bancario) p.push("N/A (no bancario)");
+  if (x.rechazo_motivo) p.push(`<span style="color:#a1281f">Rechazado ${histFH(x.rechazado_en)}: ${esc(x.rechazo_motivo)}${x.rechazo_estado && x.rechazo_estado !== "Rechazado" ? " · " + esc(x.rechazo_estado) : ""}</span>`);
+  return p.join(" → ");
+}
+async function cargarHist(tipo){
+  const el = $(tipo === "obra" ? "hpag-cuerpo" : "aqh-cuerpo"); el.innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const vista = tipo === "obra" ? "v_hist_pagos_obra" : "v_aqc_historial";
+  const r = await todo(() => db.from(vista).select("*").order(tipo === "obra" ? "created_at" : "documento_id", { ascending: false }));
+  if (r.error) { el.innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(r.error.message) ? "Falta ejecutar 61_carga_segura_historial.sql en Supabase." : esc(r.error.message)}</div>`; return; }
+  HIST[tipo] = r.data || []; dibujarHist(tipo);
+}
+function dibujarHist(tipo){
+  const el = $(tipo === "obra" ? "hpag-cuerpo" : "aqh-cuerpo"), L0 = HIST[tipo] || [];
+  const q = HIST.q[tipo].toLowerCase(), et = HIST.etapa[tipo], dias = HIST.dias[tipo];
+  const lim = dias ? Date.now() - dias * 86400000 : 0;
+  const base = L0.filter(x => !lim || tipo === "aqc" || new Date(x.created_at) >= lim || (x.fecha_pago && new Date(x.fecha_pago) >= lim) || x.etapa !== "Pagado y conciliado");
+  const etapas = [...new Set(base.map(x => x.etapa))].sort();
+  const L = base.filter(x => (!et || x.etapa === et) && (!q || Object.values(x).join(" ").toLowerCase().includes(q)));
+  let h = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input data-histq="${tipo}" placeholder="${tipo === "obra" ? "Buscar Id, obra, cliente, SP-…, proveedor" : "Buscar factura, proveedor, OC, obra, Id pago, SP-…"}" value="${esc(HIST.q[tipo])}" style="flex:1;min-width:220px;max-width:380px">
+      ${tipo === "obra" ? `<select data-histdias="obra">${[[30, "Últimos 30 días"], [120, "Últimos 4 meses"], [365, "Último año"], [0, "Todo"]].map(([v, t]) => `<option value="${v}" ${v === dias ? "selected" : ""}>${t}</option>`).join("")}</select>` : ""}
+      <span class="nota-g">${L.length} de ${base.length}</span></div>
+    <div class="chips" style="margin-bottom:10px"><button class="chip ${!et ? "activo" : ""}" data-histet="${tipo}" data-v="">Todas</button>
+      ${etapas.map(e => `<button class="chip ${et === e ? "activo" : ""}" data-histet="${tipo}" data-v="${esc(e)}">${esc(e)} · ${base.filter(x => x.etapa === e).length}</button>`).join("")}</div>`;
+  if (!L.length) { el.innerHTML = h + `<p class="nota-g">Sin resultados.</p>`; return; }
+  const filas = L.slice(0, 600);
+  if (tipo === "obra") h += `<div class="tabla-wrap"><table class="cp"><thead><tr><th>Id pago</th><th>Obra · cliente</th><th>Ítem</th><th class="n">Monto</th><th>Estado</th><th>Recorrido</th></tr></thead><tbody>
+    ${filas.map(x => `<tr><td><b>${esc(x.id_pago)}</b><br><small>${esc(x.fuente === "APP" ? "Página" : "Excel")}</small></td>
+      <td><small>${esc(x.obra)}<br>${esc(x.cliente || "")}${x.proveedor ? "<br>Proveedor: " + esc(x.proveedor) + (x.n_factura ? " · F° " + esc(x.n_factura) : "") : ""}</small></td>
+      <td><small>${esc(x.item)}</small></td><td class="n">${$$(x.monto)}</td><td><span class="pill ${HIST_PILL(x.etapa)}">${esc(x.etapa)}</span></td>
+      <td><small>${histRecorrido(x)}</small></td></tr>`).join("")}</tbody></table></div>`;
+  else h += `<div class="tabla-wrap"><table class="cp"><thead><tr><th>Factura</th><th>Proveedor</th><th>OC · obra</th><th class="n">Monto</th><th>Registrada en</th><th>Estado</th><th>Pago y recorrido</th></tr></thead><tbody>
+    ${filas.map(x => `<tr><td><b>F° ${esc(x.n_factura)}</b><br><small>${esc(x.id_factura)} · ${fecha(x.fecha_factura)}${x.tiene_pdf ? " · 📎 PDF" : ""}</small></td>
+      <td><small>${esc(x.proveedor)}</small></td><td><small>OC ${esc(x.numero_oc || "")} (${esc(x.estado_oc || "")})<br>${esc(x.obra || "")}</small></td>
+      <td class="n">${$$(x.monto_total)}</td><td><small>${esc(x.registrada_en)}</small></td>
+      <td><span class="pill ${HIST_PILL(x.etapa)}">${esc(x.etapa)}</span></td>
+      <td><small>${x.id_pago ? `<b>${esc(x.id_pago)}</b> · ${$$(x.monto_pago)}<br>${histRecorrido(x)}` : x.pagada_externa ? "Pagada según el Excel (sin pago en la página)" : "Sin pago registrado"}</small></td></tr>`).join("")}</tbody></table></div>`;
+  if (L.length > 600) h += `<p class="nota-g">Se muestran 600 de ${L.length}: usa el buscador.</p>`;
+  el.innerHTML = h;
+}
+for (const [v, tipo] of [["vista-hpag", "obra"], ["vista-aqh", "aqc"]]) {
+  $(v).addEventListener("click", e => {
+    const t = e.target;
+    if (t.id === "hpag-act" || t.id === "aqh-act") return cargarHist(tipo);
+    if (t.dataset.histet) { HIST.etapa[tipo] = t.dataset.v; return dibujarHist(tipo); }
+  });
+  $(v).addEventListener("change", e => { if (e.target.dataset.histdias) { HIST.dias[tipo] = +e.target.value; dibujarHist(tipo); } });
+  $(v).addEventListener("input", e => { if (e.target.dataset.histq) { HIST.q[tipo] = e.target.value; const pos = e.target.selectionStart; dibujarHist(tipo);
+    const i = document.querySelector(`[data-histq="${tipo}"]`); i.focus(); i.setSelectionRange(pos, pos); } });
+}
+
+/* ---------------- Excel ↔ Web: registro de cargas (cargar_base.bat) ---------------- */
+async function transCargasHTML(){
+  try {
+    const { data, error } = await db.from("carga_excel_log").select("*").order("fecha", { ascending: false }).limit(15);
+    if (error || !data || !data.length) return error ? "" : `<h3 class="fres-h" style="margin-top:18px">Cargas desde Excel</h3><p class="nota-g">Aún no hay cargas registradas (se registran desde la versión 61 de cargar_base).</p>`;
+    return `<h3 class="fres-h" style="margin-top:18px">Cargas desde Excel <small>cada cargar_base.bat con su revisión previa</small></h3>
+      <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Usuario PC</th><th>Archivos</th><th class="n">Nuevos</th><th class="n">Modificados</th><th class="n">Advertencias</th><th>Confirmación</th></tr></thead><tbody>
+      ${data.map(c => { const r = c.resumen || {}; return `<tr><td>${twFechaHora(c.fecha)}</td><td><small>${esc(c.usuario_pc || "")}</small></td>
+        <td><small>${(c.archivos || []).map(a => esc(a.archivo) + (a.modificado ? " (" + esc(String(a.modificado).replace("T", " ")) + ")" : "")).join("<br>")}</small></td>
+        <td class="n">${r.NUEVOS ?? ""}</td><td class="n">${r.MODIF ?? ""}</td><td class="n">${r.ADV ?? ""}</td><td><small>${esc(c.confirmado || "")}</small></td></tr>`; }).join("")}</tbody></table></div>`;
+  } catch (_) { return ""; }
+}
 </script>
 <div id="datalists"></div>
 <div id="toast"></div>
