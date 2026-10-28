@@ -2762,7 +2762,11 @@ function cpxTarjetaSP(s){
         ${SESION.retira_pagos && s.estado !== "Pagada" ? `<button class="btn sec" data-cpxret-sp="${s.id}">Retirar de Contabilidad…</button>` : ""}</div></div>` : ""}</div>`;
 }
 function cpxDibCont(_, __, enCont){
-  return `<p class="nota-g" style="margin-top:0">Solicitudes que ya están en <b>Contabilidad › Pagos para la semana</b>. Contabilidad las marca como pagadas.
+  const sinInf = enCont.filter(s => !s.informada_en);
+  const aviso = enCont.length && puedeEditar() && !enExcel() ? `<div class="env-sol" style="margin:0 0 12px"><span><b>Avisar a los franquiciados</b> con todas las solicitudes que están en Contabilidad
+      (${enCont.length}${sinInf.length < enCont.length ? `, ${sinInf.length} sin informar` : ""}): a cada franquiciado le llega su PDF. No se envía nada a Contabilidad ni a Aquí Club.</span>
+      <button class="btn-acc" data-cpxpaneltodas="1">Informar a franquiciados (Panel)</button></div>` : "";
+  return aviso + `<p class="nota-g" style="margin-top:0">Solicitudes que ya están en <b>Contabilidad › Pagos para la semana</b>. Contabilidad las marca como pagadas.
     ${SESION.retira_pagos ? "Si hay un error, <b>Retirar</b> devuelve los pagos a <b>Por pagar</b> (queda en el historial)." : "Si hay un error, pide a Matías, Felipe De Quevedo o Patricio que la retiren."}</p>`
     + (cpxFiltroSP(enCont).map(cpxTarjetaSP).join("") || `<p class="cp-vacio">No hay solicitudes en Contabilidad.</p>`);
 }
@@ -2891,6 +2895,7 @@ $("vista-pagos").addEventListener("click", async e => {
   }
   const sp = t.closest("[data-cpxsp]"); if (sp) return cpxAbrirSP(+sp.dataset.cpxsp);
   if (t.dataset.cpxpanel) return abrirPanel({ tarea: "pagos", sp: +t.dataset.cpxpanel, prueba: 1 });
+  if (t.dataset.cpxpaneltodas) return abrirPanel({ tarea: "pagos", sp: "cont", prueba: 1 });
   if (t.dataset.cpxenviarSp) { if (!confirm("¿Enviar esta solicitud a Contabilidad?")) return;
     if (await cpxRpc("cp_enviar_contabilidad", { p: { solicitud_id: +t.dataset.cpxenviarSp } }, "✓ Enviada a Contabilidad.")) await cpxRecargar(); return; }
   if (t.dataset.cpxretSp) { const s = CPX.sps.find(x => x.id === +t.dataset.cpxretSp);
