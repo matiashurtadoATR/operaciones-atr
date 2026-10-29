@@ -1,0 +1,18 @@
+{
+  "name": "ATRIUM GO · Gestión y Operaciones",
+  "short_name": "ATRIUM GO",
+  "description": "Gestión y Operaciones · Inversiones Atrium Chile",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#4a2b1f",
+  "theme_color": "#4a2b1f",
+  "lang": "es-CL",
+  "icons": [
+    { "src": "icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
