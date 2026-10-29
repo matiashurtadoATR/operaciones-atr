@@ -89,6 +89,32 @@
   /* v65 · secciones de consulta: disponibles pero con menos protagonismo */
   .menu button.tenue{opacity:.5;filter:grayscale(.7)} .menu button.tenue:hover,.menu button.tenue.activo{opacity:.9;filter:none}
   .menu h5.tenue-h{opacity:.55}
+  /* v66 · Conciliación */
+  #vista-porc .pos{color:#1e6b2b}#vista-porc .neg{color:#a1281f}
+  .cz-per{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:2px 0 12px}.cz-per .chips{margin:0}
+  .cz-filtro{background:#fff7f1;border:1px solid var(--linea);border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:13px}.cz-filtro a{margin-left:8px}
+  .cz-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+  .cz-tot{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--tinta);background:#fff;border:1px solid var(--linea);border-left-width:5px;border-radius:12px;padding:14px 16px}
+  button.cz-tot{cursor:pointer}button.cz-tot:hover{box-shadow:0 2px 10px rgba(126,53,14,.12)}
+  .cz-tot .t{font-size:12px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.03em}
+  .cz-tot .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.cz-tot .s{font-size:12px;color:var(--gris)}
+  .cz-tot.ing{border-left-color:#2e8b3e}.cz-tot.ing .v{color:#1e6b2b}.cz-tot.egr{border-left-color:#c0392b}.cz-tot.egr .v{color:#a1281f}
+  .cz-tot.neto{background:var(--cafe);border-color:var(--cafe)}.cz-tot.neto .v{color:#fff}.cz-tot.neto .t,.cz-tot.neto .s{color:#f3d9cb}
+  .cz-tot.sel,.cz-banco.sel{box-shadow:0 0 0 2px rgba(190,80,20,.35);background:#fff7f1}
+  .cz-h{font-size:14px;color:var(--cafe);margin:6px 0 8px;text-transform:uppercase;letter-spacing:.03em}
+  .cz-bancos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:18px}
+  .cz-banco{text-align:left;font:inherit;color:var(--tinta);background:#fff;border:1px solid var(--linea);border-radius:12px;padding:12px 14px;cursor:pointer}
+  .cz-banco:hover{box-shadow:0 2px 10px rgba(126,53,14,.12)}
+  .cz-banco .nom{font-weight:700;font-size:15px}.cz-banco .neto{font-size:20px;font-weight:700;margin:2px 0 8px;font-variant-numeric:tabular-nums}.cz-banco .neto small{font-size:11px;color:var(--gris);font-weight:600}
+  .cz-banco .fila{display:flex;gap:8px;align-items:baseline;font-size:12.5px}.cz-banco .fila span{flex:1;color:var(--gris)}.cz-banco .fila b{font-variant-numeric:tabular-nums}.cz-banco .fila small{color:var(--gris);min-width:22px;text-align:right}
+  .cz-banco .bar{height:6px;background:#f3ebe6;border-radius:4px;margin:3px 0 7px;overflow:hidden}.cz-banco .bar i{display:block;height:100%;border-radius:4px}
+  i.ing{background:#4caf62}i.egr{background:#d9534f}
+  .cz-items tbody tr{cursor:pointer}.cz-items tbody tr:hover td{background:#fff7f1}.cz-items tr.sel td{background:#fbe2d5}
+  .cz-items tfoot td{font-weight:700;border-top:2px solid var(--linea)}
+  .cz-mini{display:flex;align-items:center;min-width:140px}.cz-mini .l,.cz-mini .r{flex:1;display:flex;height:9px}.cz-mini .l{justify-content:flex-end;border-right:1px solid #c9b8ae}
+  .cz-mini i{display:block;height:100%}.cz-mini i.egr{border-radius:4px 0 0 4px}.cz-mini i.ing{border-radius:0 4px 4px 0}
+  .cz-det{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px 14px;margin:8px 0}.cz-det summary{cursor:pointer;font-weight:700;color:var(--cafe)}
+  @media (max-width:760px){.cz-hero{grid-template-columns:1fr}}
   .menu button.activo{background:var(--durazno);color:var(--cafe);font-weight:600}
   .menu button:disabled{color:#b9aca5;cursor:default}
   .menu button small{display:block;font-size:11px;color:#b9aca5;font-weight:400}
@@ -1250,7 +1276,7 @@
       <h4 class="sep" data-area="operaciones">Obras</h4>
       <h5 data-area="operaciones">Pagos</h5>
       <button data-rep="pagos" data-area="operaciones">Control de Pagos<small>Revisar · por pagar · Contabilidad · pagadas</small></button>
-      <button data-rep="porc" data-mod="OBRA" data-area="operaciones" data-solo-supabase="1">Por conciliar<small>Pagos sin fecha de cartola · ponerla aquí</small></button>
+      <button data-rep="porc" data-mod="OBRA" data-area="operaciones" data-solo-supabase="1">Conciliación<small>Conciliado por banco e ítem · por conciliar</small></button>
       <button data-rep="cprech" data-mod="ob" data-area="operaciones" data-solo-supabase="1">Pagos rechazados<small>Contabilidad no los pagó · corregir o anular<span class="n-ctrl" id="cprechob-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
       <h5 data-area="operaciones" class="tenue-h">Consulta</h5>
@@ -1267,7 +1293,7 @@
       <h4 class="sep" data-area="operaciones">Franquiciados</h4>
       <h5 data-area="operaciones">Cobros</h5>
       <button data-rep="cob" data-area="operaciones" data-solo-supabase="1">Cobros a franquiciados<small>Por cobrar · comprobantes · qué factura paga</small></button>
-      <button data-rep="porc" data-mod="FRANQUICIA" data-area="operaciones" data-solo-supabase="1">Por conciliar<small>Pagos recibidos sin fecha de cartola</small></button>
+      <button data-rep="porc" data-mod="FRANQUICIA" data-area="operaciones" data-solo-supabase="1">Conciliación<small>Conciliado por banco e ítem · por conciliar</small></button>
       <h5 data-area="operaciones">Tiendas y arriendos</h5>
       <button data-rep="ing" data-mod="arriendos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Registro de arriendos<small>Facturas de arriendo · con validador</small></button>
       <button data-rep="ing" data-mod="tiendas" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Tiendas y arriendo<small>Condiciones de cada tienda</small></button>
@@ -1541,10 +1567,10 @@
      <section id="vista-porc" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
-        <div><h1 id="porc-titulo">Por conciliar</h1><p>Pagos ya pagados (o con comprobante) que todavía no tienen <b>fecha de cartola</b>. Pon la fecha aquí:
-          se actualiza el mismo pago en Pagos obras / franquiciados y en el saldo. Los cobros que el franquiciado aún debe no están aquí (están en Cobros a franquiciados).</p></div>
+        <div><h1 id="porc-titulo">Conciliación</h1><p id="porc-intro"></p></div>
         <div class="acciones"><button class="btn sec" id="porc-act">Actualizar</button></div>
       </div>
+      <div class="cpx-tabs" id="porc-tabs"></div>
       <div id="porc-cuerpo"></div>
      </section>
 
@@ -1552,7 +1578,7 @@
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
         <div><h1>Registro de Pagos</h1><p>Lo por pagar, lo solicitado y todo lo que <b>falta en la cartola</b>: transferencias hechas y comprobantes de clientes.
-          Con la fecha de la cartola pasa a <b>Pagos obras</b>. <b>Sólo consulta:</b> los pagos se registran en <b>Ingreso de datos › Pagos obras</b> y la fecha de cartola se pone en <a href="#" data-ir="porc">Por conciliar</a>.</p></div>
+          Con la fecha de la cartola pasa a <b>Pagos obras</b>. <b>Sólo consulta:</b> los pagos se registran en <b>Ingreso de datos › Pagos obras</b> y la fecha de cartola se pone en <a href="#" data-ir="porc">Conciliación</a>.</p></div>
         <div class="acciones"><button class="btn sec" id="reg-actualizar">Actualizar</button><button class="btn sec" id="reg-xlsx">Descargar Excel</button></div>
       </div>
       <p class="nota-g" data-solo-supabase="1" style="background:#fff7ea;border-radius:8px;padding:8px 12px">Los pagos <b>por pagar</b> se revisan y se envían a Contabilidad en
@@ -6738,7 +6764,7 @@ $("vista-cont").addEventListener("click", async e => {
       <label class="m-campo">N° de operación / referencia (opcional)<input id="ctp-ref"></label>
       <label class="m-campo">Fecha de conciliación (cartola, opcional)<input type="date" id="ctp-conc"></label>
       <label class="m-campo">Banco de donde salió (opcional)<select id="ctp-banco"><option value=""></option><option>SANTANDER</option><option>SECURITY</option></select></label></div>
-      <p class="nota-g">Si ya aparece en la cartola, pon la fecha de conciliación: el pago queda conciliado. Si la dejas vacía, queda “pagado, falta conciliar” (Operaciones la pone en Por conciliar).</p><div class="error" id="ctp-error"></div>`,
+      <p class="nota-g">Si ya aparece en la cartola, pon la fecha de conciliación: el pago queda conciliado. Si la dejas vacía, queda “pagado, falta conciliar” (Operaciones la pone en Conciliación › Por conciliar).</p><div class="error" id="ctp-error"></div>`,
       [{ t: "Cancelar", sec: 1 }, { t: "Marcar pagada", fn: async () => {
         if (!$("ctp-fecha").value) { $("ctp-error").textContent = "Indica la fecha oficial de pago."; return false; }
         const { data, error } = await db.rpc("cont_marcar_solicitud_pagada", { p: { id: s.id, fecha_pago: $("ctp-fecha").value, referencia_banco: $("ctp-ref").value.trim() || null,
@@ -12422,24 +12448,119 @@ async function transCargasHTML(){
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 
 /* =====================================================================
-   v65 · POR CONCILIAR (obras y franquiciados): pagos ya pagados o con comprobante que aún no tienen fecha de cartola.
-   Se pone la fecha aquí y queda en el mismo registro (Pagos obras / franquiciados, Registro de Pagos, Historial).
+   v66 · CONCILIACIÓN (obras y franquiciados)
+   · Conciliado: movimientos bancarios ya conciliados (fecha de cartola), totales por ingresos/egresos, banco e ítem.
+   · Por conciliar: pagos ya pagados o con comprobante que aún no tienen fecha de cartola (se pone aquí).
    ===================================================================== */
-const PORC = { mod: "OBRA", filas: [], sel: new Set(), q: "", fr: "", etapa: "" };
+const PORC = { mod: "OBRA", tab: "conc", filas: [], conc: null, sel: new Set(), q: "", fr: "", etapa: "",
+  per: "anio", desde: "", hasta: "", fBanco: "", fItem: "", fSigno: "", cq: "", verDet: false };
+try { const t = localStorage.getItem("conc_tab"); if (t === "conc" || t === "porc") PORC.tab = t; } catch (e) {}
+const czISO = t => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(t || "")); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
 async function cargarPorc(mod){
-  PORC.mod = mod === "FRANQUICIA" ? "FRANQUICIA" : "OBRA"; PORC.sel.clear();
-  $("porc-titulo").textContent = PORC.mod === "OBRA" ? "Por conciliar · Obras" : "Por conciliar · Franquiciados";
-  $("porc-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
-  const r = await todo(() => db.from("v_por_conciliar").select("*").eq("origen", PORC.mod).order("fecha_pago").order("id_pago"));
+  PORC.mod = mod === "FRANQUICIA" ? "FRANQUICIA" : "OBRA"; PORC.sel.clear(); PORC.fBanco = PORC.fItem = PORC.fSigno = "";
+  $("porc-titulo").textContent = "Conciliación · " + (PORC.mod === "OBRA" ? "Obras" : "Franquiciados");
+  $("porc-tabs").innerHTML = ""; $("porc-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const vista = PORC.mod === "OBRA" ? "v_ing_pagos_obra" : "v_ing_pagos_franquicia";
+  const cols = "id,id_pago,franquicia,fecha_pago,item,monto,medio,fecha_conciliacion,banco,referencia_banco,observaciones" + (PORC.mod === "OBRA" ? ",obra,cliente" : ",franquiciado");
+  const [r, c] = await Promise.all([
+    todo(() => db.from("v_por_conciliar").select("*").eq("origen", PORC.mod).order("fecha_pago").order("id_pago")),
+    todo(() => db.from(vista).select(cols).not("fecha_conciliacion", "is", null).order("id"))]);
   if (r.error) { $("porc-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(r.error.message) ? "Falta ejecutar 65_por_conciliar_excepcionales.sql en Supabase." : esc(r.error.message)}</div>`; return; }
-  PORC.filas = r.data || []; dibujarPorc();
+  PORC.filas = r.data || [];
+  PORC.conc = c.error ? [] : (c.data || []).map(x => ({ ...x, fc: czISO(x.fecha_conciliacion), banco: x.banco || "Banco no indicado" }));
+  dibujarPorc();
 }
+/* ---------- pestañas ---------- */
+function czPeriodo(){
+  const h = new Date(), a = h.getFullYear(), m = h.getMonth(), iso = d => d.toISOString().slice(0, 10), p2 = n => String(n).padStart(2, "0");
+  if (PORC.per === "mes") return [`${a}-${p2(m + 1)}-01`, iso(new Date(Date.UTC(a, m + 1, 0)))];
+  if (PORC.per === "mesant") return [iso(new Date(Date.UTC(a, m - 1, 1))), iso(new Date(Date.UTC(a, m, 0)))];
+  if (PORC.per === "anio") return [`${a}-01-01`, `${a}-12-31`];
+  if (PORC.per === "rango") return [PORC.desde || "0000-01-01", PORC.hasta || "9999-12-31"];
+  return ["0000-01-01", "9999-12-31"];
+}
+function czMovs(){                        // movimientos bancarios conciliados del período (sin los N/A)
+  const [d, h] = czPeriodo();
+  return (PORC.conc || []).filter(x => x.fc && x.fc >= d && x.fc <= h);
+}
+function dibujarPorc(){
+  const mv = czMovs(), neto = sumar(mv, x => x.monto), pend = PORC.filas.length;
+  $("porc-tabs").innerHTML = `
+    <button class="cpx-tab pag ${PORC.tab === "conc" ? "activo" : ""}" data-cztab="conc"><span class="t">Conciliado</span>
+      <span class="v">${$$(neto)}</span><span class="s">${mv.length} movimiento${mv.length === 1 ? "" : "s"} bancario${mv.length === 1 ? "" : "s"}</span><small>${esc(czNombrePer())}</small></button>
+    <span class="cpx-flecha"></span>
+    <button class="cpx-tab ${pend ? "rech" : ""} ${PORC.tab === "porc" ? "activo" : ""}" data-cztab="porc"><span class="t">Por conciliar</span>
+      <span class="v">${pend}</span><span class="s">${$$(sumar(PORC.filas, x => x.monto))}</span><small>Pagos sin fecha de cartola</small></button>`;
+  $("porc-intro").innerHTML = PORC.tab === "conc"
+    ? `Movimientos bancarios ya conciliados (con fecha de cartola) de ${PORC.mod === "OBRA" ? "Pagos obras" : "Pagos franquiciados"}. Los marcados N/A (descuentos, cruces) no son movimientos del banco y no se suman.`
+    : `Pagos ya pagados (o con comprobante) que todavía no tienen <b>fecha de cartola</b>. Pon la fecha aquí: se actualiza el mismo pago en Pagos obras / franquiciados y en el saldo. Los cobros que el franquiciado aún debe no están aquí (están en Cobros a franquiciados).`;
+  return PORC.tab === "conc" ? czDibujar(mv) : dibujarPend();
+}
+function czNombrePer(){
+  const [d, h] = czPeriodo(), mes = s => new Date(s + "T12:00").toLocaleDateString("es-CL", { month: "long", year: "numeric" });
+  return { mes: mes(d), mesant: mes(d), anio: "Año " + d.slice(0, 4), todo: "Todo el período" }[PORC.per] || `${PORC.desde ? fecha(PORC.desde) : "inicio"} → ${PORC.hasta ? fecha(PORC.hasta) : "hoy"}`;
+}
+/* ---------- Conciliado ---------- */
+function czAgrupar(L, k){
+  const m = new Map();
+  L.forEach(x => { const g = m.get(x[k]) || { k: x[k], ing: 0, egr: 0, ni: 0, ne: 0 };
+    if (+x.monto >= 0) { g.ing += +x.monto; g.ni++; } else { g.egr += +x.monto; g.ne++; } m.set(x[k], g); });
+  return [...m.values()].sort((a, b) => (b.ing - b.egr) - (a.ing - a.egr));
+}
+function czDibujar(mvAll){
+  if (!PORC.conc) return;
+  const mv = mvAll.filter(x => (!PORC.fBanco || x.banco === PORC.fBanco) && (!PORC.fItem || x.item === PORC.fItem) &&
+    (!PORC.fSigno || (PORC.fSigno === "ing" ? +x.monto >= 0 : +x.monto < 0)));
+  const ing = mv.filter(x => +x.monto >= 0), egr = mv.filter(x => +x.monto < 0);
+  const tI = sumar(ing, x => x.monto), tE = sumar(egr, x => x.monto);
+  const na = (PORC.conc || []).filter(x => !x.fc).length;
+  const filtro = PORC.fBanco || PORC.fItem || PORC.fSigno;
+  const pers = [["mes", "Este mes"], ["mesant", "Mes anterior"], ["anio", "Este año"], ["todo", "Todo"], ["rango", "Rango…"]];
+  let h = `<div class="cz-per"><div class="chips">${pers.map(([k, t]) => `<button class="chip ${PORC.per === k ? "activo" : ""}" data-czper="${k}">${t}</button>`).join("")}</div>
+      ${PORC.per === "rango" ? `<label>Desde <input type="date" id="cz-desde" value="${PORC.desde}"></label><label>Hasta <input type="date" id="cz-hasta" value="${PORC.hasta}"></label>` : ""}
+      <span class="nota-g">Por fecha de conciliación (cartola)</span></div>
+    ${filtro ? `<div class="cz-filtro">Mostrando sólo: ${[PORC.fSigno ? (PORC.fSigno === "ing" ? "ingresos" : "egresos") : "", PORC.fBanco, PORC.fItem].filter(Boolean).map(esc).join(" · ")}
+      <a href="#" id="cz-limpiar">✕ quitar filtro</a></div>` : ""}
+    <div class="cz-hero">
+      <button class="cz-tot ing ${PORC.fSigno === "ing" ? "sel" : ""}" data-czsig="ing"><span class="t">Ingresos · entradas</span><span class="v">${$$(tI)}</span><span class="s">${ing.length} movimiento${ing.length === 1 ? "" : "s"}</span></button>
+      <button class="cz-tot egr ${PORC.fSigno === "egr" ? "sel" : ""}" data-czsig="egr"><span class="t">Egresos · salidas</span><span class="v">${$$(tE)}</span><span class="s">${egr.length} movimiento${egr.length === 1 ? "" : "s"}</span></button>
+      <div class="cz-tot neto"><span class="t">Neto conciliado</span><span class="v">${$$(tI + tE)}</span><span class="s">${mv.length} movimientos bancarios${na ? ` · ${na} N/A no suman` : ""}</span></div>
+    </div>`;
+  if (!mv.length) { $("porc-cuerpo").innerHTML = h + `<p class="nota-g">No hay movimientos conciliados en este período.</p>`; return; }
+  const bancos = czAgrupar(mv, "banco"), maxB = Math.max(...bancos.map(b => Math.max(b.ing, -b.egr)), 1);
+  h += `<h3 class="cz-h">Por banco</h3><div class="cz-bancos">${bancos.map(b => `
+      <button class="cz-banco ${PORC.fBanco === b.k ? "sel" : ""}" data-czbanco="${esc(b.k)}">
+        <div class="nom">${esc(b.k)}</div><div class="neto">${$$(b.ing + b.egr)} <small>neto</small></div>
+        <div class="fila"><span>Ingresos</span><b class="pos">${$$(b.ing)}</b><small>${b.ni}</small></div><div class="bar"><i class="ing" style="width:${(b.ing / maxB * 100).toFixed(1)}%"></i></div>
+        <div class="fila"><span>Egresos</span><b class="neg">${$$(b.egr)}</b><small>${b.ne}</small></div><div class="bar"><i class="egr" style="width:${(-b.egr / maxB * 100).toFixed(1)}%"></i></div>
+      </button>`).join("")}</div>`;
+  const items = czAgrupar(mv, "item"), maxI = Math.max(...items.map(b => Math.max(b.ing, -b.egr)), 1);
+  h += `<h3 class="cz-h">Por ítem de pago</h3><div class="tabla-wrap"><table class="cp cz-items"><thead><tr><th>Ítem</th><th class="n">Ingresos</th><th class="n">Egresos</th><th class="n">Neto</th><th class="n">Mov.</th><th style="width:28%"></th></tr></thead><tbody>
+      ${items.map(b => `<tr class="${PORC.fItem === b.k ? "sel" : ""}" data-czitem="${esc(b.k)}" title="Ver sólo este ítem">
+        <td><b>${esc(b.k)}</b></td><td class="n pos">${b.ing ? $$(b.ing) : "—"}</td><td class="n neg">${b.egr ? $$(b.egr) : "—"}</td><td class="n"><b>${$$(b.ing + b.egr)}</b></td><td class="n">${b.ni + b.ne}</td>
+        <td><div class="cz-mini"><div class="l"><i class="egr" style="width:${(-b.egr / maxI * 100).toFixed(1)}%"></i></div><div class="r"><i class="ing" style="width:${(b.ing / maxI * 100).toFixed(1)}%"></i></div></div></td></tr>`).join("")}
+      </tbody><tfoot><tr><td>Total</td><td class="n pos">${$$(tI)}</td><td class="n neg">${$$(tE)}</td><td class="n">${$$(tI + tE)}</td><td class="n">${mv.length}</td><td></td></tr></tfoot></table></div>`;
+  const q = PORC.cq.toLowerCase(), ob = PORC.mod === "OBRA";
+  const det = mv.filter(x => !q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.referencia_banco, x.observaciones].join(" ").toLowerCase().includes(q))
+    .sort((a, b) => (b.fc || "").localeCompare(a.fc || "") || b.id - a.id);
+  h += `<details class="cz-det" ${PORC.verDet ? "open" : ""}><summary>Detalle de movimientos (${mv.length})</summary>
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0"><input id="cz-q" placeholder="Buscar Id, ${ob ? "obra, cliente" : "franquicia"}, ítem, referencia…" value="${esc(PORC.cq)}" style="flex:1;max-width:360px">
+        <span class="nota-g">${det.length}${det.length > 500 ? " (se muestran 500)" : ""}</span></div>
+      <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha cartola</th><th>Id pago</th><th>${ob ? "Obra · cliente" : "Franquicia"}</th><th>Ítem</th><th>Banco</th><th>Medio</th><th class="n">Monto</th></tr></thead><tbody>
+      ${det.slice(0, 500).map(x => `<tr><td>${fecha(x.fc)}</td><td><b>${esc(x.id_pago)}</b></td>
+        <td><small>${ob ? `${esc(x.obra || "")} · ${esc(x.cliente || "")}` : `${esc(x.franquicia || "")} · ${esc(x.franquiciado || "")}`}</small></td>
+        <td><small>${esc(x.item)}</small></td><td><small>${esc(x.banco)}</small></td><td><small>${esc(x.medio || "")}${x.referencia_banco ? " · " + esc(x.referencia_banco) : ""}</small></td>
+        <td class="n ${+x.monto < 0 ? "neg" : ""}">${$$(x.monto)}</td></tr>`).join("")}</tbody></table></div></details>
+    <p class="nota-g">Haz clic en Ingresos, Egresos, un banco o un ítem para filtrar. Para cuadrar contra la cartola línea a línea, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a>.</p>`;
+  $("porc-cuerpo").innerHTML = h;
+}
+/* ---------- Por conciliar ---------- */
 function porcVisibles(){
   const q = PORC.q.toLowerCase();
   return PORC.filas.filter(x => (!PORC.fr || x.franquicia === PORC.fr) && (!PORC.etapa || x.etapa === PORC.etapa) &&
     (!q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.solicitud, x.observaciones, x.referencia_banco].join(" ").toLowerCase().includes(q)));
 }
-function dibujarPorc(){
+function dibujarPend(){
   const ed = puedeEditar() && !enExcel(), L = porcVisibles(), ob = PORC.mod === "OBRA";
   const etapas = [...new Set(PORC.filas.map(x => x.etapa))].sort(), frs = [...new Set(PORC.filas.map(x => x.franquicia))].sort();
   const enCart = L.filter(x => x.fecha_en_cartola).length;
@@ -12474,7 +12595,7 @@ function dibujarPorc(){
       <td>${x.fecha_en_cartola ? `<small><b>${fecha(x.fecha_en_cartola)}</b> ${esc(x.banco_en_cartola || "")}<br>${esc(String(x.cartola_descripcion || "").slice(0, 40))}</small>` : '<small class="nota-g">—</small>'}</td>
       ${ed ? `<td style="white-space:nowrap"><input type="date" class="porc-f" data-id="${x.id}" value="${x.fecha_en_cartola || ""}" style="width:135px">
         <button class="btn-acc" data-porcok="${x.id}">Guardar</button></td>` : ""}</tr>`).join("")}</tbody></table></div>
-    <p class="nota-g">Al guardar la fecha, el pago queda conciliado en ${ob ? "Pagos obras (y cuenta en el saldo de la obra)" : "Pagos franquiciados"}; si es una tarjeta, su comisión Getnet unida se concilia con la misma fecha.
+    <p class="nota-g">Al guardar la fecha, el pago queda conciliado en ${ob ? "Pagos obras (y cuenta en el saldo de la obra)" : "Pagos franquiciados"} y pasa a <b>Conciliado</b>; si es una tarjeta, su comisión Getnet unida se concilia con la misma fecha.
       Para conciliar contra los movimientos de la cartola uno a uno, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a>.</p>`;
   $("porc-cuerpo").innerHTML = h;
 }
@@ -12486,8 +12607,14 @@ async function porcGuardar(items){
   invalidarPagos(); await cargarPorc(PORC.mod);
 }
 $("vista-porc").addEventListener("click", async e => {
-  const t = e.target;
+  const t = e.target, tab = t.closest("[data-cztab]");
   if (t.id === "porc-act") return cargarPorc(PORC.mod);
+  if (tab) { PORC.tab = tab.dataset.cztab; try { localStorage.setItem("conc_tab", PORC.tab); } catch (er) {} return dibujarPorc(); }
+  const per = t.closest("[data-czper]"); if (per) { PORC.per = per.dataset.czper; return dibujarPorc(); }
+  const sg = t.closest("[data-czsig]"); if (sg) { PORC.fSigno = PORC.fSigno === sg.dataset.czsig ? "" : sg.dataset.czsig; return dibujarPorc(); }
+  const bn = t.closest("[data-czbanco]"); if (bn) { PORC.fBanco = PORC.fBanco === bn.dataset.czbanco ? "" : bn.dataset.czbanco; return dibujarPorc(); }
+  const it = t.closest("[data-czitem]"); if (it) { PORC.fItem = PORC.fItem === it.dataset.czitem ? "" : it.dataset.czitem; return dibujarPorc(); }
+  if (t.id === "cz-limpiar") { e.preventDefault(); PORC.fBanco = PORC.fItem = PORC.fSigno = ""; return dibujarPorc(); }
   if (t.dataset.porcet !== undefined && t.classList.contains("chip")) { PORC.etapa = t.dataset.porcet; return dibujarPorc(); }
   if (t.dataset.porcok) { const f = document.querySelector(`.porc-f[data-id="${t.dataset.porcok}"]`).value;
     if (!f) return toast("Escribe la fecha de la cartola.");
@@ -12502,13 +12629,19 @@ $("vista-porc").addEventListener("click", async e => {
     if (!confirm(`¿Marcar ${PORC.sel.size} pago(s) como N/A (no es movimiento bancario: descuento, cruce)?`)) return;
     return porcGuardar([...PORC.sel].map(id => ({ id, fecha_conciliacion: "N/A" }))); }
 });
+$("vista-porc").addEventListener("toggle", e => { if (e.target.classList && e.target.classList.contains("cz-det")) PORC.verDet = e.target.open; }, true);
 $("vista-porc").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.porcsel) { t.checked ? PORC.sel.add(+t.dataset.porcsel) : PORC.sel.delete(+t.dataset.porcsel); return dibujarPorc(); }
   if (t.id === "porc-todos") { porcVisibles().forEach(x => t.checked ? PORC.sel.add(x.id) : PORC.sel.delete(x.id)); return dibujarPorc(); }
   if (t.id === "porc-fr") { PORC.fr = t.value; return dibujarPorc(); }
+  if (t.id === "cz-desde") { PORC.desde = t.value; return dibujarPorc(); }
+  if (t.id === "cz-hasta") { PORC.hasta = t.value; return dibujarPorc(); }
 });
-$("vista-porc").addEventListener("input", e => { if (e.target.id === "porc-q") { PORC.q = e.target.value; const pos = e.target.selectionStart; dibujarPorc(); const i = $("porc-q"); i.focus(); i.setSelectionRange(pos, pos); } });
+$("vista-porc").addEventListener("input", e => {
+  const id = e.target.id; if (id !== "porc-q" && id !== "cz-q") return;
+  PORC[id === "porc-q" ? "q" : "cq"] = e.target.value; const pos = e.target.selectionStart; dibujarPorc(); const i = $(id); i.focus(); i.setSelectionRange(pos, pos);
+});
 </script>
 </body>
 </html>
