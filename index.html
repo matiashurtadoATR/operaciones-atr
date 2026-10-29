@@ -6447,8 +6447,9 @@ async function contContadores(){
   try {
     const [f, p] = await Promise.all([db.from("v_cont_solicitudes_factura").select("id,estado_cont,origen"), db.from("v_cont_solicitudes_pago").select("id,estado_cont")]);
     const nf = o => (f.data || []).filter(x => x.estado_cont !== "Facturada" && (x.origen || "Franquiciados") === o).length, np = (p.data || []).filter(x => x.estado_cont === "Nueva").length;
-    if ($("cont-n-fobras")) $("cont-n-fobras").textContent = nf("Obras") ? ` · ${nf("Obras")} por emitir` : "";
-    if ($("cont-n-ffranq")) $("cont-n-ffranq").textContent = nf("Franquiciados") ? ` · ${nf("Franquiciados")} por emitir` : "";
+    const req = n => ` · ${n} requerimiento${n === 1 ? "" : "s"} por emitir`;      // v66 · son solicitudes (cada una puede traer varias facturas)
+    if ($("cont-n-fobras")) $("cont-n-fobras").textContent = nf("Obras") ? req(nf("Obras")) : "";
+    if ($("cont-n-ffranq")) $("cont-n-ffranq").textContent = nf("Franquiciados") ? req(nf("Franquiciados")) : "";
     if ($("cont-n-pagos")) $("cont-n-pagos").textContent = np ? ` · ${np} nueva(s)` : "";
   } catch (_) {}
 }
@@ -9531,7 +9532,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 65;
+const VERSION_PAGINA = 66;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -11749,7 +11750,7 @@ const contContadoresBase = contContadores;
 contContadores = async function(){
   await contContadoresBase();
   try { const { data, error } = await db.from("v_cont_facturas_clientes").select("id").eq("estado", "Solicitada");
-    if (!error && $("cont-n-fcli")) $("cont-n-fcli").textContent = data && data.length ? ` · ${data.length} por emitir` : ""; } catch (_) {}
+    if (!error && $("cont-n-fcli")) $("cont-n-fcli").textContent = data && data.length ? ` · ${data.length} factura${data.length === 1 ? "" : "s"} por emitir` : ""; } catch (_) {}
 };
 
 /* ---------------- Excel ↔ Web: N° emitidos por Contabilidad que faltan en el Excel ---------------- */
