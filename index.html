@@ -1899,7 +1899,8 @@
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
         <div><h1>Traspasos web</h1><p>Pagos, negocios y franquicias registrados o modificados en la web que todavía no están en los Excel de obras y franquiciados: se exportan a un Excel listo para pegar, con un ID de descarga y su historial.</p></div>
-        <div class="acciones"><button class="btn sec" id="tw-act">Actualizar</button></div>
+        <div class="acciones"><button class="btn sec" id="tw-panel" title="Abre el Panel de operaciones: escribe en los Excel lo ya exportado, sin copiar y pegar (sólo en el PC, con Excel)">✍ Escribir en el Excel (Panel)</button>
+          <button class="btn sec" id="tw-act">Actualizar</button></div>
       </div>
       <div id="tw-cuerpo"></div>
      </section>
@@ -12140,6 +12141,7 @@ function twDibujar(){
   let h = `<div class="trans-guia">
       <div><b>1 · Exporta.</b> Marca los pagos, negocios y franquicias de la web que aún no están en los Excel y presiona <b>Exportar a Excel</b>: se genera un archivo con un <b>ID de descarga (TW-…)</b> y salen de esta lista.</div>
       <div><b>2 · Pega.</b> El archivo trae una hoja por destino (<i>Pagos obras</i>, <i>Pagos franquiciados</i>, <i>Negocios nuevos</i>, <i>Franquicias nuevas</i>) con las mismas columnas y en el mismo orden que el Excel, y la hoja <i>Cambios</i> con las celdas a corregir. Las instrucciones vienen en el archivo.</div>
+      <div><b>2b · O sin copiar y pegar:</b> después de exportar, presiona <b>✍ Escribir en el Excel (Panel)</b> (en el PC con el panel abierto): el Excel escribe solo las mismas filas y celdas, sin tocar fórmulas ni duplicar.</div>
       <div><b>3 · Carga la base.</b> En la próxima carga quedan como <i>anotados en el Excel</i>. Cada descarga queda en el <b>Historial</b> y se puede volver a bajar (es el mismo archivo, no una nueva exportación).</div>
       <details><summary>¿Qué entra y qué no?</summary>Entran los movimientos creados en la web (Id T…: Control de Pagos, solicitudes de factura, mínimo trimestral, ingresos en la web) que ya están <b>pagados</b> y que el Excel no tiene según la última carga.
         Los que esperan pago (Pendiente / En Contabilidad) se muestran aparte y se exportan cuando se paguen. Un movimiento sólo puede estar en una descarga.</details></div>
@@ -12276,6 +12278,7 @@ async function twBajarHist(id){
 $("vista-tw").addEventListener("click", async e => {
   const t = e.target;
   if (t.id === "tw-act") return cargarTw();
+  if (t.id === "tw-panel") return abrirPanel({ tarea: "traspaso" });
   if (t.id === "tw-exportar") return twExportar();
   if (t.dataset.twbajar) return twBajarHist(+t.dataset.twbajar);
   if (t.dataset.twver) { const id = +t.dataset.twver; TW.abiertas.has(id) ? TW.abiertas.delete(id) : TW.abiertas.add(id); return twDibujar(); }
