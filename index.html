@@ -3251,7 +3251,7 @@ const MODULOS = {
     ],
   },
   pagos_franquicia: {
-    titulo: "Pagos franquiciados", hoja: "Franquiciados › Pagos · sólo pagos reales (lo por cobrar está en Facturación › Cobros a franquiciados)", vista: "v_ing_pagos_franquicia", guardar: "guardar_movimiento", soloMov: 1,
+    titulo: "Pagos franquiciados", hoja: "Franquiciados › Pagos · pagos reales: con cartola, N/A o comprobante (lo por cobrar está en Cobros a franquiciados)", vista: "v_ing_pagos_franquicia", guardar: "guardar_movimiento", soloMov: 1,
     eliminar: "eliminar_pago", extra: { origen: "FRANQUICIA" }, orden: "id", desc: true, filtroFr: "franquicia", codigo: "id_pago",
     cols: [
       { k: "id_pago", t: "Id pago", ro: 1, w: 105, ayuda: "Se asigna solo al guardar (los nuevos de franquiciados empiezan con PFRA)" },
@@ -3260,8 +3260,8 @@ const MODULOS = {
       { k: "fecha_pago", t: "Fecha Pago", tipo: "fecha", w: 100 },
       { k: "item", t: "Item Pago", tipo: "lista", lista: "item_franquicia", req: 1, w: 190 },
       { k: "monto", t: "Monto en pesos", tipo: "monto", req: 1, w: 120 },
-      { k: "medio", t: "Medio de Pago", tipo: "lista", lista: "medio", w: 130 },
-      { k: "fecha_conciliacion", t: "Fecha Conciliación", tipo: "fecha_na", w: 120 },
+      { k: "medio", t: "Medio de Pago", tipo: "lista", lista: "medio", w: 130, ayuda: "Un pago con comprobante (voucher, transferencia) se registra con su Medio de Pago aunque no tenga Fecha Conciliación: queda como pago recibido (no como cobro)" },
+      { k: "fecha_conciliacion", t: "Fecha Conciliación", tipo: "fecha_na", w: 120, ayuda: "Fecha en que aparece en la cartola (o N/A). Vacía en un pago con comprobante = pago recibido, falta conciliar" },
       { k: "banco", t: "Banco", tipo: "lista", lista: "banco_propio", w: 100 },
       { k: "factura_compra", t: "N° Factura Compra", w: 130, ayuda: "N° de la factura del proveedor (ej. del mall). Varias: 140189 y 49487" },
       { k: "factura_venta", t: "N° Factura Venta", w: 110, ayuda: "Folio de Atrium, NC + número o 'solicitada'" },
@@ -9469,7 +9469,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 63;
+const VERSION_PAGINA = 64;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
