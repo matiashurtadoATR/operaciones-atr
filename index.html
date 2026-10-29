@@ -3227,7 +3227,7 @@ const pctTxt = v => {
 
 const MODULOS = {
   pagos_obra: {
-    titulo: "Pagos obras", hoja: "BBDD-Clientes Obras › Pagos · sólo pagos reales (con fecha de cartola o N/A)", vista: "v_ing_pagos_obra", guardar: "guardar_movimiento", soloMov: 1,
+    titulo: "Pagos obras", hoja: "BBDD-Clientes Obras › Pagos · sólo pagos reales (con fecha de cartola, N/A o comprobante)", vista: "v_ing_pagos_obra", guardar: "guardar_movimiento", soloMov: 1,
     eliminar: "eliminar_pago", extra: { origen: "OBRA" }, orden: "id", desc: true, filtroFr: "franquicia", codigo: "id_pago",
     cols: [
       { k: "id_pago", t: "Id pago", ro: 1, w: 105, ayuda: "Se asigna solo al guardar" },
@@ -3237,8 +3237,10 @@ const MODULOS = {
       { k: "fecha_pago", t: "Fecha Pago", tipo: "fecha", req: 1, w: 100 },
       { k: "item", t: "Item Pago", tipo: "lista", lista: "item_obra", req: 1, w: 230 },
       { k: "monto", t: "Monto en pesos", tipo: "monto", req: 1, w: 120, ayuda: "Egresos en negativo (ej. -52.937)" },
-      { k: "medio", t: "Medio de Pago", tipo: "lista", lista: "medio", w: 130 },
-      { k: "fecha_conciliacion", t: "Fecha Conciliación", tipo: "fecha_na", w: 120, ayuda: "Fecha del abono en el banco, o N/A si no es movimiento bancario" },
+      { k: "medio", t: "Medio de Pago", tipo: "lista", lista: "medio", w: 130, ayuda: "Un ingreso con comprobante (voucher, transferencia) se puede registrar sin Fecha Conciliación: queda «falta conciliar»" },
+      { k: "comision_getnet", t: "Comisión Getnet", tipo: "monto", w: 115, ayuda: "Sólo pagos con tarjeta: monto de la comisión (sin signo). Se guarda como fila aparte «Comisión Getnet (egreso)» unida a este pago; se ve y se edita desde cualquiera de las dos" },
+      { k: "pago_unido", t: "Pago unido", ro: 1, w: 100, ayuda: "Tarjeta ↔ su comisión Getnet: fecha, medio, banco y conciliación quedan iguales en las dos filas" },
+      { k: "fecha_conciliacion", t: "Fecha Conciliación", tipo: "fecha_na", w: 120, ayuda: "Fecha del abono en el banco, o N/A si no es movimiento bancario. Vacía en un pago con comprobante = falta conciliar (no cuenta en el saldo todavía)" },
       { k: "estado_pago", t: "Estado pago", tipo: "lista", lista: "estado_pago_mov", w: 105, ayuda: "Egresos: Pendiente = por pagar (aparece en Registro de Pagos) · Pagado. Vacío: se decide solo (egreso sin conciliar y con fecha futura = Pendiente). Los ingresos siempre quedan Pagado" },
       { k: "solicitud_pago", t: "Solicitud pago", ro: 1, w: 100, ayuda: "Solicitud de pago en la que va (SP-…)" },
       { k: "banco", t: "Banco", tipo: "lista", lista: "banco_propio", w: 100 },
@@ -3794,6 +3796,7 @@ async function guardarTodo(){
     if (t.key.startsWith("n:")) G.nuevas = G.nuevas.filter(n => n.key !== t.key);
     else { G.cambios.delete(t.key); G.filas = G.filas.filter(r => claveFila(r) !== t.key); }
     if (fila) G.filas.unshift(fila);
+    await refrescarUnido(cfg, fila);
     G.errores.delete(t.key);
   }
   if (ok && cfg.recargaListas) await cargarListas();
@@ -3803,6 +3806,14 @@ async function guardarTodo(){
         (avisos.length ? `<ul>${avisos.slice(0, 6).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""), malos ? 9000 : 6000);
 }
 
+// v63 · tarjeta ↔ comisión Getnet: al guardar una, se relee la otra (cambió su comisión, fecha o conciliación)
+async function refrescarUnido(cfg, fila){
+  if (!fila || !fila.pago_unido) return;
+  const { data: par } = await db.from(cfg.vista).select("*").eq("id_pago", fila.pago_unido).maybeSingle();
+  if (!par) return;
+  const k = claveFila(par); if (G.cambios && G.cambios.has(k)) return;      // si tiene cambios sin guardar en la planilla, no se pisan
+  G.filas = G.filas.filter(r => claveFila(r) !== k); G.filas.unshift(par);
+}
 async function eliminarFila(key){
   if (key.startsWith("n:")) { G.nuevas = G.nuevas.filter(n => n.key !== key); G.errores.delete(key); dibujarGrilla(); return; }
   const d = datosFila(key);
@@ -9458,7 +9469,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 62;
+const VERSION_PAGINA = 63;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10867,7 +10878,7 @@ const FORM = { modo: (() => { try { return localStorage.getItem("atr_ing_modo") 
 // secciones y columnas de la lista por hoja (lo que no se nombra va a "Otros datos")
 const FORM_CFG = {
   pagos_obra: { lista: ["id_pago", "obra", "cliente", "fecha_pago", "item", "monto", "fecha_conciliacion", "estado_pago"],
-        secc: [["Obra", ["id_pago", "obra", "cliente", "id_umb"]], ["Pago", ["fecha_pago", "item", "monto", "medio", "estado_pago", "solicitud_pago"]],
+        secc: [["Obra", ["id_pago", "obra", "cliente", "id_umb"]], ["Pago", ["fecha_pago", "item", "monto", "medio", "estado_pago", "solicitud_pago"]], ["Tarjeta · comisión Getnet", ["comision_getnet", "pago_unido"]],
                ["Banco", ["fecha_conciliacion", "banco", "referencia_banco"]], ["Facturas", ["factura_venta", "id_factura"]], ["Observaciones", ["observaciones"]]] },
   pagos_franquicia: { lista: ["id_pago", "franquicia", "franquiciado", "fecha_pago", "item", "monto", "fecha_conciliacion"],
         secc: [["Franquicia", ["id_pago", "franquicia", "franquiciado"]], ["Pago", ["fecha_pago", "item", "monto", "medio", "vencimiento"]],
@@ -11043,6 +11054,7 @@ async function abrirFormulario(key){
     const { data: fila } = await db.from(cfg.vista).select("*").eq("id", data.id).maybeSingle();
     if (!nueva) G.filas = G.filas.filter(r => claveFila(r) !== key);
     if (fila) G.filas.unshift(fila);
+    await refrescarUnido(cfg, fila);
     if (cfg.recargaListas) await cargarListas();
     CP.cargado = false; dibujarGrilla();
     toast(`✓ ${esc(data.codigo || "Guardado")}${nueva ? " creado" : " actualizado"}.` + ((data.avisos || []).length ? `<ul>${data.avisos.slice(0, 6).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""), (data.avisos || []).length ? 9000 : 5000);
