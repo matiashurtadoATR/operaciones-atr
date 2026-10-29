@@ -514,6 +514,10 @@
   .panel-off{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:22px 24px;max-width:760px;font-size:14px;line-height:1.55}
   .panel-off h3{margin:0 0 8px;color:var(--cafe)}
   .panel-off code{background:#f4efec;padding:1px 6px;border-radius:5px}
+  .ct-masivo{background:#fff7f1;border-color:#f0c9ad}.ct-masivo span{flex:1;min-width:260px}
+  .ctm-t{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}.ctm-t th{text-align:left;color:var(--gris);font-size:11.5px;border-bottom:1px solid var(--linea);padding:4px 6px}
+  .ctm-t td{border-bottom:1px solid #f1e6df;padding:5px 6px}.ctm-t td.n,.ctm-t th.n{text-align:right;font-variant-numeric:tabular-nums}.ctm-t tr.off td{opacity:.45}
+  .ctm-res{background:#f7f1ee;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -6585,6 +6589,9 @@ function contDibujarPagos(){
     const tot = sumar(V, x => x.total), pag = sumar(V.flatMap(x => P.lineas[x.id] || []).filter(l => l.estado_pago === "Pagado"), l => l.monto_total);
     h += `<div class="ct-kpis"><div>Solicitudes<b>${V.length}</b></div><div>Pagos<b>${sumar(V, x => x.n_pagos)}</b></div><div>Total a pagar<b>${$$(tot)}</b></div><div>Ya pagado<b>${$$(pag)}</b></div></div>`;
   }
+  const masivo = ctMasivoLista();
+  if (ed && masivo.length) h += `<div class="env-sol ct-masivo"><span><b>Pago masivo</b> · ${masivo.length} solicitud${masivo.length === 1 ? "" : "es"} pendiente${masivo.length === 1 ? "" : "s"} de pago.
+      Márcalas como pagadas de una vez, con un solo banco y una sola fecha (pago y conciliación).</span><button class="btn" id="ct-masivo">Pagar solicitudes pendientes…</button></div>`;
   for (const s of V) {
     const ab = P.abiertas.has(s.id), lin = P.lineas[s.id] || [];
     h += `<div class="ct-card"><div class="ct-cab" data-ctsp="${s.id}"><b class="cod">${esc(s.codigo)}</b>${contPill(s.estado_cont, PILL_CONT[s.estado_cont] || "sin")}
@@ -12642,6 +12649,63 @@ $("vista-porc").addEventListener("input", e => {
   const id = e.target.id; if (id !== "porc-q" && id !== "cz-q") return;
   PORC[id === "porc-q" ? "q" : "cq"] = e.target.value; const pos = e.target.selectionStart; dibujarPorc(); const i = $(id); i.focus(); i.setSelectionRange(pos, pos);
 });
+
+/* ---------------- v66 · Pago masivo de solicitudes (Contabilidad) ---------------- */
+// Pendiente de pago = visto bueno aprobado, en Contabilidad (Pendiente de gestionar / Enviada) y con al menos un pago sin pagar.
+function ctMasivoLista(){
+  return (CONT.pagos.lista || []).filter(s => s.vb_estado === "Aprobada" && ["Pendiente de gestionar", "Enviada"].includes(s.estado) && Number(s.n_pagos) > Number(s.n_pagados));
+}
+async function ctMasivoLineas(ids){
+  const faltan = ids.filter(id => !CONT.pagos.lineas[id]);
+  if (!faltan.length) return true;
+  const { data, error } = await todo(() => db.from("v_cont_solicitud_pago_lineas").select("*").in("solicitud_pago_id", faltan).order("id_pago"));
+  if (error) { toast("⚠ " + esc(error.message), 8000); return false; }
+  faltan.forEach(id => CONT.pagos.lineas[id] = []); (data || []).forEach(l => CONT.pagos.lineas[l.solicitud_pago_id].push(l));
+  return true;
+}
+const ctMasPend = s => (CONT.pagos.lineas[s.id] || []).filter(l => l.estado_pago !== "Pagado");
+async function ctMasivoAbrir(){
+  const L = ctMasivoLista(); if (!L.length) return toast("No hay solicitudes pendientes de pago.");
+  if (!await ctMasivoLineas(L.map(s => s.id))) return;
+  const sel = new Set(L.map(s => s.id));
+  const resumen = () => { const S = L.filter(s => sel.has(s.id)), P = S.flatMap(ctMasPend);
+    return { S, P, txt: `<b>${S.length}</b> solicitud${S.length === 1 ? "" : "es"} · <b>${P.length}</b> pago${P.length === 1 ? "" : "s"} · <b>${$$(sumar(P, l => l.monto_total))}</b>` }; };
+  modal(`<h3>Pago masivo de solicitudes</h3>
+    <p class="nota-sol">Se marcan como <b>pagadas</b> las solicitudes marcadas (sólo sus pagos que aún no están pagados). Cada pago queda con su historial, y su registro en Pagos obras / franquiciados se actualiza con el banco y la fecha. No se crean registros nuevos.</p>
+    <table class="ctm-t"><thead><tr><th><input type="checkbox" id="ctm-todas" checked></th><th>Solicitud</th><th>Fecha programada</th><th class="n">Pagos por pagar</th><th class="n">Monto por pagar</th></tr></thead><tbody>
+      ${L.map(s => { const P = ctMasPend(s); return `<tr data-ctmfila="${s.id}"><td><input type="checkbox" data-ctmsel="${s.id}" checked></td><td><b>${esc(s.codigo)}</b><br><small>${esc(s.estado)}</small></td>
+        <td>${fecha(s.fecha_pago)}</td><td class="n">${P.length}${Number(s.n_pagados) ? `<br><small>${s.n_pagados} ya pagado(s)</small>` : ""}</td><td class="n"><b>${$$(sumar(P, l => l.monto_total))}</b></td></tr>`; }).join("")}</tbody></table>
+    <div class="m-grid"><label class="m-campo">Banco<select id="ctm-banco"><option selected>SANTANDER</option><option>SECURITY</option></select></label>
+      <label class="m-campo">Fecha de pago y conciliación<input type="date" id="ctm-fecha" value="${hoyISO()}"></label></div>
+    <p class="nota-g">La misma fecha se guarda como <b>fecha oficial de pago</b> y como <b>fecha de conciliación</b> (cartola): los pagos quedan pagados y conciliados.</p>
+    <div class="ctm-res" id="ctm-res">${resumen().txt}</div><div class="error" id="ctm-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Revisar y pagar…", fn: async () => {
+      const { S, P } = resumen(), f = $("ctm-fecha").value, b = $("ctm-banco").value;
+      if (!S.length) { $("ctm-error").textContent = "Marca al menos una solicitud."; return false; }
+      if (!f) { $("ctm-error").textContent = "Indica la fecha de pago y conciliación."; return false; }
+      if (f > hoyISO() && !confirm(`La fecha ${fecha(f)} es futura. ¿Seguro?`)) return false;
+      const det = S.map(s => `• ${s.codigo}: ${ctMasPend(s).length} pago(s) · ${$$(sumar(ctMasPend(s), l => l.monto_total))}`).join("\n");
+      if (!confirm(`Se marcarán como PAGADAS ${S.length} solicitud(es):\n\n${det}\n\nTotal: ${P.length} pago(s) · ${$$(sumar(P, l => l.monto_total))}\nBanco: ${b}\nFecha de pago y conciliación: ${fecha(f)}\n\n¿Confirmas el pago masivo?`)) return false;
+      let ok = [], mal = [], n = 0;
+      for (const s of S) {
+        $("ctm-res").innerHTML = `Pagando ${esc(s.codigo)}… (${ok.length + mal.length + 1} de ${S.length})`;
+        const { data, error } = await db.rpc("cont_marcar_solicitud_pagada", { p: { id: s.id, fecha_pago: f, fecha_conciliacion: f, banco: b, referencia_banco: null } });
+        if (error) mal.push(`${s.codigo}: ${errorAmigable(error.message)}`); else { ok.push(s.codigo); n += (data && data.n) || 0; }
+      }
+      CONT.pagos.lineas = {}; await contCargarPagos();
+      if (mal.length) { $("ctm-res").innerHTML = `${ok.length ? `✓ Pagadas: ${esc(ok.join(", "))}<br>` : ""}<b style="color:#a1281f">No se pudieron pagar:</b><br>${mal.map(esc).join("<br>")}`;
+        toast(`⚠ Pago masivo con ${mal.length} error(es). Revisa el detalle.`, 9000); return false; }
+      toast(`✓ Pago masivo: ${ok.length} solicitud(es) pagada(s) y conciliada(s) (${n} pago(s)) · ${esc(b)} · ${fecha(f)}.`, 9000); return true; } }]);
+  const fondo = [...document.querySelectorAll(".modal-fondo")].pop();
+  fondo.addEventListener("change", e => {
+    const t = e.target;
+    if (t.dataset.ctmsel) t.checked ? sel.add(+t.dataset.ctmsel) : sel.delete(+t.dataset.ctmsel);
+    if (t.id === "ctm-todas") { L.forEach(s => t.checked ? sel.add(s.id) : sel.delete(s.id)); fondo.querySelectorAll("[data-ctmsel]").forEach(c => c.checked = t.checked); }
+    fondo.querySelectorAll("[data-ctmfila]").forEach(tr => tr.classList.toggle("off", !sel.has(+tr.dataset.ctmfila)));
+    $("ctm-res").innerHTML = resumen().txt;
+  });
+}
+$("vista-cont").addEventListener("click", e => { if (e.target.id === "ct-masivo") ctMasivoAbrir(); });
 </script>
 </body>
 </html>
