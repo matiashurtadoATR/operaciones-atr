@@ -11975,7 +11975,7 @@ function tmCelda(t, col, f){
   if (TM_FECHA.test(col)) return twFecha(v);
   if (/^(E|G)$/.test(col) || (t === "FRANQUICIA" && /^(N|U)$/.test(col))) return rut(v);
   if (t === "OBRA" && col === "Q") return { t: "n", v: Number(v), z: "0%" };
-  if (/^(H|AU|AV)$/.test(col) && !isNaN(Number(v))) return { t: "n", v: Number(v), z: "#,##0" };
+  if (((t === "OBRA" && col === "H") || (t === "FRANQUICIA" && /^(AU|AV)$/.test(col))) && !isNaN(Number(v))) return { t: "n", v: Number(v), z: "#,##0" };
   if (t === "FRANQUICIA" && col === "BJ") return v === "Vigente" ? "Activo" : v;
   return v;
 }
@@ -11985,7 +11985,7 @@ function tmTexto(t, col, v){
   if (TM_FECHA.test(col)) return fecha(v);
   if (/^(E|G)$/.test(col) || (t === "FRANQUICIA" && /^(N|U)$/.test(col))) return rut(v);
   if (t === "OBRA" && col === "Q") return Math.round(Number(v) * 1000) / 10 + "%";
-  if (/^(H|AU|AV)$/.test(col)) return $$(v);
+  if ((t === "OBRA" && col === "H") || (t === "FRANQUICIA" && /^(AU|AV)$/.test(col))) return $$(v);
   if (t === "FRANQUICIA" && col === "BJ" && v === "Vigente") return "Activo (Vigente)";
   return String(v);
 }
@@ -12256,7 +12256,7 @@ async function twExportar(){
     if (up.error) toast(`✓ Descarga <b>${esc(data.codigo)}</b> creada (${data.filas.length} movimientos). ⚠ No se pudo guardar el archivo en el historial (${esc(up.error.message)}); igual se puede volver a bajar: se arma con los mismos datos.`, 14000);
     else {
       const r = await db.rpc("traspaso_web_archivo", { p: { id: data.id, ruta, nombre } });
-      toast(r.error ? `✓ Descarga <b>${esc(data.codigo)}</b> creada. ⚠ ${esc(r.error.message)}` : `✓ Descarga <b>${esc(data.codigo)}</b>: ${data.filas.length} pago(s)${data.maestros.length ? ` y ${data.maestros.length} negocio(s)/franquicia(s)` : ""} exportados. El archivo quedó en el Historial.`, 10000);
+      toast(r.error ? `✓ Descarga <b>${esc(data.codigo)}</b> creada. ⚠ ${esc(r.error.message)}` : `✓ Descarga <b>${esc(data.codigo)}</b>: ${data.filas.length} pago(s)${data.maestros.length ? ` y ${data.maestros.length} negocio(s)/franquicia(s)` : ""} exportados. El archivo quedó en el Historial. Pégalo en el Excel o usa <b>✍ Escribir en el Excel (Panel)</b>.`, 10000);
     }
     if (data.filas.length < L.length) toast(`ℹ ${L.length - data.filas.length} movimiento(s) ya no estaban pendientes (otra persona los exportó o ya están en el Excel).`, 10000);
     TW.sel.clear(); TW.selM.clear();
