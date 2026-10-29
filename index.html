@@ -86,6 +86,9 @@
   .menu{width:230px;background:#fff;border-right:1px solid var(--linea);padding:18px 12px;flex-shrink:0}
   .menu h4{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin:4px 8px 10px}
   .menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:8px;color:var(--tinta);font-size:14px;margin-bottom:2px}
+  /* v65 · secciones de consulta: disponibles pero con menos protagonismo */
+  .menu button.tenue{opacity:.5;filter:grayscale(.7)} .menu button.tenue:hover,.menu button.tenue.activo{opacity:.9;filter:none}
+  .menu h5.tenue-h{opacity:.55}
   .menu button.activo{background:var(--durazno);color:var(--cafe);font-weight:600}
   .menu button:disabled{color:#b9aca5;cursor:default}
   .menu button small{display:block;font-size:11px;color:#b9aca5;font-weight:400}
@@ -1247,10 +1250,12 @@
       <h4 class="sep" data-area="operaciones">Obras</h4>
       <h5 data-area="operaciones">Pagos</h5>
       <button data-rep="pagos" data-area="operaciones">Control de Pagos<small>Revisar · por pagar · Contabilidad · pagadas</small></button>
-      <button data-rep="reg" data-area="operaciones">Registro de Pagos<small>Por pagar · comprobantes · falta cartola</small></button>
-      <button data-rep="hpag" data-area="operaciones" data-solo-supabase="1">Historial de pagos<small>Aceptado → Contabilidad → pagado → conciliado</small></button>
+      <button data-rep="porc" data-mod="OBRA" data-area="operaciones" data-solo-supabase="1">Por conciliar<small>Pagos sin fecha de cartola · ponerla aquí</small></button>
       <button data-rep="cprech" data-mod="ob" data-area="operaciones" data-solo-supabase="1">Pagos rechazados<small>Contabilidad no los pagó · corregir o anular<span class="n-ctrl" id="cprechob-n"></span></small></button>
       <button data-rep="ing" data-mod="movimientos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Movimientos por identificar<small>Cartola sin obra asignada</small></button>
+      <h5 data-area="operaciones" class="tenue-h">Consulta</h5>
+      <button data-rep="reg" data-area="operaciones" class="tenue" title="Sólo consulta: los pagos se registran en Ingreso de datos › Pagos obras y se pagan en Control de Pagos">Registro de Pagos<small>Consulta · por pagar · falta cartola</small></button>
+      <button data-rep="hpag" data-area="operaciones" data-solo-supabase="1" class="tenue" title="Sólo consulta">Historial de pagos<small>Consulta · recorrido de cada pago</small></button>
       <h5 data-area="operaciones">Control</h5>
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
       <button data-rep="ctrl" data-mod="royalty" data-area="operaciones">Alerta de royalties<small>Esperado vs cobrado<span class="n-ctrl" data-ctrl-n="royalty"></span></small></button>
@@ -1262,6 +1267,7 @@
       <h4 class="sep" data-area="operaciones">Franquiciados</h4>
       <h5 data-area="operaciones">Cobros</h5>
       <button data-rep="cob" data-area="operaciones" data-solo-supabase="1">Cobros a franquiciados<small>Por cobrar · comprobantes · qué factura paga</small></button>
+      <button data-rep="porc" data-mod="FRANQUICIA" data-area="operaciones" data-solo-supabase="1">Por conciliar<small>Pagos recibidos sin fecha de cartola</small></button>
       <h5 data-area="operaciones">Tiendas y arriendos</h5>
       <button data-rep="ing" data-mod="arriendos" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Registro de arriendos<small>Facturas de arriendo · con validador</small></button>
       <button data-rep="ing" data-mod="tiendas" data-area="operaciones" data-solo-supabase="1" class="req-ses oculto">Tiendas y arriendo<small>Condiciones de cada tienda</small></button>
@@ -1532,13 +1538,22 @@
       </div>
      </section>
 
+     <section id="vista-porc" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1 id="porc-titulo">Por conciliar</h1><p>Pagos ya pagados (o con comprobante) que todavía no tienen <b>fecha de cartola</b>. Pon la fecha aquí:
+          se actualiza el mismo pago en Pagos obras / franquiciados y en el saldo. Los cobros que el franquiciado aún debe no están aquí (están en Cobros a franquiciados).</p></div>
+        <div class="acciones"><button class="btn sec" id="porc-act">Actualizar</button></div>
+      </div>
+      <div id="porc-cuerpo"></div>
+     </section>
+
      <section id="vista-reg" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
         <div><h1>Registro de Pagos</h1><p>Lo por pagar, lo solicitado y todo lo que <b>falta en la cartola</b>: transferencias hechas y comprobantes de clientes.
-          Con la fecha de la cartola pasa a <b>Pagos obras</b>. ¿Llegó un comprobante? <b>+ Nuevo pago</b>.</p></div>
-        <div class="acciones"><button class="btn sec" id="reg-actualizar">Actualizar</button><button class="btn sec" id="reg-xlsx">Descargar Excel</button>
-          <button class="btn" id="reg-nuevo" data-solo-supabase="1">+ Nuevo pago</button></div>
+          Con la fecha de la cartola pasa a <b>Pagos obras</b>. <b>Sólo consulta:</b> los pagos se registran en <b>Ingreso de datos › Pagos obras</b> y la fecha de cartola se pone en <a href="#" data-ir="porc">Por conciliar</a>.</p></div>
+        <div class="acciones"><button class="btn sec" id="reg-actualizar">Actualizar</button><button class="btn sec" id="reg-xlsx">Descargar Excel</button></div>
       </div>
       <p class="nota-g" data-solo-supabase="1" style="background:#fff7ea;border-radius:8px;padding:8px 12px">Los pagos <b>por pagar</b> se revisan y se envían a Contabilidad en
         <a href="#" data-ir="pagos">Obras › Control de Pagos › Por pagar</a>.</p>
@@ -1556,7 +1571,7 @@
       <div class="chips" id="reg-chips" style="margin-bottom:12px"></div>
       <div class="tabla-wrap"><table class="cp" id="reg-tabla"></table></div>
       <p class="nota-g">Cómo llegan los pagos aquí: <b>Control de Pagos</b> (acciones sugeridas) · <b>Control › Pagos sin factura de venta</b> (bandeja de facturas) ·
-        <b>Ingreso de datos › Pagos obras</b> con Estado pago “Pendiente” · <b>+ Nuevo pago</b> (comprobantes). Al marcar <b>PAGADO</b> se actualiza el mismo registro (no se crea otro) y se pide la fecha de conciliación.
+        <b>Ingreso de datos › Pagos obras</b> (con Estado pago “Pendiente” o comprobantes sin cartola). Al marcar <b>PAGADO</b> se actualiza el mismo registro (no se crea otro) y se pide la fecha de conciliación.
         Lo que <b>falta cartola</b> no cuenta en saldos: al poner la fecha de la cartola pasa a Pagos obras.</p>
      </section>
 
@@ -2365,7 +2380,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "porc", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2411,6 +2426,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "cont") cargarCont(mod || CONT.mod);
   if (rep === "sugf") cargarSugf();
   if (rep === "arrfm") cargarArrfm();
+  if (rep === "porc") cargarPorc(mod || PORC.mod);
   if (rep === "arr") cargarArriendos();
   if (rep === "cob") cargarCobros();
 }
@@ -2827,6 +2843,7 @@ async function cpxCargar(){
     todo(() => db.from("v_registro_pagos").select("id,id_pago,origen_registro,observaciones,created_at,item,franquicia,fecha_pago")
       .eq("estado_pago", "Pendiente").eq("origen", "OBRA").in("item", ["Transferencia franquiciado (egreso)", "Pago proveedores (egreso)"])),
     todo(() => db.from("v_solicitudes_pago").select("*").neq("estado", "Anulada").order("id", { ascending: false }))]);
+  { const mm = await todo(() => db.from("v_cp_manual").select("*").order("id")); CPX.manual = mm.error ? [] : (mm.data || []); }
   const cob = await todo(() => db.from("v_sug_facturas_obras_ui").select("*").order("obra"));
   const [rp, rf] = await Promise.all([todo(() => db.from("v_pago_respaldo").select("*")),
     todo(() => db.from("v_respaldo_facturas").select("id_factura,n_factura,ruta,archivo").eq("por_pagar_atrium", true))]);
@@ -2865,6 +2882,13 @@ function cpxSugerencias(){
   const fr = $("cp-franquicia").value, q = $("cp-buscar").value.toLowerCase().trim();
   return construirAcciones().filter(a => a.tipo !== "aqc")
     .map(a => ({ ...a, clave: a.tipo + ":" + (a.tipo === "prov" ? a.key.slice(5) : a.obra) }))
+    .concat((CPX.manual || []).map(m => {                 // v65 · transferencias excepcionales (fuera de las reglas): se revisan aquí
+      const o = CP.filas.find(x => x.codigo_atr === m.obra) || {}, max = Number(o.monto_max_avance);
+      return { key: "man:" + m.id, clave: "man:" + m.id, tipo: "fr", manual: m, obra: m.obra, cliente: m.cliente, franquicia: m.franquicia, monto: Number(m.monto),
+        detalle: `<span class="tipo-acc fr">Excepcional</span> fuera de las reglas · ${esc(m.motivo)}`,
+        nota: `Agregada por ${String(m.creado_por || "").split("@")[0]} el ${fecha(String(m.creado_en).slice(0, 10))}` +
+          (!isNaN(max) && o.codigo_atr ? (Number(m.monto) > max + TOL_ACC ? ` · ⚠ supera el máximo excepcional según avance (${$$(max)})` : ` · dentro del máximo excepcional (${$$(max)})`) : ""),
+        hacer: monto => ({ rpc: "cp_manual_aceptar", p: { id: m.id, monto: String(monto), fecha_pago: "" } }) }; }))
     .map(a => ({ ...a, rech: cpxRechazo(a) })).filter(a => !a.rech.oculta)
     .filter(a => (!fr || a.franquicia === fr) && (!q || [a.obra, a.cliente, a.detalle].some(t => String(t || "").toLowerCase().includes(q))));
 }
@@ -2934,7 +2958,7 @@ function cpxDibRev(sug){
   const ed = puedeEditar() && !enExcel();
   return sec("A", "Pagos a proveedores", "Facturas de proveedor que paga Atrium (Aquí Club, las registra Felipe Morales). Indica si la obra tiene saldo o necesita un traspaso de fondos.",
       [A.map(filaA), A], `<th>Obra</th><th>Proveedor · factura · OC</th><th class="n">A pagar</th><th class="n">Saldo libre obra</th><th>Saldo</th>${ed ? "<th></th>" : ""}`)
-    + sec("B", "Transferencias a franquiciados", "Monto sugerido por el cálculo de cada obra (anticipo 20% o saldo final). Si necesitas otra, agrégala.",
+    + sec("B", "Transferencias a franquiciados", "Monto sugerido por el cálculo de cada obra (anticipo 20% o saldo final). ¿Una fuera de las reglas? “+ Agregar transferencia”: queda aquí para revisarla con su cálculo.",
       [B.map(filaB), B], `<th>Obra</th><th>Motivo</th><th class="n">Monto sugerido</th>${ed ? "<th></th>" : ""}`,
       ed ? `<button class="btn sec" id="cpx-nueva-tr" style="margin-left:auto">+ Agregar transferencia</button>` : "")
     + sec("C", "Traspasos de fondos para pagar facturas", "Mueve saldo desde otras obras del mismo franquiciado. Al aceptar se registra de inmediato (movimiento interno, conciliación N/A): no pasa por Contabilidad.",
@@ -3082,19 +3106,18 @@ async function cpxRechazar(key){
 }
 function cpxNuevaTransferencia(){
   const obras = CP.filas.map(o => `<option value="${esc(o.codigo_atr)}">${esc(o.cliente)} · ${esc(o.franquicia)}</option>`).join("");
-  return modal(`<h3>Agregar transferencia a franquiciado</h3><p class="nota-sol">Queda en <b>Por pagar</b> para revisarla y enviarla a Contabilidad.</p>
+  return modal(`<h3>Agregar transferencia a franquiciado</h3><p class="nota-sol">Para una transferencia <b>fuera de las reglas</b> (excepcional). Queda en <b>Por revisar (B)</b> con el cálculo de la obra; ahí se acepta (pasa a Por pagar) o se rechaza, como las demás.</p>
     <div class="m-grid"><label class="m-campo">Obra (Id ATR)<input id="cpx-n-obra" list="cpx-dl-obras" autocomplete="off"><datalist id="cpx-dl-obras">${obras}</datalist></label>
     <label class="m-campo">Monto<input id="cpx-n-monto" inputmode="numeric"></label>
     <label class="m-campo" style="grid-column:1/-1">Motivo / observación<input id="cpx-n-obs" placeholder="Ej.: pago excepcional autorizado"></label></div><div class="error" id="cpx-n-err"></div>`,
-    [{ t: "Cancelar", sec: 1 }, { t: "Agregar a Por pagar", fn: async () => {
+    [{ t: "Cancelar", sec: 1 }, { t: "Agregar a Por revisar", fn: async () => {
       const obra = $("cpx-n-obra").value.trim(), m = numTxt($("cpx-n-monto").value), obs = $("cpx-n-obs").value.trim();
       if (!CP.filas.some(o => o.codigo_atr === obra)) { $("cpx-n-err").textContent = "Elige una obra de la lista."; return false; }
       if (!m || m <= 0) { $("cpx-n-err").textContent = "Monto no válido."; return false; }
       if (!obs) { $("cpx-n-err").textContent = "Escribe el motivo."; return false; }
-      const { error } = await db.rpc("registrar_movimientos_cp", { p: { movimientos: [{ obra, item: "Transferencia franquiciado (egreso)", monto: String(-m),
-        fecha_pago: viernesISO(), medio: "Transferencia", observaciones: obs + " (agregada en Control de Pagos)", estado_pago: "Pendiente", origen_registro: "Control de Pagos" }] } });
-      if (error) { $("cpx-n-err").textContent = errorAmigable(error.message); return false; }
-      toast("✓ Transferencia agregada a Por pagar."); CPX.tab = "pp"; await cpxRecargar(); return true; } }]);
+      const { error } = await db.rpc("cp_manual_crear", { p: { obra, monto: String(m), motivo: obs } });
+      if (error) { $("cpx-n-err").textContent = /does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 65_por_conciliar_excepcionales.sql en Supabase." : errorAmigable(error.message); return false; }
+      toast("✓ Transferencia excepcional agregada a Por revisar (B). Revisa su cálculo y acéptala o recházala."); CPX.tab = "rev"; await cpxRecargar(); return true; } }]);
 }
 async function cpxEnviar(){
   const pp = cpxFiltroPP(CPX.porPagar).filter(x => CPX.sel.has(x.id));
@@ -5764,7 +5787,7 @@ $("vista-reg").addEventListener("change", e => {
 });
 $("reg-q").oninput = e => { REG.q = e.target.value.toLowerCase().trim(); dibujarRegistro(); };
 $("reg-actualizar").onclick = () => cargarRegistro(true);
-$("reg-nuevo").onclick = () => { if (!puedeEditar()) { toast("Tu usuario no puede editar."); return; } modalNuevoPago(); };
+if ($("reg-nuevo")) $("reg-nuevo").onclick = () => { if (!puedeEditar()) { toast("Tu usuario no puede editar."); return; } modalNuevoPago(); };
 $("reg-xlsx").onclick = () => {
   const L = regVisibles(), wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Id pago", "Estado", "Solicitud", "Tipo", "Franquicia", "Obra", "Cliente", "Destinatario", "RUT", "Banco", "Tipo cuenta", "N° cuenta",
@@ -6712,11 +6735,14 @@ $("vista-cont").addEventListener("click", async e => {
     return modal(`<h3>Marcar ${esc(s.codigo)} como pagada</h3>
       <p class="nota-sol">${L.length} pago(s) por ${$$(sumar(L, l => l.monto_total))}. La solicitud se cierra y queda la <b>fecha oficial de pago</b>.</p>
       <div class="m-grid"><label class="m-campo">Fecha oficial de pago<input type="date" id="ctp-fecha" value="${hoyISO()}"></label>
-      <label class="m-campo">N° de operación / referencia (opcional)<input id="ctp-ref"></label></div>
-      <p class="nota-g">Los pagos quedan como pagados “sin conciliar” hasta que Operaciones cargue la cartola.</p><div class="error" id="ctp-error"></div>`,
+      <label class="m-campo">N° de operación / referencia (opcional)<input id="ctp-ref"></label>
+      <label class="m-campo">Fecha de conciliación (cartola, opcional)<input type="date" id="ctp-conc"></label>
+      <label class="m-campo">Banco de donde salió (opcional)<select id="ctp-banco"><option value=""></option><option>SANTANDER</option><option>SECURITY</option></select></label></div>
+      <p class="nota-g">Si ya aparece en la cartola, pon la fecha de conciliación: el pago queda conciliado. Si la dejas vacía, queda “pagado, falta conciliar” (Operaciones la pone en Por conciliar).</p><div class="error" id="ctp-error"></div>`,
       [{ t: "Cancelar", sec: 1 }, { t: "Marcar pagada", fn: async () => {
         if (!$("ctp-fecha").value) { $("ctp-error").textContent = "Indica la fecha oficial de pago."; return false; }
-        const { data, error } = await db.rpc("cont_marcar_solicitud_pagada", { p: { id: s.id, fecha_pago: $("ctp-fecha").value, referencia_banco: $("ctp-ref").value.trim() || null } });
+        const { data, error } = await db.rpc("cont_marcar_solicitud_pagada", { p: { id: s.id, fecha_pago: $("ctp-fecha").value, referencia_banco: $("ctp-ref").value.trim() || null,
+          fecha_conciliacion: $("ctp-conc").value || null, banco: $("ctp-banco").value || null } });
         if (error) { $("ctp-error").textContent = errorAmigable(error.message); return false; }
         toast(`✓ ${esc(s.codigo)} pagada (${data.n} pago(s)). Solicitud cerrada.`); CONT.pagos.lineas = {}; await contCargarPagos(); return true; } }]);
   }
@@ -6734,10 +6760,13 @@ $("vista-cont").addEventListener("click", async e => {
     return modal(`<h3>Marcar como pagados · ${L.length} pago(s) · ${$$(sumar(L, l => l.monto_total))}</h3>
       <p class="nota-sol">${L.map(l => `${esc(l.id_pago)} ${esc(l.razon_social_destinatario || "")} ${$$(l.monto_total)}`).join(" · ")}</p>
       <div class="m-grid"><label class="m-campo">Fecha de la transferencia<input type="date" id="ctp-fecha" value="${String(s.fecha_pago).slice(0, 10)}"></label>
-      <label class="m-campo">N° de operación / referencia (opcional)<input id="ctp-ref"></label></div>
-      <p class="nota-g">Quedan como pagados “sin conciliar” hasta que Operaciones cargue la cartola.</p><div class="error" id="ctp-error"></div>`,
+      <label class="m-campo">N° de operación / referencia (opcional)<input id="ctp-ref"></label>
+      <label class="m-campo">Fecha de conciliación (cartola, opcional)<input type="date" id="ctp-conc"></label>
+      <label class="m-campo">Banco de donde salió (opcional)<select id="ctp-banco"><option value=""></option><option>SANTANDER</option><option>SECURITY</option></select></label></div>
+      <p class="nota-g">Si ya aparecen en la cartola, pon la fecha de conciliación. Si la dejas vacía, quedan “pagados, falta conciliar”.</p><div class="error" id="ctp-error"></div>`,
       [{ t: "Cancelar", sec: 1 }, { t: "Marcar pagados", fn: async () => {
-        const { data, error } = await db.rpc("cont_marcar_pagado", { p: { ids: L.map(l => l.pago_id), fecha_pago: $("ctp-fecha").value, referencia_banco: $("ctp-ref").value.trim() || null } });
+        const { data, error } = await db.rpc("cont_marcar_pagado", { p: { ids: L.map(l => l.pago_id), fecha_pago: $("ctp-fecha").value, referencia_banco: $("ctp-ref").value.trim() || null,
+          fecha_conciliacion: $("ctp-conc").value || null, banco: $("ctp-banco").value || null } });
         if (error) { $("ctp-error").textContent = errorAmigable(error.message); return false; }
         toast(`✓ ${data.n} pago(s) marcados como pagados.`); CONT.pagos.lineas = {}; await contCargarPagos(); return true; } }]);
   }
@@ -9469,7 +9498,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 64;
+const VERSION_PAGINA = 65;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -12391,6 +12420,95 @@ async function transCargasHTML(){
 <script>
 /* v62 · app instalable: el service worker sólo existe en la página publicada (https), no en la copia de OneDrive */
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+
+/* =====================================================================
+   v65 · POR CONCILIAR (obras y franquiciados): pagos ya pagados o con comprobante que aún no tienen fecha de cartola.
+   Se pone la fecha aquí y queda en el mismo registro (Pagos obras / franquiciados, Registro de Pagos, Historial).
+   ===================================================================== */
+const PORC = { mod: "OBRA", filas: [], sel: new Set(), q: "", fr: "", etapa: "" };
+async function cargarPorc(mod){
+  PORC.mod = mod === "FRANQUICIA" ? "FRANQUICIA" : "OBRA"; PORC.sel.clear();
+  $("porc-titulo").textContent = PORC.mod === "OBRA" ? "Por conciliar · Obras" : "Por conciliar · Franquiciados";
+  $("porc-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const r = await todo(() => db.from("v_por_conciliar").select("*").eq("origen", PORC.mod).order("fecha_pago").order("id_pago"));
+  if (r.error) { $("porc-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(r.error.message) ? "Falta ejecutar 65_por_conciliar_excepcionales.sql en Supabase." : esc(r.error.message)}</div>`; return; }
+  PORC.filas = r.data || []; dibujarPorc();
+}
+function porcVisibles(){
+  const q = PORC.q.toLowerCase();
+  return PORC.filas.filter(x => (!PORC.fr || x.franquicia === PORC.fr) && (!PORC.etapa || x.etapa === PORC.etapa) &&
+    (!q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.solicitud, x.observaciones, x.referencia_banco].join(" ").toLowerCase().includes(q)));
+}
+function dibujarPorc(){
+  const ed = puedeEditar() && !enExcel(), L = porcVisibles(), ob = PORC.mod === "OBRA";
+  const etapas = [...new Set(PORC.filas.map(x => x.etapa))].sort(), frs = [...new Set(PORC.filas.map(x => x.franquicia))].sort();
+  const enCart = L.filter(x => x.fecha_en_cartola).length;
+  let h = `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="kpi ${PORC.filas.length ? "alerta" : ""}"><div class="t">Por conciliar</div><div class="v">${PORC.filas.length}</div><div class="s">Ingresos ${$$(sumar(PORC.filas.filter(x => +x.monto > 0), x => x.monto))} · egresos ${$$(sumar(PORC.filas.filter(x => +x.monto < 0), x => x.monto))}</div></div>
+      <div class="kpi"><div class="t">Ya aparecen en la cartola</div><div class="v">${PORC.filas.filter(x => x.fecha_en_cartola).length}</div><div class="s">Según la cartola cargada en Cuadratura: usa “Poner la de la cartola”</div></div>
+      <div class="kpi"><div class="t">Más antiguo</div><div class="v">${PORC.filas.length ? Math.max(...PORC.filas.map(x => +x.dias || 0)) + " días" : "—"}</div><div class="s">desde la fecha de pago</div></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <input id="porc-q" placeholder="Buscar Id, ${ob ? "obra, cliente" : "franquicia"}, ítem, SP-…" value="${esc(PORC.q)}" style="flex:1;min-width:220px;max-width:360px">
+      <select id="porc-fr"><option value="">Todas las franquicias</option>${frs.map(f => `<option ${f === PORC.fr ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>
+      <span class="nota-g">${L.length} de ${PORC.filas.length}</span></div>
+    <div class="chips" style="margin-bottom:10px"><button class="chip ${!PORC.etapa ? "activo" : ""}" data-porcet="">Todos</button>
+      ${etapas.map(e => `<button class="chip ${PORC.etapa === e ? "activo" : ""}" data-porcet="${esc(e)}">${esc(e)} · ${PORC.filas.filter(x => x.etapa === e).length}</button>`).join("")}</div>`;
+  if (ed && L.length) h += `<div class="solicitar-barra" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <div><b>Conciliar los marcados</b><br><small>${PORC.sel.size} marcado(s)</small></div>
+      <label>Fecha de la cartola <input type="date" id="porc-fecha" value="${hoyISO()}"></label>
+      <label>Banco <select id="porc-banco"><option value="">(el del pago)</option>${(opcionesBanco() || "<option>SANTANDER</option><option>SECURITY</option>")}</select></label>
+      <button class="btn" id="porc-conciliar" ${PORC.sel.size ? "" : "disabled"}>Poner esta fecha</button>
+      ${enCart ? `<button class="btn sec" id="porc-cartola">Poner la de la cartola (${enCart})</button>` : ""}
+      <a href="#" class="link-chico" id="porc-na">Marcar N/A (no bancario)</a></div>`;
+  if (!L.length) { $("porc-cuerpo").innerHTML = h + `<p class="nota-g">✓ No hay pagos por conciliar${PORC.filas.length ? " con ese filtro" : ""}.</p>`; return; }
+  const todos = L.every(x => PORC.sel.has(x.id));
+  h += `<div class="tabla-wrap"><table class="cp"><thead><tr>${ed ? `<th><input type="checkbox" id="porc-todos" ${todos ? "checked" : ""}></th>` : ""}<th>Id pago</th>
+      <th>${ob ? "Obra · cliente" : "Franquicia"}</th><th>Ítem</th><th class="n">Monto</th><th>Fecha pago</th><th>Medio · banco</th><th>Estado</th><th>En la cartola</th>${ed ? "<th>Fecha cartola</th>" : ""}</tr></thead><tbody>
+    ${L.map(x => `<tr>${ed ? `<td><input type="checkbox" data-porcsel="${x.id}" ${PORC.sel.has(x.id) ? "checked" : ""}></td>` : ""}
+      <td><b>${esc(x.id_pago)}</b>${x.pago_unido ? `<br><small title="Tarjeta ↔ comisión Getnet: se concilian juntas">unido a ${esc(x.pago_unido)}</small>` : ""}</td>
+      <td><small>${ob ? `${esc(x.obra || "")}<br>${esc(x.cliente || "")}` : `${esc(x.franquicia)} · ${esc(x.franquiciado || "")}`}</small></td>
+      <td><small>${esc(x.item)}</small></td><td class="n ${+x.monto < 0 ? "neg" : ""}">${$$(x.monto)}</td>
+      <td>${fecha(x.fecha_pago) || "—"}<br><small>${x.dias != null ? x.dias + " días" : ""}</small></td>
+      <td><small>${esc(x.medio || "")}${x.banco ? " · " + esc(x.banco) : ""}${x.referencia_banco ? "<br>" + esc(x.referencia_banco) : ""}</small></td>
+      <td><small>${esc(x.etapa)}${x.solicitud ? " · " + esc(x.solicitud) : ""}</small></td>
+      <td>${x.fecha_en_cartola ? `<small><b>${fecha(x.fecha_en_cartola)}</b> ${esc(x.banco_en_cartola || "")}<br>${esc(String(x.cartola_descripcion || "").slice(0, 40))}</small>` : '<small class="nota-g">—</small>'}</td>
+      ${ed ? `<td style="white-space:nowrap"><input type="date" class="porc-f" data-id="${x.id}" value="${x.fecha_en_cartola || ""}" style="width:135px">
+        <button class="btn-acc" data-porcok="${x.id}">Guardar</button></td>` : ""}</tr>`).join("")}</tbody></table></div>
+    <p class="nota-g">Al guardar la fecha, el pago queda conciliado en ${ob ? "Pagos obras (y cuenta en el saldo de la obra)" : "Pagos franquiciados"}; si es una tarjeta, su comisión Getnet unida se concilia con la misma fecha.
+      Para conciliar contra los movimientos de la cartola uno a uno, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a>.</p>`;
+  $("porc-cuerpo").innerHTML = h;
+}
+async function porcGuardar(items){
+  if (!items.length) return;
+  const { data, error } = await db.rpc("conciliar_pagos", { p: { pagos: items } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`✓ ${data.n} pago(s) conciliado(s)${(data.codigos || []).length ? ": " + esc(data.codigos.slice(0, 8).join(", ")) + (data.codigos.length > 8 ? "…" : "") : ""}.`);
+  invalidarPagos(); await cargarPorc(PORC.mod);
+}
+$("vista-porc").addEventListener("click", async e => {
+  const t = e.target;
+  if (t.id === "porc-act") return cargarPorc(PORC.mod);
+  if (t.dataset.porcet !== undefined && t.classList.contains("chip")) { PORC.etapa = t.dataset.porcet; return dibujarPorc(); }
+  if (t.dataset.porcok) { const f = document.querySelector(`.porc-f[data-id="${t.dataset.porcok}"]`).value;
+    if (!f) return toast("Escribe la fecha de la cartola.");
+    return porcGuardar([{ id: +t.dataset.porcok, fecha_conciliacion: f }]); }
+  if (t.id === "porc-conciliar") { const f = $("porc-fecha").value; if (!f) return toast("Escribe la fecha de la cartola.");
+    if (!confirm(`¿Conciliar ${PORC.sel.size} pago(s) con fecha ${fecha(f)}?`)) return;
+    return porcGuardar([...PORC.sel].map(id => ({ id, fecha_conciliacion: f, banco: $("porc-banco").value || null }))); }
+  if (t.id === "porc-cartola") { const L = porcVisibles().filter(x => x.fecha_en_cartola);
+    if (!confirm(`¿Poner a ${L.length} pago(s) la fecha con que aparecen en la cartola?`)) return;
+    return porcGuardar(L.map(x => ({ id: x.id, fecha_conciliacion: x.fecha_en_cartola, banco: x.banco_en_cartola || null }))); }
+  if (t.id === "porc-na") { e.preventDefault(); if (!PORC.sel.size) return toast("Marca los pagos.");
+    if (!confirm(`¿Marcar ${PORC.sel.size} pago(s) como N/A (no es movimiento bancario: descuento, cruce)?`)) return;
+    return porcGuardar([...PORC.sel].map(id => ({ id, fecha_conciliacion: "N/A" }))); }
+});
+$("vista-porc").addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.porcsel) { t.checked ? PORC.sel.add(+t.dataset.porcsel) : PORC.sel.delete(+t.dataset.porcsel); return dibujarPorc(); }
+  if (t.id === "porc-todos") { porcVisibles().forEach(x => t.checked ? PORC.sel.add(x.id) : PORC.sel.delete(x.id)); return dibujarPorc(); }
+  if (t.id === "porc-fr") { PORC.fr = t.value; return dibujarPorc(); }
+});
+$("vista-porc").addEventListener("input", e => { if (e.target.id === "porc-q") { PORC.q = e.target.value; const pos = e.target.selectionStart; dibujarPorc(); const i = $("porc-q"); i.focus(); i.setSelectionRange(pos, pos); } });
 </script>
 </body>
 </html>
