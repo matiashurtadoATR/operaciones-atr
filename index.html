@@ -13045,9 +13045,24 @@ function sfObra(o){
     saldo: sumar(cnt, x => x.monto),
     enProceso: -sumar(M.filter(x => !sfCuenta(x) && /^Transferencia franquiciado/i.test(x.item) && sfN(x.monto) < 0), x => x.monto) };
   r.otros = r.cliente - r.royalty - r.aquiclub - r.proveedores - r.comisiones - r.obligaciones - r.transferido - r.saldo;
-  r.porTransferir = Math.max(contrato - r.transferido, 0);
+  r.obj20 = Math.round(0.2 * contrato);                         // primera transferencia: 20% del contrato (siempre)
+  r.falta20 = Math.max(r.obj20 - r.transferido, 0);
   r.razon = sfRazon(r);
+  r.corr = sfCorr(r);
   return r;
+}
+const SF_ETAPA = { "Anticipo 20%": "Primera transferencia (20%)", "Saldo final": "Saldo de liquidación", "Regla especial": "Regla especial" };
+// lo que corresponde pagar según la etapa (sólo montos ya determinados)
+function sfCorr(r){
+  const c = r.c, z = r.razon, fin = /finalizada/i.test(r.o.estado || "");
+  if (z.tipo === "na") return { txt: "No aplica", monto: 0 };
+  if (z.tipo === "listo") return { txt: `${SF_ETAPA[z.etapa] || "Transferencia"}: ${$$(c.monto_sugerido)} listo para transferir`, monto: sfN(c.monto_sugerido), listo: true };
+  if (z.tipo === "ok") return { txt: /cerrada/i.test(r.o.estado || "") ? "Obra cerrada" : "Saldo de liquidación transferido", monto: 0 };
+  if (z.etapa === "Anticipo 20%" && !r.contrato) return { txt: "Primera transferencia (20%): se calcula al registrar el monto del contrato", monto: 0 };
+  if (z.etapa === "Anticipo 20%" && !c) return { txt: `Primera transferencia (20%): ${$$(r.obj20)}, se libera al firmar el contrato`, monto: 0 };
+  if (z.etapa === "Anticipo 20%") return { txt: `Primera transferencia (20%): ${$$(r.falta20)} pendiente${r.transferido > 0 ? ` de ${$$(r.obj20)}` : ""}`, monto: r.falta20 };
+  if (z.etapa === "Regla especial") return { txt: "Regla especial: según lo cobrado al cliente, una vez cumplidas las condiciones", monto: 0 };
+  return { txt: fin ? "Saldo de liquidación: por determinar (faltan condiciones)" : "Saldo de liquidación: se determina al finalizar la obra", monto: 0 };
 }
 function sfFalta(f, c, r){
   const p = v => pct(100 * sfN(v), 0);
@@ -13064,15 +13079,15 @@ function sfRazon(r){
   const o = r.o, c = r.c, est = o.estado || "";
   if (/renuncia/i.test(est)) return { tipo: "na", titulo: "Cliente renunció", items: ["No corresponde transferir al franquiciado por esta obra."] };
   if (!c) {
-    if (/reserva/i.test(est) || !o.fecha_contrato) return { tipo: "bloq", etapa: "Anticipo 20%", titulo: "Obra en reserva (sin contrato firmado)",
-      items: ["Firmar el contrato y registrar su fecha.", "Registrar la fecha del mail de seguro.", "Cobrar el royalty y que el cliente pague al menos el 50% del contrato: con eso se libera el anticipo del 20%."] };
+    if (/reserva/i.test(est) || !o.fecha_contrato) return { tipo: "bloq", etapa: "Anticipo 20%", titulo: "Obra en reserva (sin contrato firmado): primera transferencia pendiente",
+      items: ["Firmar el contrato y registrar su fecha.", "Registrar la fecha del mail de seguro.", "Cobrar el royalty y que el cliente pague al menos el 50% del contrato: con eso se libera la primera transferencia (20% del contrato)."] };
     if (/cerrada/i.test(est)) return { tipo: "ok", titulo: "Obra cerrada", items: ["Obra cerrada: no participa del cálculo de transferencias."] };
     return { tipo: "na", titulo: `Fuera del cálculo de Control de Pagos (${est || "sin estado"})`, items: [] };
   }
   const fal = c.faltantes || [], comp = sfN(c.oc_por_facturar) + sfN(c.facturas_por_pagar);
   const notaComp = comp > 0 ? [`Se reservan ${$$(comp)} para OC por facturar y facturas de proveedor por pagar.`] : [];
   if (String(c.decision || "").startsWith("Pagar"))
-    return { tipo: "listo", etapa: c.etapa, titulo: `Lista para transferir ${$$(c.monto_sugerido)} (${pillTexto(c.decision)})`, items: ["Cumple las condiciones: se propone en el próximo Control de Pagos (Por revisar)."] };
+    return { tipo: "listo", etapa: c.etapa, titulo: `Lista para transferir ${$$(c.monto_sugerido)} · ${SF_ETAPA[c.etapa] || pillTexto(c.decision)}`, items: ["Cumple las condiciones: se propone en el próximo Control de Pagos (Por revisar)."] };
   const sinDisp = () => [`Cumple los requisitos, pero no hay monto disponible en la obra (saldo en obra ${$$(r.saldo)}, disponible ${$$(c.disponible)}).`, ...notaComp];
   if (c.regla_especial || c.etapa === "Regla especial") {
     const it = fal.map(f => sfFalta(f, c, r));
@@ -13081,14 +13096,15 @@ function sfRazon(r){
   const anticipoPagado = r.transferido > 0 && (c.etapa === "Saldo final" || r.transferido >= 0.19 * r.contrato);
   if (!anticipoPagado) {
     const it = fal.filter(f => !(/100%|actas/i.test(f))).map(f => sfFalta(f, c, r));
-    return { tipo: "bloq", etapa: "Anticipo 20%", titulo: r.transferido > 0 ? `Anticipo parcial transferido (${sfPct(r.transferido, r.contrato)}): falta completar el 20%` : "Anticipo 20% pendiente",
+    return { tipo: "bloq", etapa: "Anticipo 20%", titulo: r.transferido > 0 ? `Primera transferencia parcial (${sfPct(r.transferido, r.contrato)}${r.contrato ? " del contrato" : ""}): falta completar el 20%` : "Primera transferencia (20% del contrato) pendiente",
       items: it.length ? [...it, ...notaComp] : sinDisp() };
   }
   const it = fal.map(f => sfFalta(f, c, r));
   if (!it.length && sfN(c.disponible) <= 1000 && /finalizada/i.test(est))
-    return { tipo: "ok", etapa: "Saldo final", titulo: "Saldo final transferido",
-      items: [`La diferencia con el contrato corresponde a lo que el cliente no ha pagado y a los descuentos de la obra (royalty, proveedores, Aquí Club, comisiones y obligaciones).`] };
-  return { tipo: "bloq", etapa: "Saldo final", titulo: `Anticipo pagado · transferido ${sfPct(r.transferido, r.contrato)} del contrato: saldo final pendiente`, items: it.length ? [...it, ...notaComp] : sinDisp() };
+    return { tipo: "ok", etapa: "Saldo final", titulo: "Obra liquidada: saldo de liquidación transferido",
+      items: [`El saldo se determinó al finalizar la obra, descontando royalty, materiales y proveedores, Aquí Club, comisiones y demás conceptos.`] };
+  const nota = /finalizada/i.test(est) ? [] : ["El saldo de liquidación se determina al finalizar la obra, descontando royalty, materiales, Aquí Club y demás conceptos."];
+  return { tipo: "bloq", etapa: "Saldo final", titulo: "Primera transferencia pagada · saldo de liquidación pendiente", items: [...(it.length ? [...it, ...notaComp] : sinDisp()), ...nota] };
 }
 // ---------- dibujo ----------
 const SF_PILL = { listo: ["ok", "Lista para transferir"], bloq: ["parcial", "Pendiente"], ok: ["ok", "Al día"], na: ["sin", "No aplica"] };
@@ -13106,7 +13122,8 @@ function dibujarSF(){
   const pagado = cob.filter(sfCuenta), porCob = cob.filter(x => !sfCuenta(x));
   const venc = porCob.filter(x => sfIso(x.vencimiento) && sfIso(x.vencimiento) < hoy);
   const tot = { contrato: sumar(conObras, r => r.contrato), cliente: sumar(conObras, r => r.cliente), transferido: sumar(conObras, r => r.transferido),
-    porTransferir: sumar(conObras, r => r.porTransferir), saldo: sumar(obras, r => r.saldo), listo: sumar(obras.filter(r => r.razon.tipo === "listo"), r => sfN(r.c.monto_sugerido)),
+    falta20: sumar(conObras.filter(r => r.razon.etapa === "Anticipo 20%"), r => r.corr.monto),
+    n20: conObras.filter(r => r.razon.etapa === "Anticipo 20%" && r.corr.monto > 0).length, saldo: sumar(obras, r => r.saldo), listo: sumar(obras.filter(r => r.razon.tipo === "listo"), r => sfN(r.c.monto_sugerido)),
     enProceso: sumar(obras, r => r.enProceso) };
   const f = D.f;
   let h = `<div class="sf-hoja">
@@ -13120,7 +13137,7 @@ function dibujarSF(){
       <div class="sf-kpi ${venc.length ? "rojo" : ""}"><span>Deuda vencida</span><b>${$$(sumar(venc, x => x.monto))}</b><small>${venc.length} cobro(s)</small></div>`;
   if (verOb) h += `<div class="sf-kpi"><span>Contratos de obras</span><b>${$$(tot.contrato)}</b><small>${conObras.length} obra(s) · pagado por clientes ${sfPct(tot.cliente, tot.contrato)}</small></div>
       <div class="sf-kpi verde"><span>Transferido al franquiciado</span><b>${$$(tot.transferido)}</b><small>${sfPct(tot.transferido, tot.contrato)} de los contratos${tot.enProceso ? ` · ${$$(tot.enProceso)} en proceso` : ""}</small></div>
-      <div class="sf-kpi al"><span>Por transferir (vs contrato)</span><b>${$$(tot.porTransferir)}</b><small>${sfPct(tot.porTransferir, tot.contrato)} de los contratos</small></div>
+      <div class="sf-kpi al"><span>Primeras transferencias pendientes (20%)</span><b>${$$(tot.falta20)}</b><small>${tot.n20} obra(s) con contrato aún sin completar su 20%</small></div>
       <div class="sf-kpi"><span>Saldo en obras hoy</span><b>${$$(tot.saldo)}</b><small>${tot.listo ? `${$$(tot.listo)} listo para transferir` : "nada listo para transferir"}</small></div>`;
   h += `</div>`;
   // resumen por ítem
@@ -13158,27 +13175,32 @@ function dibujarSF(){
           <tr class="sf-tr"><td><b>Transferido al franquiciado</b></td><td class="n"><b>${$$(r.transferido)}</b></td><td class="n sf-p"><b>${sfPct(r.transferido, r.contrato)}</b> del contrato</td></tr>
           ${r.enProceso ? lin("Transferencias en proceso (sin cartola)", r.enProceso) : ""}
           ${lin("Saldo en obra hoy", r.saldo)}
-          <tr class="sf-pt"><td><b>Pendiente de transferir (vs contrato)</b></td><td class="n"><b>${$$(r.porTransferir)}</b></td><td class="n sf-p"><b>${sfPct(r.porTransferir, r.contrato)}</b> del contrato</td></tr>
+          <tr class="sf-pt"><td><b>Primera transferencia (20% del contrato)</b></td><td class="n"><b>${$$(r.obj20)}</b></td><td class="n sf-p">${r.falta20 > 0 ? `faltan ${$$(r.falta20)}` : "pagada"}</td></tr>
+          <tr class="sf-pt"><td><b>Saldo de liquidación</b></td><td class="n" colspan="2"><small>${r.razon.tipo === "listo" && r.razon.etapa === "Saldo final" ? `<b>${$$(r.c.monto_sugerido)}</b> determinado, listo para transferir`
+            : r.razon.tipo === "ok" ? "liquidado" : /finalizada/i.test(r.o.estado || "") ? "por determinar (faltan condiciones)" : "se determina al finalizar la obra"}</small></td></tr>
         </tbody></table>`;
       const exp = `<div class="sf-razon ${z.tipo}"><b>${esc(z.titulo)}</b>${z.items.length ? `<ul>${z.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
           ${r.c && (r.c.advertencias || []).length ? `<small>Avisos: ${esc(r.c.advertencias.join(" · "))}</small>` : ""}</div>`;
       const movs = r.movs.length ? sfDet("om:" + o.codigo_atr, `Movimientos <small>${r.movs.length}</small>`, `<table class="sf-t"><thead><tr><th>Id pago</th><th>Fecha</th><th>Ítem</th><th>Medio</th><th>Conciliación</th><th class="n">Monto</th></tr></thead><tbody>
           ${r.movs.map(x => `<tr><td>${esc(x.id_pago)}</td><td>${esc(x.fecha_pago || "")}</td><td>${esc(x.item)}</td><td>${esc(x.medio || "")}</td><td>${esc(x.fecha_conciliacion || "sin conciliar")}</td><td class="n ${sfN(x.monto) < 0 ? "neg" : ""}">${$$(x.monto)}</td></tr>`).join("")}</tbody></table>`, false, "sub") : "";
       return sfDet("ob:" + o.codigo_atr, `<span class="sf-ob"><b>${esc(o.codigo_umb || "")}</b> ${esc(o.cliente || "")} <small>${esc(o.codigo_atr)} · ${esc(o.estado || "")}</small></span>
-          <span class="sf-ob-m">Transferido ${$$(r.transferido)} <b>(${sfPct(r.transferido, r.contrato)})</b> · Pendiente ${$$(r.porTransferir)} <b>(${sfPct(r.porTransferir, r.contrato)})</b></span>
+          <span class="sf-ob-m">Transferido ${$$(r.transferido)} <b>(${sfPct(r.transferido, r.contrato)}${r.contrato ? " del contrato" : ""})</b> · ${esc(r.corr.txt)}</span>
           <span class="pill ${pc}">${pt}</span>`, `<div class="sf-ob-grid">${recon}${exp}</div>${movs}`, false, "obra");
     }).join("") || `<p class="nota-g">La franquicia no tiene obras.</p>`;
     h += sfDet("obras", `Obras · ingresos, egresos y transferencias al franquiciado <small>${obras.length} obra(s) · transferido ${$$(tot.transferido)} (${sfPct(tot.transferido, tot.contrato)})</small>`, cuerpoOb, true);
     // no transferidos
-    const NT = obras.filter(r => r.razon.tipo !== "na" && r.razon.tipo !== "ok" && r.porTransferir > 0);
-    h += sfDet("nt", `Montos no transferidos y sus razones <small>${NT.length} obra(s) · ${$$(sumar(NT, r => r.porTransferir))}</small>`,
-      NT.length ? `<table class="sf-t sf-nt"><thead><tr><th>Obra</th><th>Etapa</th><th class="n">Contrato</th><th class="n">Transferido</th><th class="n">Pendiente</th><th>Por qué está pendiente · qué falta para liberarlo</th></tr></thead><tbody>
-        ${NT.map(r => `<tr><td><b>${esc(r.o.codigo_umb || "")}</b><br><small>${esc(r.o.cliente || "")}<br>${esc(r.o.estado || "")}</small></td><td>${esc(r.razon.etapa || "")}</td>
-          <td class="n">${$$(r.contrato)}</td><td class="n">${$$(r.transferido)}<br><small>${sfPct(r.transferido, r.contrato)}</small></td><td class="n"><b>${$$(r.porTransferir)}</b><br><small>${sfPct(r.porTransferir, r.contrato)}</small></td>
+    const NT = obras.filter(r => r.razon.tipo === "bloq" || r.razon.tipo === "listo");
+    const det = NT.filter(r => r.corr.monto > 0);
+    h += sfDet("nt", `Transferencias pendientes y sus razones <small>${NT.length} obra(s) · determinado ${$$(sumar(det, r => r.corr.monto))}</small>`,
+      NT.length ? `<table class="sf-t sf-nt"><thead><tr><th>Obra</th><th>Etapa</th><th class="n">Contrato</th><th class="n">Transferido</th><th>Corresponde según la etapa</th><th>Por qué está pendiente · qué falta para liberarlo</th></tr></thead><tbody>
+        ${NT.map(r => `<tr><td><b>${esc(r.o.codigo_umb || "")}</b><br><small>${esc(r.o.cliente || "")}<br>${esc(r.o.estado || "")}</small></td><td>${esc(SF_ETAPA[r.razon.etapa] || r.razon.etapa || "")}</td>
+          <td class="n">${$$(r.contrato)}</td><td class="n">${$$(r.transferido)}<br><small>${sfPct(r.transferido, r.contrato)}${r.contrato ? " del contrato" : ""}</small></td>
+          <td>${r.corr.monto > 0 ? `<b>${$$(r.corr.monto)}</b><br>` : ""}<small>${esc(r.corr.txt)}</small></td>
           <td><b>${esc(r.razon.titulo)}</b>${r.razon.items.length ? `<ul>${r.razon.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}</td></tr>`).join("")}</tbody>
-        <tfoot><tr><td colspan="2">Total</td><td class="n">${$$(sumar(NT, r => r.contrato))}</td><td class="n">${$$(sumar(NT, r => r.transferido))}</td><td class="n">${$$(sumar(NT, r => r.porTransferir))}</td><td></td></tr></tfoot></table>
-        <p class="sf-nota">“Pendiente” = contrato − transferido. Parte de ese monto nunca se transfiere (royalty, proveedores, Aquí Club, comisiones): el detalle de cada obra muestra cuánto es. Las condiciones son las de Control de Pagos: anticipo 20% con contrato, mail de seguro, royalty cobrado y cliente con 50% pagado; saldo final con cliente al 100% y acta al 100%.</p>`
-        : `<p class="nota-g">✓ No hay montos pendientes de transferir.</p>`, true);
+        <tfoot><tr><td colspan="2">Total</td><td class="n">${$$(sumar(NT, r => r.contrato))}</td><td class="n">${$$(sumar(NT, r => r.transferido))}</td><td><b>${$$(sumar(det, r => r.corr.monto))}</b> <small>determinado</small></td><td></td></tr></tfoot></table>
+        <p class="sf-nota"><b>Primera transferencia</b>: siempre el 20% del contrato; se libera con contrato, mail de seguro, royalty cobrado y cliente con 50% pagado.
+          <b>Saldo de liquidación</b>: lo que queda para el franquiciado después de la primera transferencia; se determina al finalizar la obra (cliente al 100% y acta al 100%), descontando royalty, materiales y proveedores, Aquí Club, comisiones y demás conceptos. Por eso no se muestra como monto “por transferir” hasta que está determinado.</p>`
+        : `<p class="nota-g">✓ No hay transferencias pendientes.</p>`, true);
   }
   h += `</div>`;
   $("sf-cuerpo").innerHTML = h;
@@ -13186,9 +13208,9 @@ function dibujarSF(){
 function sfXlsx(){
   const D = SF.d; if (!D) return toast("Elige una franquicia.");
   const obras = D.obras.map(sfObra), wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Centro costo", "Id obra", "Cliente", "Estado", "Contrato", "Pagado cliente", "Royalty", "Aquí Club", "Proveedores", "Comisiones", "Obligaciones", "Transferido", "% transferido", "Pendiente", "% pendiente", "Saldo en obra", "Situación", "Qué falta"],
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Centro costo", "Id obra", "Cliente", "Estado", "Contrato", "Pagado cliente", "Royalty", "Aquí Club", "Proveedores", "Comisiones", "Obligaciones", "Transferido", "% del contrato", "Primera transferencia (20%)", "Falta de la primera", "Corresponde según la etapa", "Saldo en obra", "Situación", "Qué falta"],
     ...obras.map(r => [r.o.codigo_umb, r.o.codigo_atr, r.o.cliente, r.o.estado, r.contrato, r.cliente, r.royalty, r.aquiclub, r.proveedores, r.comisiones, r.obligaciones, r.transferido,
-      r.contrato ? r.transferido / r.contrato : "", r.porTransferir, r.contrato ? r.porTransferir / r.contrato : "", r.saldo, r.razon.titulo, r.razon.items.join(" | ")])]), "Obras");
+      r.contrato ? r.transferido / r.contrato : "", r.obj20, r.falta20, r.corr.txt, r.saldo, r.razon.titulo, r.razon.items.join(" | ")])]), "Obras");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Id pago", "Ítem", "Fecha pago", "Factura", "Vencimiento", "Conciliación", "Monto"],
     ...D.pf.map(x => [x.id_pago, x.item, x.fecha_pago, x.factura_venta, x.vencimiento, x.fecha_conciliacion, sfN(x.monto)])]), "Franquicia");
   XLSX.writeFile(wb, `Situación financiera ${SF.fr} - ${new Date().toLocaleDateString("es-CL").replace(/\//g, "-")}.xlsx`);
