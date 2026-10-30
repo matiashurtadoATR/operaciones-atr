@@ -569,6 +569,7 @@
     #vista-sf .sf-t{font-size:9.5px}#vista-sf .sf-kpi b{font-size:14px}#vista-sf .sf-kpis{grid-template-columns:repeat(4,1fr)}
     #vista-sf .sf-razon,#vista-sf .sf-recon tr td,#vista-sf .sf-kpi{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
+  .bv-estado{border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:13px}.bv-estado.ok{background:#eef7ef;border:1px solid #b9dcb9}.bv-estado.pend{background:#fff4e5;border:1px solid #f1cf9a}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -1396,7 +1397,7 @@
       <h5 data-area="operaciones">Accesos</h5>
       <button data-rep="cred" data-area="operaciones" data-solo-supabase="1">Credenciales<small>Correo corporativo · AQUI University · AQUI PRO</small></button>
       <h5 data-area="operaciones">AquíClub</h5>
-      <button data-rep="bienv" data-area="operaciones" data-solo-supabase="1">Bienvenida AquíClub<small>Proveedores (CCO) + tabla al franquiciado</small></button>
+      <button data-rep="bienv" data-area="operaciones" data-solo-supabase="1">Bienvenida AquíClub<small>Convenios, cómo comprar y seguimiento por franquicia</small></button>
       <button data-ptarea="bienvenida" data-area="operaciones" data-solo-supabase="1">Enviar bienvenida AquíClub<small><span class="tag-p">PANEL</span>Proveedores (CCO) + franquiciado</small></button>
 
       <h4 class="sep">Aquí Club</h4>
@@ -6269,9 +6270,29 @@ $("aqc-enviar").onclick = () => abrirPanel({ tarea: "aquiclub" });
 const BV = { tab: "pres", prov: [], fqs: [], hist: [], carga: null, fr: "", nombre: "", para: "", cc: true, sel: null, firma: "" };
 const BV_BIENVENIDA = "Es un placer para nosotros poder incorporarte a nuestra red. A través de AquíClub tendrás acceso a nuestros proveedores y a condiciones comerciales preferenciales negociadas especialmente para nuestra red de franquiciados.";
 const bvVig = () => BV.prov.filter(p => p.vigente);
+const BV_ATRIUM = [["Razón social", "INVERSIONES ATRIUM CHILE SPA"], ["RUT", "77.057.269-K"], ["Giro", "ALQUILER DE BIENES INMUEBLES AMOBLADOS O"],
+                   ["Dirección", "AV. LA DEHESA 1822 OF. 202"], ["Comuna", "Lo Barnechea"]];
+const bvDatosAtrium = () => `<table style="border-collapse:collapse;margin:6px 0 4px;font-size:13px">${BV_ATRIUM.map(([k, v]) =>
+  `<tr><td style="padding:3px 14px 3px 10px;color:#6f625b;border-left:3px solid #be5014">${k}</td><td style="padding:3px 6px"><b>${v}</b></td></tr>`).join("")}</table>`;
+const BV_PASO = "vertical-align:top;padding:10px 12px;border-bottom:1px solid #f0e2da";
+const bvNum = n => `<span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:13px;background:#be5014;color:#fff;text-align:center;font-weight:bold">${n}</span>`;
+/* cómo funcionan los convenios (correo al franquiciado) */
+const bvComoFunciona = () => `<h3 style="color:#7e350e;font-size:16px;margin:18px 0 6px">¿Cómo funcionan los convenios AquíClub?</h3>
+<p>Los convenios con los proveedores están suscritos por <b>Inversiones Atrium Chile SpA</b>. A través de <b>AquíClub</b> gestionamos tus compras para que accedas a los descuentos acordados. Para comprar con convenio:</p>
+<table style="border-collapse:collapse;width:100%;max-width:760px;font-size:13.5px;margin:4px 0 14px;background:#fdf7f3">
+<tr><td style="${BV_PASO};width:36px">${bvNum(1)}</td><td style="${BV_PASO}"><b>Cotización.</b> Pide la cotización al proveedor e indícale que eres franquiciado de <b>Aquí Tu Remodelación</b> (convenio AquíClub).
+La cotización debe venir con el <b>descuento del convenio ya aplicado</b>. Ya les presentamos tu incorporación a la red, así que te tienen identificado.</td></tr>
+<tr><td style="${BV_PASO};width:36px">${bvNum(2)}</td><td style="${BV_PASO}"><b>Orden de compra y factura.</b> Aprobada la cotización, emite la orden de compra y pide que la
+<b>factura se emita a nombre de Inversiones Atrium Chile SpA</b>, con estos datos:${bvDatosAtrium()}</td></tr></table>`;
+/* el mismo funcionamiento, contado al proveedor */
+const bvComoFuncionaProv = () => `<p>Les recordamos cómo opera el convenio AquíClub, suscrito con <b>Inversiones Atrium Chile SpA</b>:</p>
+<ol style="margin:4px 0 12px;padding-left:20px"><li style="margin-bottom:6px"><b>Cotización:</b> el franquiciado les pedirá una cotización; por favor apliquen el <b>descuento del convenio</b>. Este correo lo acredita como parte de nuestra red.</li>
+<li><b>Orden de compra y factura:</b> aprobada la cotización, el franquiciado les enviará la orden de compra. La <b>factura debe emitirse a nombre de Inversiones Atrium Chile SpA</b>:${bvDatosAtrium()}</li></ol>`;
 async function cargarBienv(forzar){
   const [a, f, h, c, cfg] = await Promise.all([db.from("v_acuerdo_proveedores").select("*").order("orden"),
-    todo(() => db.from("v_onb_estado").select("codigo_atr,franquiciado,rut_franquiciado,rrll1,correo_franquiciado,correo_corporativo,correos_corporativos,etapa,ubicacion").order("codigo_atr")),
+    (async () => { const b = "codigo_atr,franquiciado,rut_franquiciado,rrll1,correo_franquiciado,correo_corporativo,correos_corporativos,etapa,ubicacion,fecha_contrato,fecha_activacion";
+      const r = await todo(() => db.from("v_onb_estado").select(b + ",bienvenida_aqc_en,bienvenida_aqc_primera_en,bienvenida_aqc_por,bienvenida_aqc_a,bienvenida_aqc_n_proveedores,bienvenida_aqc_n_envios,bienvenida_aqc_medio").order("codigo_atr"));
+      BV.sin69 = !!r.error; return r.error ? todo(() => db.from("v_onb_estado").select(b).order("codigo_atr")) : r; })(),
     todo(() => db.from("v_acuerdo_bienvenidas").select("*").order("enviado_en", { ascending: false })),
     db.from("acuerdo_carga").select("*").order("id", { ascending: false }).limit(1),
     db.from("config_app").select("valor").eq("clave", "onb_dominio")]);
@@ -6315,6 +6336,7 @@ function bvHTMLProv(){
 <p>Junto con saludar, les presentamos a nuestro <b>nuevo franquiciado</b>, que se incorpora a la red Aquí Tu Remodelación:</p>
 <table style="border-collapse:collapse;width:100%;max-width:620px;font-size:13.5px;margin:4px 0 12px">${filas.map(([k, v]) => `<tr><td style="${BV_TD};color:#6f625b;width:200px">${bvH(k)}</td><td style="${BV_TD}"><b>${bvH(v)}</b></td></tr>`).join("")}</table>
 <p>Le agradeceremos atenderlo con las condiciones comerciales de nuestro <b>convenio AquíClub</b> vigente con ustedes. Ya le enviamos sus datos de contacto, por lo que podría comunicarse con ustedes en los próximos días.</p>
+${bvComoFuncionaProv()}
 <p>Saludos cordiales,<br>${bvFirma()}</p></div>`;
 }
 /* 2 · correo al franquiciado: todos los proveedores con acuerdo vigente en una tabla */
@@ -6330,9 +6352,11 @@ function bvHTMLFranq(){
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#2a1a12;line-height:1.5;max-width:820px">
 <p>Hola ${bvH(BV.nombre)},</p>
 <p>${bvH(BV_BIENVENIDA)}</p>
-<p>Te presentamos a nuestros <b>proveedores con acuerdo comercial vigente</b>, con sus descuentos sobre precio lista neto, condiciones y contacto. Ya les informamos de tu incorporación, así que puedes contactarlos directamente:</p>
+${bvComoFunciona()}
+<h3 style="color:#7e350e;font-size:16px;margin:18px 0 6px">Proveedores con acuerdo comercial vigente</h3>
+<p>Sus descuentos son sobre precio lista neto. Revisa las condiciones y el contacto de cada uno:</p>
 <table style="border-collapse:collapse;width:100%;font-size:13px;margin:4px 0 12px"><tr><th style="${BV_TH}">Proveedor y contacto</th><th style="${BV_TH}">Producto / Categoría</th><th style="${BV_TH};text-align:right">Descuento</th></tr>${filas}</table>
-<p style="background:#fdf2ec;border-left:4px solid #be5014;padding:10px 12px">Al cotizar o comprar, identifícate como franquiciado de <b>Aquí Tu Remodelación</b> (convenio AquíClub). Ante cualquier duda, escríbenos.</p>
+<p style="background:#fdf2ec;border-left:4px solid #be5014;padding:10px 12px"><b>Recuerda:</b> identifícate como franquiciado de <b>Aquí Tu Remodelación</b> (convenio AquíClub), pide la cotización con el descuento del convenio y que la factura se emita a nombre de <b>INVERSIONES ATRIUM CHILE SPA</b> (RUT 77.057.269-K). Ante cualquier duda, escríbenos.</p>
 <p>¡Bienvenido a la red!<br><br>Saludos cordiales,<br>${bvFirma()}</p></div>`;
 }
 const bvAsuntoProv = () => `AquíClub · Nuevo franquiciado: ${bvFq().franquiciado || BV.fr}`;
@@ -6342,15 +6366,16 @@ function dibujarBienv(){
   const V = bvVig();
   $("bv-carga").innerHTML = BV.carga ? `Último Excel: <b>${esc(BV.carga.archivo || "")}</b> · ${new Date(BV.carga.cargado_en).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })} · ${BV.carga.n_proveedores} proveedores · ${V.length} con acuerdo vigente`
     : `Todavía no se ha cargado el Excel de acuerdos.`;
-  const t = [["pres", "Bienvenida al franquiciado"], ["prov", `Proveedores y convenios · ${BV.prov.length}`], ["hist", `Historial · ${BV.hist.length}`]];
+  const pend = bvSeguimiento().filter(f => !f.bienvenida_aqc_en).length;
+  const t = [["pres", "Bienvenida al franquiciado"], ["seg", `Seguimiento onboarding${pend ? ` · ${pend} pendiente${pend === 1 ? "" : "s"}` : ""}`], ["prov", `Proveedores y convenios · ${BV.prov.length}`], ["hist", `Historial · ${BV.hist.length}`]];
   $("bv-tabs").innerHTML = t.map(([k, x]) => `<button class="chip ${BV.tab === k ? "activo" : ""}" data-bvt="${k}">${x}</button>`).join("");
-  $("bv-cuerpo").innerHTML = BV.tab === "pres" ? bvPres() : BV.tab === "prov" ? bvProv() : bvHist();
+  $("bv-cuerpo").innerHTML = BV.tab === "pres" ? bvPres() : BV.tab === "seg" ? bvSeg() : BV.tab === "prov" ? bvProv() : bvHist();
 }
 function bvPres(){
   const V = bvVig(), ya = bvPresentados(), ed = puedeEditar();
   if (!V.length) return `<div class="cf-aviso">No hay proveedores con acuerdo vigente. Sube el Excel de acuerdos.</div>`;
   const ctl = `<div class="controles">
-      <div class="campo" style="min-width:260px"><label>Franquicia</label><select id="bv-fr"><option value="">Elige…</option>${BV.fqs.map(f => `<option value="${esc(f.codigo_atr)}" ${f.codigo_atr === BV.fr ? "selected" : ""}>${esc(f.codigo_atr)} · ${esc(f.franquiciado)}</option>`).join("")}</select></div>
+      <div class="campo" style="min-width:260px"><label>Franquicia</label><select id="bv-fr"><option value="">Elige…</option>${BV.fqs.map(f => `<option value="${esc(f.codigo_atr)}" ${f.codigo_atr === BV.fr ? "selected" : ""}>${esc(f.codigo_atr)} · ${esc(f.franquiciado)}${f.bienvenida_aqc_en ? " · ✓ enviada " + fecha(String(f.bienvenida_aqc_en).slice(0, 10)) : ""}</option>`).join("")}</select></div>
       <div class="campo"><label>Nombre (saludo)</label><input id="bv-nombre" value="${esc(BV.nombre)}"></div>
     </div>`;
   const correosUI = !BV.fr ? "" : `<div class="cf-caja" style="margin:0 0 12px;padding:10px 14px"><div class="nota-g" style="margin-bottom:6px"><b>Correos corporativos (destino)</b> · van todos los marcados; desmarca los que no correspondan</div>
@@ -6365,7 +6390,11 @@ function bvPres(){
   const chips = `<div style="margin:2px 0 12px"><div class="nota-g" style="margin-bottom:4px">Proveedores incluidos (${S.length} de ${V.length}):</div><div style="display:flex;flex-wrap:wrap;gap:6px 14px">
       ${V.map(p => `<label style="display:inline-flex;gap:5px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer"><input type="checkbox" data-bvp="${p.id}" ${!BV.sel || BV.sel.has(p.id) ? "checked" : ""}> ${esc(p.nombre)}${ya.has(p.id) ? ` <span class="bv-est ok">presentado</span>` : ""}${(p.correos || []).length ? "" : ` <span class="bv-est ven">sin correo</span>`}${p.dias_para_vencer != null && p.dias_para_vencer <= 30 ? ` <span class="bv-est ven">vence en ${p.dias_para_vencer} d</span>` : ""}</label>`).join("")}</div></div>`;
   const avisoRut = f.rut_franquiciado ? "" : `<div class="cf-aviso">⚠ Esta franquicia no tiene RUT en la base (Ingreso de datos › Franquicias).</div>`;
-  return ctl + correosUI + chips + avisoRut + `
+  const env = f.bienvenida_aqc_en ? `<div class="bv-estado ok">✓ <b>Bienvenida AquíClub enviada</b> el ${new Date(f.bienvenida_aqc_en).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
+      por ${esc(String(f.bienvenida_aqc_por || "").split("@")[0])} a ${esc(f.bienvenida_aqc_a || "")} · ${f.bienvenida_aqc_n_proveedores} proveedor(es) presentados${+f.bienvenida_aqc_n_envios > 1 ? ` · ${f.bienvenida_aqc_n_envios} envíos` : ""}.
+      Si la vuelves a enviar, queda registrado otro envío.</div>`
+    : BV.sin69 ? "" : `<div class="bv-estado pend">Bienvenida AquíClub <b>pendiente</b>: al enviarla desde el Panel queda registrada sola en el onboarding de ${esc(BV.fr)}; si la envías desde tu correo, presiona <b>Marcar como enviada</b>.</div>`;
+  return ctl + correosUI + env + chips + avisoRut + `
     <h4 style="margin:14px 0 6px;color:var(--cafe)">1 · Correo a los proveedores <small style="font-weight:400;color:var(--gris)">(un solo correo, todos en copia oculta)</small></h4>
     <div class="bv-card"><div style="font-size:12px;color:var(--gris);border-bottom:1px solid var(--linea);padding-bottom:8px;margin-bottom:10px">
       <b>CCO (${bcc.length}):</b> ${esc(bcc.join(", ") || "—")}<br><b>Asunto:</b> ${esc(bvAsuntoProv())}
@@ -6397,6 +6426,26 @@ function bvHist(){
       <td>${esc(h.proveedor)}</td><td>${esc(h.correo || "")}${h.cc ? `<br><small>cc ${esc(h.cc)}</small>` : ""}</td><td>${esc(h.medio || "")}</td><td><small>${esc((h.enviado_por || "").split("@")[0])}</small></td></tr>`).join("")}</tbody></table></div>`
     : `<p class="nota-g">Todavía no se ha presentado ningún proveedor.</p>`;
 }
+/* seguimiento: franquicias con contrato (o en activación/activadas) y si ya recibieron la bienvenida */
+function bvSeguimiento(){ return (BV.fqs || []).filter(f => f.fecha_contrato || ["En activación", "Activada", "Operando"].includes(f.etapa)); }
+function bvSeg(){
+  if (BV.sin69) return `<div class="cf-aviso">Para el seguimiento ejecuta <b>69_onboarding_bienvenida_aquiclub.sql</b> en Supabase.</div>`;
+  const L = bvSeguimiento().slice().sort((a, b) => (!!a.bienvenida_aqc_en - !!b.bienvenida_aqc_en) || a.codigo_atr.localeCompare(b.codigo_atr));
+  const env = L.filter(f => f.bienvenida_aqc_en).length;
+  return `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="kpi"><div class="t">Franquicias con contrato</div><div class="v">${L.length}</div><div class="s">reserva excluida</div></div>
+      <div class="kpi"><div class="t">Bienvenida enviada</div><div class="v">${env}</div><div class="s">recibieron los convenios y cómo comprar</div></div>
+      <div class="kpi ${L.length - env ? "alerta" : ""}"><div class="t">Pendientes</div><div class="v">${L.length - env}</div><div class="s">aún sin bienvenida AquíClub</div></div></div>
+    <div class="tabla-wrap"><table class="cp"><thead><tr><th>Franquicia</th><th>Etapa</th><th>Contrato · activación</th><th>Bienvenida AquíClub</th><th>Enviada a</th><th></th></tr></thead><tbody>
+    ${L.map(f => `<tr><td><b>${esc(f.codigo_atr)}</b><br><small>${esc(f.franquiciado)}</small></td><td>${esc(f.etapa || "")}</td>
+      <td><small>${f.fecha_contrato ? "contrato " + fecha(f.fecha_contrato) : "sin contrato"}${f.fecha_activacion ? "<br>activada " + fecha(f.fecha_activacion) : ""}</small></td>
+      <td>${f.bienvenida_aqc_en ? `<span class="bv-est ok">Enviada ${fecha(String(f.bienvenida_aqc_en).slice(0, 10))}</span><br><small>${f.bienvenida_aqc_n_proveedores} proveedor(es) · ${esc(f.bienvenida_aqc_medio || "")} · ${esc(String(f.bienvenida_aqc_por || "").split("@")[0])}${+f.bienvenida_aqc_n_envios > 1 ? ` · ${f.bienvenida_aqc_n_envios} envíos (primera ${fecha(String(f.bienvenida_aqc_primera_en).slice(0, 10))})` : ""}</small>`
+        : `<span class="bv-est ven">Pendiente</span>`}</td>
+      <td><small>${esc(f.bienvenida_aqc_a || "")}</small></td>
+      <td><button class="cf-btn" data-bvprep="${esc(f.codigo_atr)}">${f.bienvenida_aqc_en ? "Reenviar" : "Preparar bienvenida"}</button></td></tr>`).join("")
+      || `<tr><td colspan="6" class="cp-vacio">No hay franquicias con contrato.</td></tr>`}</tbody></table></div>
+    <p class="nota-g">El envío queda registrado solo cuando sale desde el <b>Panel</b>; si lo envías desde tu correo, usa <b>Marcar como enviada</b>. También se ve en Onboarding › Estado de activación.</p>`;
+}
 $("bv-tabs").onclick = e => { const b = e.target.closest("[data-bvt]"); if (b) { BV.tab = b.dataset.bvt; dibujarBienv(); } };
 $("bv-cuerpo").addEventListener("change", e => {
   if (e.target.id === "bv-fr") { bvElegir(e.target.value); dibujarBienv(); }
@@ -6413,6 +6462,7 @@ $("bv-cuerpo").addEventListener("input", e => {
 });
 $("bv-cuerpo").addEventListener("click", async e => {
   if (e.target.closest("[data-bvpanel]")) return abrirPanel({ tarea: "bienvenida", fr: BV.fr });
+  const pr = e.target.closest("[data-bvprep]"); if (pr) { bvElegir(pr.dataset.bvprep); BV.tab = "pres"; return dibujarBienv(); }
   if (e.target.id === "bv-corp-guardar") {
     const c = (BV.corpNuevo || "").toLowerCase();
     if (!c.endsWith("@" + BV.dom) || !/^[^@\s]+@[^@\s]+$/.test(c)) return toast(`El correo corporativo debe terminar en @${esc(BV.dom)}.`, 7000);
@@ -6438,6 +6488,7 @@ $("bv-cuerpo").addEventListener("click", async e => {
   if (id === "bv-marcar") { const ids = bvSel().map(p => p.id);
     if (!confirm(`¿Registrar la bienvenida de ${BV.fr} con ${ids.length} proveedor(es)?`)) return;
     const { error } = await db.rpc("acuerdo_registrar_bienvenida", { p: { franquicia: BV.fr, proveedores: ids, correo: bvPara(), cc: bvBcc().length ? "CCO: " + bvBcc().join(", ") : null, medio: "Correo propio" } });
+    if (typeof ONB !== "undefined") ONB.filas = null;
     if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
     toast(`✓ Bienvenida registrada (${ids.length} proveedores).`); await cargarBienv(); }
 });
@@ -7790,9 +7841,11 @@ function dibujarOnb(){
   const n = e => T.filter(r => r.etapa === e).length;
   const sinCred = vivas.filter(r => ["En activación", "Activada", "Operando"].includes(r.etapa) && !r.credenciales_en);
   const lentas = T.filter(r => r.etapa === "En activación" && r.dias_sin_activar > 120);
+  const conBv = T.some(r => "bienvenida_aqc_en" in r), sinBv = conBv ? vivas.filter(r => ["En activación", "Activada", "Operando"].includes(r.etapa) && !r.bienvenida_aqc_en) : [];
   const k = (t, v, s, chip, cls = "") => `<div class="kpi ${cls}" ${chip ? `data-onbk="${chip}" style="cursor:pointer"` : ""}><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
   $("onb-kpis").innerHTML = k("En activación", n("En activación"), "contrato firmado, cumpliendo requisitos", "act", "destacado") + k("Reservas", n("Reserva"), "sin contrato todavía", "resv")
     + k("Activadas", n("Activada") + n("Operando"), `${n("Operando")} ya operando obras`, "ok") + k("Sin credenciales enviadas", sinCred.length, "con contrato y sin accesos", "", sinCred.length ? "alerta" : "")
+    + (conBv ? k("Sin bienvenida AquíClub", sinBv.length, "con contrato y sin el correo de convenios", "", sinBv.length ? "alerta" : "") : "")
     + k("Más de 120 días sin activar", lentas.length, "desde la firma del contrato", "", lentas.length ? "alerta" : "");
   const base = T.filter(r => ["En activación", "Activada", "Operando"].includes(r.etapa)), cuenta = {};
   base.forEach(r => (r.faltantes || []).forEach(f => cuenta[f] = (cuenta[f] || 0) + 1));
@@ -7801,12 +7854,13 @@ function dibujarOnb(){
       <span class="b"><i style="width:${100 * c / max}%"></i></span><span class="n">${c}</span></div>`).join("") || `<p class="nota-g">Nada pendiente.</p>`;
   const al = [...lentas.map(r => `<li><a href="#" data-franq="${esc(r.codigo_atr)}"><b>${esc(r.codigo_atr)}</b> ${esc(r.franquiciado)}</a> · ${r.dias_sin_activar} días desde el contrato sin activar</li>`),
               ...sinCred.map(r => `<li><a href="#" data-franq="${esc(r.codigo_atr)}"><b>${esc(r.codigo_atr)}</b> ${esc(r.franquiciado)}</a> · credenciales no enviadas <a href="#" data-onbcred="${esc(r.codigo_atr)}">Enviar →</a></li>`),
+              ...sinBv.map(r => `<li><a href="#" data-franq="${esc(r.codigo_atr)}"><b>${esc(r.codigo_atr)}</b> ${esc(r.franquiciado)}</a> · bienvenida AquíClub no enviada <a href="#" data-onbbv="${esc(r.codigo_atr)}">Preparar →</a></li>`),
               ...vivas.filter(r => r.seguro_vence && r.seguro_vence < hoyISO()).map(r => `<li><b>${esc(r.codigo_atr)}</b> · seguro vencido el ${fecha(r.seguro_vence)}</li>`)];
   $("onb-alertas").innerHTML = al.length ? `<ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">${al.join("")}</ul>` : `<p class="nota-g">Sin alertas.</p>`;
   const ch = [["act", "En activación"], ["ok", "Activadas"], ["resv", "Reservas"], ["todas", "Todas"], ["ren", "Renunciadas"]];
   $("onb-chips").innerHTML = ch.map(([c, t]) => `<button class="chip ${ONB.chip === c ? "activo" : ""}" data-onbc="${c}">${t} · ${T.filter(r => ONB_ETAPAS[c].includes(r.etapa)).length}</button>`).join("");
   const L = onbFiltrar();
-  $("onb-tabla").innerHTML = `<thead><tr><th>Franquicia</th><th>Etapa</th><th>Reserva · contrato</th><th>Activación</th><th>Avance</th><th>Falta</th><th>Credenciales</th><th>Seguros</th></tr></thead><tbody>` +
+  $("onb-tabla").innerHTML = `<thead><tr><th>Franquicia</th><th>Etapa</th><th>Reserva · contrato</th><th>Activación</th><th>Avance</th><th>Falta</th><th>Credenciales</th>${conBv ? "<th>Bienvenida AquíClub</th>" : ""}<th>Seguros</th></tr></thead><tbody>` +
     (L.map(r => `<tr class="fila" data-franq="${esc(r.codigo_atr)}">
       <td><b>${esc(r.codigo_atr)}</b><br><small>${esc(r.franquiciado)}</small><br><small>${esc(r.tipo || "")}${r.ubicacion ? " · " + esc(r.ubicacion) : ""}</small></td>
       <td>${esc(r.etapa)}${r.excepcion ? `<br><small style="color:#a1281f">opera con pendientes</small>` : ""}</td>
@@ -7816,8 +7870,10 @@ function dibujarOnb(){
       <td>${(r.faltantes || []).map(f => `<span class="onb-falta">${esc(f)}</span>`).join("") || `<span class="onb-ok">✓ completo</span>`}</td>
       <td>${r.credenciales_en ? `<span class="onb-ok">${fecha(String(r.credenciales_en).slice(0, 10))}</span><br><small>${esc(r.correo_corporativo || "")}</small>`
             : r.fecha_contrato ? `<button class="cf-btn" data-onbcred="${esc(r.codigo_atr)}">Enviar credenciales</button>` : `<span class="cf-gris">—</span>`}</td>
+      ${conBv ? `<td>${r.bienvenida_aqc_en ? `<span class="onb-ok">${fecha(String(r.bienvenida_aqc_en).slice(0, 10))}</span><br><small>${r.bienvenida_aqc_n_proveedores} proveedor(es)</small>`
+            : r.fecha_contrato ? `<button class="cf-btn" data-onbbv="${esc(r.codigo_atr)}">Preparar bienvenida</button>` : `<span class="cf-gris">—</span>`}</td>` : ""}
       <td>${r.seguros_ok ? `<small>vence ${fecha(r.seguro_vence)}</small>` : `<span class="cf-gris">falta</span>`}</td></tr>`).join("")
-     || `<tr><td colspan="8" class="cp-vacio">Sin franquicias con estos filtros.</td></tr>`) + `</tbody>`;
+     || `<tr><td colspan="${conBv ? 9 : 8}" class="cp-vacio">Sin franquicias con estos filtros.</td></tr>`) + `</tbody>`;
 }
 $("onb-kpis").onclick = e => { const k = e.target.closest("[data-onbk]"); if (k) { ONB.chip = k.dataset.onbk; dibujarOnb(); } };
 $("onb-chips").onclick = e => { const c = e.target.closest("[data-onbc]"); if (c) { ONB.chip = c.dataset.onbc; dibujarOnb(); } };
@@ -7830,12 +7886,17 @@ $("onb-xlsx").onclick = () => {
   const L = onbFiltrar(); if (!L.length) return toast("No hay filas para exportar.");
   const b = v => v === true ? "sí" : v === false ? "no" : "";
   const ws = XLSX.utils.aoa_to_sheet([["Id franquicia", "Franquiciado", "Tipo", "Etapa", "Fecha reserva", "Fecha contrato", "Fecha activación", "Días sin activar", "Pasos", "Contrato",
-    "Canon 100%", "V°B° legal", "Formación inicial", "Entrevista técnica", "Test CRM", "Garantía obra", "Seguros TRC y RC", "Falta", "Credenciales enviadas", "Correo corporativo"],
+    "Canon 100%", "V°B° legal", "Formación inicial", "Entrevista técnica", "Test CRM", "Garantía obra", "Seguros TRC y RC", "Falta", "Credenciales enviadas", "Correo corporativo", "Bienvenida AquíClub enviada", "Proveedores presentados"],
     ...L.map(r => [r.codigo_atr, r.franquiciado, r.tipo, r.etapa, fecha(r.fecha_reserva), fecha(r.fecha_contrato), fecha(r.fecha_activacion), r.dias_sin_activar ?? "", `${r.pasos_ok}/${PASOS.length}`,
       r.fecha_contrato ? "sí" : "no", b(r.canon_ok), b(r.vb_legal), b(r.formacion_inicial), b(r.entrevista_tecnica), b(r.test_crm), b(r.garantia_obra), b(r.seguros_ok),
-      (r.faltantes || []).join(", "), r.credenciales_en ? fecha(String(r.credenciales_en).slice(0, 10)) : "", r.correo_corporativo || ""])]);
+      (r.faltantes || []).join(", "), r.credenciales_en ? fecha(String(r.credenciales_en).slice(0, 10)) : "", r.correo_corporativo || "",
+      r.bienvenida_aqc_en ? fecha(String(r.bienvenida_aqc_en).slice(0, 10)) : "", r.bienvenida_aqc_n_proveedores ?? ""])]);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Estado de activación"); XLSX.writeFile(wb, `Estado de activación - ${hoyISO()}.xlsx`);
 };
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-onbbv]"); if (!c) return;
+  e.preventDefault(); e.stopPropagation(); BV.fr = c.dataset.onbbv; BV.nombre = ""; BV.tab = "pres"; irDetalle("bienv");
+}, true);
 document.addEventListener("click", e => {
   const c = e.target.closest("[data-onbcred]"); if (!c) return;
   e.preventDefault(); e.stopPropagation(); CRED.fr = c.dataset.onbcred; CRED.d = null; irDetalle("cred");
@@ -9608,7 +9669,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 68;
+const VERSION_PAGINA = 69;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
