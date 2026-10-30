@@ -518,6 +518,23 @@
   .ctm-t{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}.ctm-t th{text-align:left;color:var(--gris);font-size:11.5px;border-bottom:1px solid var(--linea);padding:4px 6px}
   .ctm-t td{border-bottom:1px solid #f1e6df;padding:5px 6px}.ctm-t td.n,.ctm-t th.n{text-align:right;font-variant-numeric:tabular-nums}.ctm-t tr.off td{opacity:.45}
   .ctm-res{background:#f7f1ee;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px}
+  /* v67 · Fondos */
+  .fd-tipo{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .fd-tipo.r{background:#f6e3d8;color:#8a3a10}.fd-tipo.a{background:#e4eefb;color:#1f4f8a}.fd-tipo.f{background:#e3f3e1;color:#1e6b2b}
+  .fd-filtros{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px}.fd-filtros .chips{margin:0}.fd-filtros input{flex:1;min-width:220px;max-width:340px}
+  .fd-kpis{display:grid;grid-template-columns:1.3fr repeat(3,1fr) 1.2fr;gap:10px;margin-bottom:14px}
+  .fd-kpi{display:flex;flex-direction:column;gap:3px;text-align:left;font:inherit;color:var(--tinta);background:#fff;border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
+  button.fd-kpi{cursor:pointer}button.fd-kpi:hover{box-shadow:0 2px 10px rgba(126,53,14,.12)}.fd-kpi.sel{box-shadow:0 0 0 2px rgba(190,80,20,.35);background:#fff7f1}
+  .fd-kpi span{font-size:12px;font-weight:700;color:var(--gris)}.fd-kpi b{font-size:21px;font-variant-numeric:tabular-nums}.fd-kpi small{font-size:11.5px;color:var(--gris)}
+  .fd-kpi.total{background:var(--cafe);border-color:var(--cafe)}.fd-kpi.total span,.fd-kpi.total small{color:#f3d9cb}.fd-kpi.total b{color:#fff;font-size:24px}
+  .fd-kpi.cobrar{background:#f7f3f0;border-style:dashed}.fd-kpi.cobrar b{color:var(--gris)}
+  .fd-barra{position:sticky;top:0;z-index:5;display:flex;gap:14px;align-items:center;background:#fff7f1;border:1px solid #f0c9ad;border-radius:10px;padding:9px 12px;margin-bottom:10px}
+  .fd-barra span{flex:1}
+  .fd-t tr.sel td{background:#fff7f1}.fd-monto{width:120px;text-align:right}
+  .fd-h{font-size:14px;color:var(--cafe);margin:16px 0 8px}
+  .fd-res{max-height:240px;overflow:auto;border:1px solid var(--linea);border-radius:8px;margin:6px 0 10px}
+  .fd-res div{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid #f1e6df;font-size:13px}.fd-res div>span:not(.fd-tipo){flex:1}.fd-res small{color:var(--gris)}
+  @media (max-width:900px){.fd-kpis{grid-template-columns:1fr 1fr}}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -1372,6 +1389,8 @@
       <h5 data-area="contabilidad">Pagos</h5>
       <button data-rep="cont" data-mod="pagos" data-area="contabilidad" data-solo-supabase="1">Pagos para la semana<small>Enviados por Operaciones · marcar pagada<span class="n-ctrl" id="cont-n-pagos"></span></small></button>
       <button data-rep="cont" data-mod="conc" data-area="contabilidad" data-solo-supabase="1">Pagos conciliados<small>Obras y franquiciados · histórico</small></button>
+      <h5 data-area="contabilidad">Fondos</h5>
+      <button data-rep="cont" data-mod="fondos" data-area="contabilidad" data-solo-supabase="1">Fondos<small>Por usar · usados<span class="n-ctrl" id="cont-n-fondos"></span></small></button>
       <h5 data-area="contabilidad">Centros de costo</h5>
       <button data-rep="cc" data-mod="cobras" data-area="contabilidad" data-solo-supabase="1">Centros de costo · Obras<small>Id franquicia, Id OPP, CC y cliente</small></button>
       <button data-rep="cc" data-mod="cfranq" data-area="contabilidad" data-solo-supabase="1">Centros de costo · Franquiciados<small>Cada ítem de cobro (PT, arriendo, canon…)</small></button>
@@ -6433,6 +6452,7 @@ const CONT_INFO = {
   fobras: { t: "Facturas de obras", d: "Royalty y Aquí Club de cada obra. Llegan solas cuando Patricio aprueba la solicitud. Toma la solicitud, emite cada factura y registra su folio (marca las líneas que incluye). En ⓘ están el giro, la ciudad, el teléfono y el representante legal." },
   ffranq: { t: "Facturas de franquiciados", d: "Canon de entrada, arriendos, plataforma tecnológica, mínimos trimestrales y otros cobros a franquiciados. Llegan solas cuando Patricio aprueba la solicitud. Toma la solicitud, emite cada factura y registra su folio. En ⓘ están el giro, la ciudad, el teléfono y el representante legal." },
   pagos: { t: "Pagos para la semana", d: "Solicitudes de pago que envía Operaciones (Control de Pagos), por semana de pago: obra, contrato, avance, factura, OC, neto, IVA, total, saldo de la obra y datos bancarios del destinatario. Cuando se pague, marca la solicitud como pagada con la fecha oficial de pago (o pago por pago). Clic en el ID de obra o de franquicia para ver su ficha." },
+  fondos: { t: "Fondos", d: "Dinero disponible para usar: Royalty y Aquí Club con factura emitida, y facturas a franquiciados ya pagadas. Marca los fondos que usas, indica la fecha y el sistema concilia solo los registros de Pagos obras y franquiciados." },
   conc: { t: "Pagos conciliados", d: "Todos los pagos conciliados con la cartola (o N/A, no bancarios) de obras y franquiciados. Filtra por fechas, tipo, ítem, franquicia o busca un texto." } };
 const contDia = d => { const x = new Date(String(d).slice(0, 10) + "T12:00:00"); return x; };
 const contISO = d => d.toISOString().slice(0, 10);
@@ -6456,7 +6476,7 @@ async function contContadores(){
 
 async function cargarCont(mod){
   if (mod === "fact") mod = "fobras";
-  CONT.mod = ["fobras", "ffranq", "fcli", "pagos", "conc"].includes(mod) ? mod : "fobras";
+  CONT.mod = ["fobras", "ffranq", "fcli", "pagos", "conc", "fondos"].includes(mod) ? mod : "fobras";
   document.querySelectorAll('.menu button[data-rep="cont"]').forEach(b => b.classList.toggle("activo", b.dataset.mod === CONT.mod));
   $("cont-titulo").textContent = CONT_INFO[CONT.mod].t; $("cont-desc").textContent = CONT_INFO[CONT.mod].d;
   $("cont-acciones").innerHTML = `<button class="btn sec" id="cont-xlsx">Descargar Excel</button><button class="btn sec" id="cont-act">Actualizar</button>`;
@@ -6465,6 +6485,7 @@ async function cargarCont(mod){
   if (CONT.mod === "pagos") await contCargarPagos();
   if (CONT.mod === "conc") await contCargarConc();
   if (CONT.mod === "fcli") await contCargarFcli();
+  if (CONT.mod === "fondos") await contCargarFondos();
 }
 const contError = (e, sql) => { $("cont-cuerpo").innerHTML = `<div class="cf-aviso rojo">No pude leer los datos: ${esc(e.message)}${sql ? `<br>¿Se ejecutó ${sql} en Supabase?` : ""}</div>`; };
 
@@ -6710,7 +6731,7 @@ $("vista-cont").addEventListener("click", async e => {
     if (ok) toast(ok); return data || true; };
   if (t.id === "cont-act") { CONT.conc.datos = null; return cargarCont(CONT.mod); }
   if (t.id === "cont-xlsx" && CONT.mod === "fcli") return contXlsxFcli();
-  if (CONT.mod === "fcli") return;
+  if (CONT.mod === "fcli" || CONT.mod === "fondos") return;
   if (t.id === "cont-xlsx") return /^f/.test(CONT.mod) ? contXlsxFact(contFactFiltradas().map(s => s.id)) : CONT.mod === "pagos" ? contXlsxPagos(contPagosVisibles().map(s => s.id)) : contXlsxConc();
   // facturas
   const cf = t.closest("[data-ctf]"); if (cf) { CONT.fact.filtro = cf.dataset.ctf; return contDibujarFact(); }
@@ -9532,7 +9553,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 66;
+const VERSION_PAGINA = 67;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -12707,6 +12728,186 @@ async function ctMasivoAbrir(){
   });
 }
 $("vista-cont").addEventListener("click", e => { if (e.target.id === "ct-masivo") ctMasivoAbrir(); });
+
+/* =====================================================================
+   v67 · CONTABILIDAD › FONDOS: por usar (royalty/Aquí Club facturados · cobros ya pagados por franquiciados) y usados.
+   Usar fondos → fondos_usar: concilia el registro de Pagos obras (royalty/Aquí Club) o crea el egreso ligado en
+   Pagos franquiciados, con la fecha de uso. Sin dobles usos: el servidor valida el saldo de cada fondo.
+   ===================================================================== */
+const FD = { tab: "por", tipo: "", q: "", sel: new Map(), lista: null, usos: null, desde: null, sub: "fondos", verCobrar: false, error: null };
+const FD_TIPOS = [["Royalty", "Royalty"], ["Aquí Club", "Aquí Club"], ["Franquiciado", "Franquiciados"]];
+const fdPill = t => `<span class="fd-tipo ${t === "Royalty" ? "r" : t === "Aquí Club" ? "a" : "f"}">${esc(t)}</span>`;
+const fdEst = e => contPill(e, { "Por usar": "parcial", "Usado parcial": "parcial", "Usado": "ok", "Por cobrar": "sin", "Revisar": "no" }[e] || "sin");
+const fdQuien = x => x.tipo === "Franquiciado" ? `<b>${esc(x.franquicia)}</b><br><small>${esc(x.franquiciado || "")}</small>`
+  : `<b>${esc(x.obra || "")}</b><br><small>${esc(x.cliente || "")} · ${esc(x.franquicia)}</small>`;
+async function contCargarFondos(){
+  const [l, u, d] = await Promise.all([todo(() => db.from("v_fondos").select("*").order("disponible_desde").order("id")),
+    todo(() => db.from("v_fondos_usos").select("*").order("id", { ascending: false })), db.rpc("app_fondos_desde")]);
+  if (l.error) return contError(l.error, "67_fondos_contabilidad.sql");
+  FD.lista = l.data || []; FD.usos = u.data || []; FD.desde = d.data || null;
+  for (const id of [...FD.sel.keys()]) { const x = FD.lista.find(f => f.id === id); if (!x || !(+x.saldo > 0)) FD.sel.delete(id); }
+  contDibujarFondos(); fdContador();
+}
+function fdContador(){
+  const n = (FD.lista || []).filter(x => +x.saldo > 0), el = $("cont-n-fondos");
+  if (el) el.textContent = n.length ? ` · ${$$(sumar(n, x => x.saldo))} por usar` : "";
+}
+const fdFiltro = x => (!FD.tipo || x.tipo === FD.tipo) &&
+  (!FD.q || contQ([x.id_pago, x.id_pago_pendiente, x.franquicia, x.franquiciado, x.obra, x.cliente, x.item, x.folios, x.id_pago_conciliado, x.id_pago_fondo, x.nota].join(" ")).includes(contQ(FD.q)));
+function contDibujarFondos(){
+  const L = FD.lista || [], U = FD.usos || [], ed = puedeEditar();
+  const disp = L.filter(x => +x.saldo > 0), cobrar = L.filter(x => x.estado === "Por cobrar"), usados = L.filter(x => +x.usado > 0);
+  const vig = U.filter(x => !x.anulado_en);
+  let h = `<div class="cpx-tabs">
+      <button class="cpx-tab ${FD.tab === "por" ? "activo" : ""}" data-fdtab="por"><span class="t">Por usar</span><span class="v">${$$(sumar(disp, x => x.saldo))}</span>
+        <span class="s">${disp.length} fondo${disp.length === 1 ? "" : "s"} disponible${disp.length === 1 ? "" : "s"}</span><small>Dinero que ya se puede usar</small></button>
+      <span class="cpx-flecha">›</span>
+      <button class="cpx-tab pag ${FD.tab === "usado" ? "activo" : ""}" data-fdtab="usado"><span class="t">Usados</span><span class="v">${$$(sumar(vig, x => x.monto))}</span>
+        <span class="s">${vig.length} movimiento${vig.length === 1 ? "" : "s"} · ${usados.length} fondo${usados.length === 1 ? "" : "s"}</span><small>Lo que Contabilidad ya usó y cuándo</small></button></div>`;
+  const base = FD.tab === "por" ? disp : FD.sub === "mov" ? U : usados;
+  h += `<div class="fd-filtros"><div class="chips"><button class="chip ${!FD.tipo ? "activo" : ""}" data-fdtipo="">Todos</button>
+      ${FD_TIPOS.map(([k, t]) => `<button class="chip ${FD.tipo === k ? "activo" : ""}" data-fdtipo="${k}">${t} · ${base.filter(x => x.tipo === k).length}</button>`).join("")}</div>
+      <input id="fd-q" placeholder="Buscar obra, franquicia, factura, Id pago…" value="${esc(FD.q)}">
+      ${FD.desde ? `<span class="nota-g">Rige desde el ${fecha(FD.desde)} · lo anterior queda en espera</span>` : ""}</div>`;
+  h += FD.tab === "por" ? fdDibPor(disp, cobrar, ed) : fdDibUsados(usados, U, ed);
+  $("cont-cuerpo").innerHTML = h;
+}
+function fdDibPor(disp, cobrar, ed){
+  const tot = t => sumar(disp.filter(x => x.tipo === t), x => x.saldo);
+  let h = `<div class="fd-kpis">
+      <div class="fd-kpi total"><span>Disponible para usar</span><b>${$$(sumar(disp, x => x.saldo))}</b><small>${disp.length} fondo(s)</small></div>
+      ${FD_TIPOS.map(([k, t]) => `<button class="fd-kpi ${FD.tipo === k ? "sel" : ""}" data-fdtipo="${FD.tipo === k ? "" : k}"><span>${fdPill(k)}</span><b>${$$(tot(k))}</b>
+        <small>${k === "Franquiciado" ? "Facturado y ya pagado por el franquiciado" : "Factura emitida"}</small></button>`).join("")}
+      <button class="fd-kpi cobrar" data-fdcobrar="1"><span>Por cobrar · aún no disponible</span><b>${$$(sumar(cobrar, x => x.por_cobrar))}</b>
+        <small>${cobrar.length} factura(s) a franquiciados sin pagar · ${FD.verCobrar ? "ocultar" : "ver"}</small></button></div>`;
+  const L = disp.filter(fdFiltro);
+  if (ed && FD.sel.size) {
+    const S = [...FD.sel].map(([id, m]) => ({ x: disp.find(f => f.id === id), m })).filter(s => s.x);
+    h += `<div class="fd-barra"><span><b>${S.length}</b> fondo${S.length === 1 ? "" : "s"} seleccionado${S.length === 1 ? "" : "s"} · <b>${$$(sumar(S, s => s.m))}</b></span>
+      <a href="#" id="fd-limpiar">Quitar selección</a><button class="btn" id="fd-usar">Usar fondos…</button></div>`;
+  }
+  if (!L.length) h += `<p class="nota-g">${disp.length ? "Sin fondos con ese filtro." : "No hay fondos por usar. Aparecen cuando Contabilidad emite la factura de un Royalty o Aquí Club, o cuando un franquiciado paga una factura."}</p>`;
+  else {
+    const todos = ed && L.every(x => FD.sel.has(x.id));
+    h += `<div class="tabla-wrap"><table class="cp fd-t"><thead><tr>${ed ? `<th><input type="checkbox" id="fd-todos" ${todos ? "checked" : ""}></th>` : ""}<th>Origen</th><th>Obra / franquicia</th>
+        <th>Ítem · Id pago</th><th>Factura N°</th><th>Disponible desde</th><th class="n">Total</th><th class="n">Ya usado</th><th class="n">Saldo</th>${ed ? '<th class="n">Monto a usar</th>' : ""}</tr></thead><tbody>
+      ${L.map(x => { const s = FD.sel.has(x.id); return `<tr class="${s ? "sel" : ""}">${ed ? `<td><input type="checkbox" data-fdsel="${x.id}" ${s ? "checked" : ""}></td>` : ""}
+        <td>${fdPill(x.tipo)}</td><td>${fdQuien(x)}</td>
+        <td><small>${esc(x.item)}<br>${esc(x.id_pago_pendiente || x.id_pago)}</small></td><td>${esc(x.folios || "")}</td>
+        <td>${fecha(x.disponible_desde)}</td><td class="n">${$$(x.total)}</td><td class="n">${+x.usado ? $$(x.usado) : "—"}</td><td class="n"><b>${$$(x.saldo)}</b></td>
+        ${ed ? `<td class="n">${s ? `<input class="fd-monto" data-fdmonto="${x.id}" value="${nf.format(FD.sel.get(x.id))}" inputmode="numeric">` : ""}</td>` : ""}</tr>`; }).join("")}
+      </tbody></table></div>
+      <p class="nota-g">Marca los fondos que vas a usar. El monto parte en el saldo completo; si usas una parte, cámbialo y el resto queda disponible.</p>`;
+  }
+  if (FD.verCobrar) {
+    const C = cobrar.filter(fdFiltro);
+    h += `<h3 class="fd-h">Por cobrar · facturado a franquiciados y aún no pagado (no disponible)</h3>
+      <div class="tabla-wrap"><table class="cp fd-t"><thead><tr><th>Franquicia</th><th>Ítem · Id pago</th><th>Factura N°</th><th>Fecha factura</th><th class="n">Monto</th></tr></thead><tbody>
+      ${C.map(x => `<tr><td>${fdQuien(x)}</td><td><small>${esc(x.item)}<br>${esc(x.id_pago)}</small></td><td>${esc(x.folios || "")}</td><td>${fecha(x.fecha_factura)}</td><td class="n">${$$(x.por_cobrar || 0)}</td></tr>`).join("")
+        || '<tr><td colspan="5" class="cp-vacio">No hay facturas por cobrar.</td></tr>'}</tbody></table></div>
+      <p class="nota-g">Pasan a <b>Por usar</b> solas cuando el pago del franquiciado queda conciliado.</p>`;
+  }
+  return h;
+}
+function fdDibUsados(usados, U, ed){
+  let h = `<div class="chips" style="margin:2px 0 10px"><button class="chip ${FD.sub === "fondos" ? "activo" : ""}" data-fdsub="fondos">Por fondo · ${usados.length}</button>
+      <button class="chip ${FD.sub === "mov" ? "activo" : ""}" data-fdsub="mov">Historial de movimientos · ${U.length}</button></div>`;
+  if (FD.sub === "fondos") {
+    const L = usados.filter(fdFiltro);
+    h += `<div class="tabla-wrap"><table class="cp fd-t"><thead><tr><th>Origen</th><th>Obra / franquicia</th><th>Ítem · Id pago</th><th>Factura N°</th><th class="n">Monto</th>
+        <th class="n">Usado</th><th class="n">Saldo</th><th>Disponible desde</th><th>Fecha de uso</th><th>Estado</th></tr></thead><tbody>
+      ${L.map(x => `<tr><td>${fdPill(x.tipo)}</td><td>${fdQuien(x)}</td><td><small>${esc(x.item)}<br>${esc(x.id_pago)}</small></td><td>${esc(x.folios || "")}</td>
+        <td class="n">${$$(x.total)}</td><td class="n"><b>${$$(x.usado)}</b></td><td class="n">${+x.saldo ? $$(x.saldo) : "—"}</td><td>${fecha(x.disponible_desde)}</td>
+        <td>${fecha(x.primer_uso)}${x.ultimo_uso !== x.primer_uso ? ` → ${fecha(x.ultimo_uso)}<br><small>${x.n_usos} usos</small>` : ""}</td><td>${fdEst(x.estado)}</td></tr>`).join("")
+        || '<tr><td colspan="10" class="cp-vacio">Aún no se han usado fondos.</td></tr>'}</tbody></table></div>`;
+  } else {
+    const L = U.filter(fdFiltro);
+    h += `<div class="tabla-wrap"><table class="cp fd-t"><thead><tr><th>Fecha de uso</th><th>Origen</th><th>Obra / franquicia</th><th>Fondo (Id pago)</th><th>Factura N°</th><th class="n">Monto usado</th>
+        <th>Registro conciliado</th><th>Quién · cuándo</th><th>Estado</th></tr></thead><tbody>
+      ${L.map(x => `<tr class="${x.anulado_en ? "hecha" : ""}"><td><b>${fecha(x.fecha_uso)}</b>${x.banco ? `<br><small>${esc(x.banco)}</small>` : ""}</td><td>${fdPill(x.tipo)}</td><td>${fdQuien(x)}</td>
+        <td><small>${esc(x.item)}<br>${esc(x.id_pago_fondo)}</small></td><td>${esc(x.folios || "")}</td><td class="n"><b>${$$(x.monto)}</b></td>
+        <td><small>${x.id_pago_conciliado ? `${esc(x.id_pago_conciliado)} · ${x.tipo === "Franquiciado" ? "egreso en Pagos franquiciados" : "Pagos obras"}` : "—"}${x.id_pago_resto ? `<br>saldo en ${esc(x.id_pago_resto)}` : ""}</small>${x.nota ? `<br><small>${esc(x.nota)}</small>` : ""}</td>
+        <td><small>${contUser(x.usado_por)}<br>${new Date(x.usado_en).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}</small></td>
+        <td>${x.anulado_en ? `<span class="pill sin">Deshecho</span><br><small>${contUser(x.anulado_por)} · ${fecha(String(x.anulado_en).slice(0, 10))}</small>`
+          : `<span class="pill ok">Vigente</span>${ed && x.es_ultimo ? `<br><a href="#" class="link-chico" data-fddeshacer="${x.id}">Deshacer…</a>` : ""}`}</td></tr>`).join("")
+        || '<tr><td colspan="9" class="cp-vacio">Sin movimientos.</td></tr>'}</tbody></table></div>
+      <p class="nota-g">Sólo se puede deshacer el último uso de cada fondo, y mientras sus registros no se hayan pasado al Excel.</p>`;
+  }
+  return h;
+}
+function fdUsar(){
+  const S = [...FD.sel].map(([id, m]) => ({ x: FD.lista.find(f => f.id === id), m })).filter(s => s.x);
+  if (!S.length) return toast("Marca los fondos que vas a usar.");
+  const malo = S.find(s => !(s.m > 0) || s.m > Math.round(+s.x.saldo));
+  if (malo) return toast(`⚠ ${esc(malo.x.id_pago)}: el monto debe ser mayor que 0 y no superar el saldo (${$$(malo.x.saldo)}).`, 8000);
+  const minF = S.map(s => s.x.disponible_desde).sort().pop();
+  return modal(`<h3>Usar fondos · ${S.length} fondo${S.length === 1 ? "" : "s"} · ${$$(sumar(S, s => s.m))}</h3>
+    <div class="fd-res">${S.map(s => `<div>${fdPill(s.x.tipo)} <span>${esc(s.x.tipo === "Franquiciado" ? s.x.franquicia + " · " + s.x.item : s.x.obra)}${s.x.folios ? " · F° " + esc(s.x.folios) : ""}</span>
+      <b>${$$(s.m)}</b>${s.m < Math.round(+s.x.saldo) ? `<small>parcial · quedan ${$$(Math.round(+s.x.saldo) - s.m)}</small>` : ""}</div>`).join("")}</div>
+    <div class="m-grid"><label class="m-campo">Fecha de uso<input type="date" id="fd-fecha" value="${hoyISO()}" min="${minF}" max="${hoyISO()}"></label>
+      <label class="m-campo">Banco<select id="fd-banco"><option value="">Automático (obras: Santander · franquiciados: banco del pago)</option><option>SANTANDER</option><option>SECURITY</option></select></label>
+      <label class="m-campo" style="grid-column:1/-1">Nota (opcional)<input id="fd-nota" placeholder="Ej.: pago de proveedores semana 44"></label></div>
+    <p class="nota-g">La fecha de uso queda como <b>fecha de conciliación</b>: Royalty y Aquí Club se concilian en Pagos obras; en franquiciados se registra un egreso ligado al pago original. Cada fondo queda con su propio detalle.</p>
+    <div class="error" id="fd-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Usar fondos", fn: async () => {
+      const f = $("fd-fecha").value; if (!f) { $("fd-error").textContent = "Indica la fecha de uso."; return false; }
+      const { data, error } = await db.rpc("fondos_usar", { p: { fecha: f, banco: $("fd-banco").value || null, nota: $("fd-nota").value.trim() || null,
+        items: S.map(s => ({ id: s.x.id, monto: s.m })) } });
+      if (error) { $("fd-error").textContent = errorAmigable(error.message); return false; }
+      toast(`✓ ${data.n} fondo(s) usados por ${$$(data.total)} el ${fecha(f)}. Quedaron conciliados en Pagos obras / franquiciados.`, 9000);
+      FD.sel.clear(); FD.tab = "usado"; FD.sub = "mov"; await contCargarFondos(); return true; } }]);
+}
+function fdXlsx(){
+  const wb = XLSX.utils.book_new(), L = FD.lista || [], U = FD.usos || [];
+  const fila = x => [x.tipo, x.franquicia, x.franquiciado || "", x.obra || "", x.cliente || "", x.item, x.id_pago, x.folios || "", fecha(x.fecha_factura), fecha(x.disponible_desde), +x.total, +x.usado, +x.saldo, x.estado];
+  const cab = ["Origen", "Franquicia", "Franquiciado", "Obra", "Cliente", "Ítem", "Id pago", "Factura N°", "Fecha factura", "Disponible desde", "Total", "Usado", "Saldo", "Estado"];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab, ...L.filter(x => +x.saldo > 0).map(fila)]), "Por usar");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab, ...L.filter(x => +x.usado > 0).map(fila)]), "Usados");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Fecha de uso", "Origen", "Franquicia", "Obra", "Fondo (Id pago)", "Factura N°", "Monto usado", "Banco", "Registro conciliado", "Saldo en", "Nota", "Usado por", "Usado en", "Estado"],
+    ...U.map(x => [fecha(x.fecha_uso), x.tipo, x.franquicia, x.obra || "", x.id_pago_fondo, x.folios || "", +x.monto, x.banco || "", x.id_pago_conciliado || "", x.id_pago_resto || "", x.nota || "",
+      x.usado_por, new Date(x.usado_en).toLocaleString("es-CL"), x.anulado_en ? "Deshecho" : "Vigente"])]), "Historial");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab, ...L.filter(x => x.estado === "Por cobrar").map(fila)]), "Por cobrar");
+  XLSX.writeFile(wb, `Fondos Contabilidad - ${new Date().toLocaleDateString("es-CL").replace(/\//g, "-")}.xlsx`);
+}
+const fdNum = v => Math.round(Number(String(v || "").replace(/[^\d]/g, "")) || 0);
+$("vista-cont").addEventListener("click", async e => {
+  if (CONT.mod !== "fondos") return;
+  const t = e.target;
+  if (t.id === "cont-xlsx") return fdXlsx();
+  const tb = t.closest("[data-fdtab]"); if (tb) { FD.tab = tb.dataset.fdtab; return contDibujarFondos(); }
+  const tp = t.closest("[data-fdtipo]"); if (tp) { FD.tipo = tp.dataset.fdtipo; return contDibujarFondos(); }
+  const sb = t.closest("[data-fdsub]"); if (sb) { FD.sub = sb.dataset.fdsub; return contDibujarFondos(); }
+  if (t.closest("[data-fdcobrar]")) { FD.verCobrar = !FD.verCobrar; return contDibujarFondos(); }
+  if (t.id === "fd-limpiar") { e.preventDefault(); FD.sel.clear(); return contDibujarFondos(); }
+  if (t.id === "fd-usar") return fdUsar();
+  if (t.dataset.fddeshacer) { e.preventDefault();
+    const x = FD.usos.find(u => u.id === +t.dataset.fddeshacer);
+    if (!confirm(`¿Deshacer el uso de ${$$(x.monto)} del ${fecha(x.fecha_uso)} (${x.id_pago_fondo})?\n\nEl fondo vuelve a quedar disponible y se revierte la conciliación en ${x.tipo === "Franquiciado" ? "Pagos franquiciados (se elimina el egreso)" : "Pagos obras"}.`)) return;
+    const { error } = await db.rpc("fondos_deshacer", { p_uso: x.id });
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+    toast("✓ Uso deshecho: el fondo volvió a Por usar."); return contCargarFondos(); }
+});
+$("vista-cont").addEventListener("change", e => {
+  if (CONT.mod !== "fondos") return;
+  const t = e.target;
+  if (t.dataset.fdsel) { const x = FD.lista.find(f => f.id === +t.dataset.fdsel);
+    t.checked ? FD.sel.set(x.id, Math.round(+x.saldo)) : FD.sel.delete(x.id); return contDibujarFondos(); }
+  if (t.id === "fd-todos") { (FD.lista || []).filter(x => +x.saldo > 0).filter(fdFiltro).forEach(x => t.checked ? FD.sel.set(x.id, Math.round(+x.saldo)) : FD.sel.delete(x.id)); return contDibujarFondos(); }
+  if (t.dataset.fdmonto) { const x = FD.lista.find(f => f.id === +t.dataset.fdmonto); let m = fdNum(t.value);
+    if (m > Math.round(+x.saldo)) { toast(`El monto no puede superar el saldo (${$$(x.saldo)}).`); m = Math.round(+x.saldo); }
+    FD.sel.set(x.id, m); return contDibujarFondos(); }
+});
+$("vista-cont").addEventListener("input", e => {
+  if (CONT.mod !== "fondos" || e.target.id !== "fd-q") return;
+  FD.q = e.target.value; const p = e.target.selectionStart; contDibujarFondos(); const i = $("fd-q"); i.focus(); i.setSelectionRange(p, p);
+});
+// contador del menú (para Contabilidad y administradores)
+const contContadoresFd = contContadores;
+contContadores = async function(){
+  await contContadoresFd();
+  try { const { data, error } = await db.from("v_fondos").select("id,saldo").gt("saldo", 0);
+    if (!error && $("cont-n-fondos")) $("cont-n-fondos").textContent = data && data.length ? ` · ${$$(sumar(data, x => x.saldo))} por usar` : ""; } catch (_) {}
+};
 </script>
 </body>
 </html>
