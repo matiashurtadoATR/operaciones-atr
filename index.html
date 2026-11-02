@@ -577,6 +577,16 @@
   /* v73 · solicitar factura desde Cobros */
   .m-fact{border:1px solid #f0c9ad;background:#fff7f1;border-radius:10px;padding:8px 12px;margin-top:10px}.m-fact legend{font-weight:700;color:var(--cafe)}
   .m-fact label{display:block;margin:4px 0}.m-fact .sfc-extra{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}.m-fact small{color:var(--gris)}
+  /* v74 · liquidación progresiva */
+  .liq-box{border:1px solid #e9d6c9;border-radius:12px;background:#fffaf6;padding:12px 14px;margin-top:12px}
+  .liq-box h5{margin:0 0 6px;color:var(--cafe)}.liq-grid{display:grid;grid-template-columns:minmax(300px,1.2fr) minmax(260px,1fr);gap:16px}
+  .liq-box table.calc td{padding:3px 6px}.liq-box .liq-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .liq-t{width:100%;border-collapse:collapse;font-size:13px}.liq-t th{text-align:left;font-size:11px;color:var(--gris);text-transform:uppercase;border-bottom:1px solid var(--linea);padding:4px}
+  .liq-t td{padding:4px;border-bottom:1px solid #f1e6df;vertical-align:middle}.liq-t input[type=date]{width:140px}.liq-t input.nota{width:160px}
+  .liq-add{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea)}
+  .liq-add label{display:flex;flex-direction:column;font-size:12px;color:var(--gris);gap:2px}.liq-add input{min-width:0}
+  .modal.liq-modal{max-width:980px;width:95vw}
+  @media (max-width:800px){.liq-grid{grid-template-columns:1fr}}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -2662,10 +2672,21 @@ function construirAcciones(){
     if (m0 <= 0) continue;
     acc.push({ key: "fr:" + o.codigo_atr, tipo: "fr", obra: o.codigo_atr, cliente: o.cliente, franquicia: o.franquicia,
       monto: m0, editable: true, bloqueada: false,
-      detalle: `${esc(o.decision)} · ${esc(o.franquiciado)}`, nota: (o.advertencias || []).join(" · "),
-      hacer: m => ({ rpc: "registrar_movimientos_cp", p: { movimientos: [{ obra: o.codigo_atr, item: "Transferencia franquiciado (egreso)",
+      detalle: `${esc(o.decision)} · ${esc(o.franquiciado)}`, nota: [...(o.advertencias || []), o.decision === "Pagar saldo final" && LIQ.ok && Number((LIQ.filas[o.codigo_atr] || {}).reembolso_pend) > 0 ? `incluye reembolso de materiales del franquiciado ${$$(LIQ.filas[o.codigo_atr].reembolso_pend)}` : ""].filter(Boolean).join(" · "),
+      hacer: m => (o.decision === "Pagar saldo final" && LIQ.ok) ? ({ rpc: "liq_aceptar", p: { obra: o.codigo_atr, monto: String(Math.round(m)), fecha_pago: $("cp-fecha").value, etapa: "Saldo final" } }) : ({ rpc: "registrar_movimientos_cp", p: { movimientos: [{ obra: o.codigo_atr, item: "Transferencia franquiciado (egreso)",
         monto: String(-m), fecha_pago: $("cp-fecha").value, medio: "Transferencia", observaciones: `${o.decision} (Control de Pagos)`,
         estado_pago: "Pendiente", origen_registro: "Control de Pagos" }] } }) });
+  }
+  // 5) v74 · liquidación progresiva: saldo de la etapa 50% y liquidaciones por avance (no reemplaza anticipo 20% ni saldo final)
+  if (LIQ.ok) for (const l of Object.values(LIQ.filas)) {
+    const m0 = Math.round(Number(l.recomendado) || 0);
+    if (m0 <= TOL_ACC || acc.some(a => a.tipo === "fr" && a.obra === l.obra)) continue;
+    acc.push({ key: "liq:" + l.obra, tipo: "fr", liq: l, obra: l.obra, cliente: l.cliente, franquicia: l.franquicia, monto: m0, editable: true, bloqueada: false,
+      detalle: `<span class="tipo-acc fr">${esc(l.etapa)}</span> cliente ${pct(100 * l.pct_cliente, 0)} · avance con acta ${pct(100 * l.avance_usable, 0)} · ${esc(l.franquiciado)}`,
+      nota: [Number(l.reembolso_pend) > 0 ? `incluye reembolso de materiales del franquiciado ${$$(l.reembolso_pend)}` : "",
+             Number(l.recomendado) < Number(l.a_liberar) - TOL_ACC && l.etapa !== "Saldo etapa 50%" ? `limitado por el disponible: quedan ${$$(Number(l.a_liberar) - Number(l.recomendado))} pendientes para la próxima` : "",
+             ...(l.observaciones || [])].filter(Boolean).join(" · "),
+      hacer: m => ({ rpc: "liq_aceptar", p: { obra: l.obra, monto: String(Math.round(m)), fecha_pago: $("cp-fecha").value } }) });
   }
   const orden = { tra: 0, prov: 1, aqc: 2, fr: 3 };
   return acc.sort((a, b) => orden[a.tipo] - orden[b.tipo] || a.franquicia.localeCompare(b.franquicia));
@@ -2755,6 +2776,7 @@ async function cargarPagos(){
   CP.prov = b.data || [];
   CP.cargado = true;
   $("cp-fecha").value = viernesISO();
+  await liqCargar();
   CP.acciones = construirAcciones();
   await cpxCargar();
   const fr = [...new Map(CP.filas.map(o => [o.franquicia, o.franquiciado])).entries()].sort();
@@ -2869,7 +2891,7 @@ function detallePago(o){
     ${!falt.length && !av.length ? `<p style="font-size:13px;color:#1e6b2b;margin:0">Cumple todo, sin advertencias.</p>` : ""}
     ${cpPreventivo(o)}
     <p style="margin-top:12px"><a href="#" data-ficha="${esc(o.codigo_atr)}" style="color:var(--naranjo);font-size:13px;font-weight:600">Ver Resumen Negocio de esta obra →</a></p>`;
-  return `<div class="det"><div>${conds}</div><div>${calc}</div><div>${avisos}</div></div>`;
+  return `<div class="det"><div>${conds}</div><div>${calc}</div><div>${avisos}</div></div>` + liqBloque(o.codigo_atr);
 }
 
 /* v34 · control preventivo (columnas nuevas de v_control_pagos, 31_control_preventivo.sql) */
@@ -9677,7 +9699,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 73;
+const VERSION_PAGINA = 74;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -13453,6 +13475,130 @@ function modalSolicitarFacturaCobros(){
             (/Patricio/.test(data.estado) ? `<br>Siguiente paso: Panel de operaciones › Solicitudes de factura › Enviar a Patricio.` : ""), 10000);
       COB.sel.clear(); COB.filas = null; await cargarCobros(); return true; } }]);
 }
+
+/* ---------------- v74 · LIQUIDACIÓN PROGRESIVA (74_liquidacion_progresiva.sql) ---------------- */
+const LIQ = { ok: false, filas: {} };
+async function liqCargar(){
+  try { const r = await todo(() => db.from("v_liquidacion_obra").select("*"));
+        LIQ.ok = !r.error; LIQ.filas = Object.fromEntries((r.data || []).map(x => [x.obra, x])); }
+  catch (_) { LIQ.ok = false; LIQ.filas = {}; }
+}
+const liqP = v => v == null ? "—" : pct(100 * Number(v), 0);
+function liqBloque(obra){
+  if (!LIQ.ok) return "";
+  const l = LIQ.filas[obra]; if (!l) return "";
+  const n = x => Number(x) || 0, ed = puedeEditar() && !enExcel();
+  const obs = (l.observaciones || []);
+  return `<div class="liq-box"><h5>Liquidación progresiva · pagos según avance <small style="font-weight:400;color:var(--gris)">(complementa el anticipo 20% y el saldo final)</small></h5>
+    <div class="liq-grid"><div><table class="calc">
+      <tr><td>Contrato</td><td class="n">${$$(l.contrato)}</td></tr>
+      <tr><td>Pagado y conciliado por el cliente</td><td class="n">${$$(l.pago_cliente_conc)} · ${liqP(l.pct_cliente)}</td></tr>
+      <tr><td>Tramo adicional (sobre el 50%)</td><td class="n">${liqP(l.pct_adicional)}</td></tr>
+      <tr><td>Avance registrado · con acta</td><td class="n">${liqP(l.avance_reg)} · <b>${liqP(l.avance_usable)}</b>${n(l.avance_sin_validar) > 0 ? ` <small style="color:#a1281f">(${liqP(l.avance_sin_validar)} sin acta)</small>` : ""}</td></tr>
+      <tr class="tot"><td>Referencia acumulada = contrato × tramo × avance</td><td class="n">${$$(l.referencia_acum)}</td></tr>
+      <tr class="sub"><td>− Ya liquidada antes</td><td class="n">${$$(-l.referencia_prev)}</td></tr>
+      <tr><td>= Nueva liquidación</td><td class="n">${$$(l.nueva)}</td></tr>
+      <tr><td>+ Saldos pendientes de liquidaciones anteriores</td><td class="n">${$$(l.pend_prev)}</td></tr>
+      <tr><td>+ Reembolso de materiales del franquiciado (${l.n_materiales_pend})</td><td class="n">${$$(l.reembolso_pend)}</td></tr>
+      <tr class="tot"><td>A liberar${!l.saldo50_hecho ? " (+ saldo de la etapa 50%: todo el disponible)" : ""}</td><td class="n">${$$(l.a_liberar)}</td></tr>
+    </table></div><div><table class="calc">
+      <tr><td>Saldo en obra (ya descontados materiales ATRIUM ${$$(l.pagado_proveedores)}, royalty ${$$(l.royalty_cobrado)}, comisiones ${$$(l.getnet)} y transferencias ${$$(l.transferido)})</td><td class="n">${$$(l.saldo_obra)}</td></tr>
+      <tr class="sub"><td>− Egresos programados sin cartola</td><td class="n">${$$(-l.programado)}</td></tr>
+      <tr class="sub"><td>− Facturas de proveedor por pagar</td><td class="n">${$$(-l.facturas_por_pagar)}</td></tr>
+      <tr class="sub"><td>− OC emitidas aún sin factura</td><td class="n">${$$(-l.oc_por_facturar)}</td></tr>
+      <tr class="sub"><td>− Aquí Club pendiente</td><td class="n">${$$(-l.aquiclub_pendiente)}</td></tr>
+      <tr class="tot"><td>Disponible (límite)</td><td class="n">${$$(l.disponible)}</td></tr>
+      <tr class="tot"><td><b>Recomendado = menor entre "a liberar" y disponible</b></td><td class="n"><b>${$$(l.recomendado)}</b></td></tr>
+    </table>
+    ${obs.length ? `<ul class="avisos" style="color:#a1281f;margin:6px 0 0">${obs.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p style="font-size:12.5px;color:#1e6b2b;margin:6px 0 0">Cumple las condiciones para liquidar por avance.</p>`}
+    </div></div>
+    <div class="liq-acc"><button class="btn sec" data-liqav="${esc(obra)}">Avance y actas</button>
+      <button class="btn sec" data-liqmat="${esc(obra)}">Materiales del franquiciado${n(l.reembolso_pend) > 0 ? ` · ${$$(l.reembolso_pend)} por reembolsar` : ""}</button></div></div>`;
+}
+function liqAbrirModal(titulo, nota){
+  modal(`<h3>${titulo}</h3><p class="nota-sol">${nota}</p><div id="liq-m-cuerpo"><p class="nota-g">Cargando…</p></div><div class="error" id="liq-m-err"></div>`,
+        [{ t: "Cerrar", fn: async () => { await liqCargar(); CP.acciones = construirAcciones(); if (typeof cpxDibujar === "function") cpxDibujar(); if (typeof dibujarPagos === "function") dibujarPagos(); return true; } }]);
+  const f = [...document.querySelectorAll(".modal-fondo")].pop(); f.querySelector(".modal").classList.add("liq-modal"); return f;
+}
+async function liqModalAvance(obra){
+  const l = LIQ.filas[obra]; if (!l) return;
+  const f = liqAbrirModal(`Avance y actas · ${esc(obra)}`, `El avance que registras en Obras (o en el Excel) queda aquí con su fecha y <b>nunca se pisa el anterior</b>.
+    Para que un avance se use en una liquidación debe tener <b>acta</b>: márcala y escribe la fecha del acta. Si el avance registrado no tiene acta queda <b>pendiente de validación</b>.`);
+  const ed = puedeEditar() && !enExcel();
+  const dibujar = async () => {
+    const { data, error } = await db.from("obra_avance").select("*").eq("obra_id", l.obra_id).order("avance_pct").order("registrado_en");
+    if (error) { f.querySelector("#liq-m-cuerpo").innerHTML = `<div class="cf-aviso rojo">${esc(error.message)}</div>`; return; }
+    f.querySelector("#liq-m-cuerpo").innerHTML = `<table class="liq-t"><thead><tr><th>Avance</th><th>Fecha del avance / acta</th><th>Acta</th><th>Origen</th><th>Nota</th><th></th></tr></thead><tbody>
+      ${(data || []).map(a => `<tr data-avid="${a.id}"><td><b>${liqP(a.avance_pct)}</b></td>
+        <td>${ed ? `<input type="date" data-avf value="${esc(String(a.fecha || "").slice(0, 10))}">` : fecha(a.fecha) || "—"}</td>
+        <td>${ed ? `<label><input type="checkbox" data-ava ${a.con_acta ? "checked" : ""}> con acta</label>` : a.con_acta ? "✓ con acta" : "pendiente"}
+          ${a.con_acta && a.validado_por ? `<br><small>${esc(String(a.validado_por).split("@")[0])}</small>` : ""}</td>
+        <td><small>${esc(a.origen)}<br>${esc(String(a.registrado_por || "").split("@")[0])} · ${fecha(String(a.registrado_en).slice(0, 10))}</small></td>
+        <td>${ed ? `<input class="nota" data-avn value="${esc(a.nota || "")}">` : esc(a.nota || "")}</td>
+        <td>${ed ? `<button class="cf-btn" data-avg="${a.id}">Guardar</button> <button class="cf-btn" data-avx="${a.id}" title="Eliminar">✕</button>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="6" class="cp-vacio">Sin avances registrados.</td></tr>`}</tbody></table>
+      ${ed ? `<div class="liq-add"><label>Avance %<input id="av-n-pct" placeholder="ej. 70" size="6"></label><label>Fecha del acta<input type="date" id="av-n-f"></label>
+        <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="av-n-acta" checked> con acta</label>
+        <label>Nota<input id="av-n-nota" size="22"></label><button class="btn" data-avadd>Agregar acta / avance</button></div>
+        <p class="nota-g" style="margin:6px 0 0">Agregar aquí no cambia el avance de Obras: sólo deja el acta registrada. El avance usable es el menor entre el registrado en Obras y el mayor avance con acta.</p>` : ""}`;
+  };
+  f.addEventListener("click", async e => {
+    const t = e.target, err = f.querySelector("#liq-m-err"); err.textContent = "";
+    const fila = t.closest("tr[data-avid]");
+    if (t.dataset.avg && fila) {
+      const { error } = await db.rpc("obra_avance_guardar", { p: { id: +t.dataset.avg, fecha: fila.querySelector("[data-avf]").value || null,
+        con_acta: fila.querySelector("[data-ava]").checked, nota: fila.querySelector("[data-avn]").value } });
+      if (error) { err.textContent = errorAmigable(error.message); return; } toast("✓ Guardado."); return dibujar();
+    }
+    if (t.dataset.avx) { if (!confirm("¿Eliminar este registro de avance?")) return;
+      const { error } = await db.rpc("obra_avance_eliminar", { p_id: +t.dataset.avx }); if (error) { err.textContent = errorAmigable(error.message); return; } return dibujar(); }
+    if (t.dataset.avadd !== undefined) {
+      const v = f.querySelector("#av-n-pct").value.trim(); if (!v) { err.textContent = "Escribe el % de avance."; return; }
+      const { error } = await db.rpc("obra_avance_guardar", { p: { obra, avance: /%$/.test(v) ? v : v + "%", fecha: f.querySelector("#av-n-f").value || null,
+        con_acta: f.querySelector("#av-n-acta").checked, nota: f.querySelector("#av-n-nota").value } });
+      if (error) { err.textContent = errorAmigable(error.message); return; } toast("✓ Acta registrada."); return dibujar();
+    }
+  });
+  dibujar();
+}
+async function liqModalMateriales(obra){
+  const l = LIQ.filas[obra]; if (!l) return;
+  const f = liqAbrirModal(`Materiales del franquiciado · ${esc(obra)}`, `Materiales que el franquiciado compró con sus propios recursos para esta obra. <b>Sólo es un registro</b>:
+    no es un movimiento de la obra ni se descuenta. Se le <b>reembolsan</b> en la próxima liquidación (van primero) y quedan marcados para no volver a sumarse.`);
+  const ed = puedeEditar() && !enExcel();
+  const dibujar = async () => {
+    const { data, error } = await db.from("v_material_franquiciado").select("*").eq("obra", obra).order("fecha").order("id");
+    if (error) { f.querySelector("#liq-m-cuerpo").innerHTML = `<div class="cf-aviso rojo">${esc(error.message)}</div>`; return; }
+    const L = data || [];
+    f.querySelector("#liq-m-cuerpo").innerHTML = `<table class="liq-t"><thead><tr><th>N° factura</th><th>Fecha</th><th>Proveedor</th><th>RUT</th><th class="n">Monto</th><th>Estado</th><th></th></tr></thead><tbody>
+      ${L.map(m => `<tr><td><b>${esc(m.n_factura)}</b>${m.nota ? `<br><small>${esc(m.nota)}</small>` : ""}</td><td>${fecha(m.fecha) || "—"}</td><td>${esc(m.proveedor || "")}</td><td>${esc(m.rut || "")}</td>
+        <td class="n">${$$(m.monto)}</td><td><span class="pill ${m.estado === "Reembolsado" ? "ok" : m.estado === "Pendiente de reembolso" ? "parcial" : ""}">${esc(m.estado)}</span>${m.reembolso_id_pago ? `<br><small>${esc(m.reembolso_id_pago)}</small>` : ""}</td>
+        <td>${ed && !m.reembolso_pago_id ? `<button class="cf-btn" data-mfx="${m.id}" title="Eliminar">✕</button>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="7" class="cp-vacio">Sin materiales registrados.</td></tr>`}</tbody>
+      ${L.length ? `<tfoot><tr><td colspan="4"><b>Total</b> · pendiente de reembolso ${$$(sumar(L.filter(m => !m.reembolso_pago_id), m => m.monto))}</td><td class="n"><b>${$$(sumar(L, m => m.monto))}</b></td><td colspan="2"></td></tr></tfoot>` : ""}</table>
+      ${ed ? `<div class="liq-add"><label>N° factura<input id="mf-n" size="9"></label><label>Fecha<input type="date" id="mf-f"></label>
+        <label>Proveedor<input id="mf-p" size="18"></label><label>RUT<input id="mf-r" size="12" placeholder="12.345.678-9"></label>
+        <label>Monto total<input id="mf-m" size="11" inputmode="numeric"></label><label>Nota<input id="mf-o" size="16"></label>
+        <button class="btn" data-mfadd>Agregar</button></div>` : ""}`;
+  };
+  f.addEventListener("click", async e => {
+    const t = e.target, err = f.querySelector("#liq-m-err"); err.textContent = "";
+    if (t.dataset.mfx) { if (!confirm("¿Eliminar este material?")) return;
+      const { error } = await db.rpc("material_fr_eliminar", { p_id: +t.dataset.mfx }); if (error) { err.textContent = errorAmigable(error.message); return; } return dibujar(); }
+    if (t.dataset.mfadd !== undefined) {
+      const p = { obra, n_factura: f.querySelector("#mf-n").value.trim(), fecha: f.querySelector("#mf-f").value || null, proveedor: f.querySelector("#mf-p").value.trim(),
+                  rut: f.querySelector("#mf-r").value.trim(), monto: String(numTxt(f.querySelector("#mf-m").value) ?? ""), nota: f.querySelector("#mf-o").value.trim() };
+      if (!p.n_factura || !p.monto) { err.textContent = "Escribe al menos el N° de factura y el monto."; return; }
+      const { error } = await db.rpc("material_fr_guardar", { p }); if (error) { err.textContent = errorAmigable(error.message); return; }
+      toast("✓ Material registrado: se reembolsa en la próxima liquidación."); return dibujar();
+    }
+  });
+  dibujar();
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-liqav]"); if (a) { e.preventDefault(); return liqModalAvance(a.dataset.liqav); }
+  const m = e.target.closest("[data-liqmat]"); if (m) { e.preventDefault(); return liqModalMateriales(m.dataset.liqmat); }
+});
 </script>
 </body>
 </html>
