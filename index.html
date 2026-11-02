@@ -586,6 +586,7 @@
   .liq-add{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea)}
   .liq-add label{display:flex;flex-direction:column;font-size:12px;color:var(--gris);gap:2px}.liq-add input{min-width:0}
   .modal.liq-modal{max-width:980px;width:95vw}
+  .av-acta{grid-column:span 2;border:1px dashed #e0c3b0;border-radius:8px;padding:6px 8px;background:#fffaf6}
   .liq-pend{border:1px dashed #e0c3b0;border-radius:12px;background:#fffaf6;margin:-4px 0 14px;padding:0 12px}
   .liq-pend>summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--cafe)}.liq-pend>summary small{font-weight:400;color:var(--gris)}
   .liq-pend ul{margin:0;padding-left:16px;font-size:12.5px;color:#a1281f}
@@ -11287,7 +11288,7 @@ async function abrirFormulario(key){
       const norm = (c, v) => { v = v ?? ""; if (c.tipo === "monto" || c.tipo === "pct") { const n = numTxt(String(v).replace("%", "")); return n === null ? String(v).trim() : String(n); }
         if (c.tipo === "fecha" || c.tipo === "fecha_na") return formValor(c, v); return String(v).trim(); };
       const cambio = cols.some(c => !c.ro && norm(c, datos[c.k]) !== norm(c, c.tipo === "monto" ? base[c.k] : formValor(c, base[c.k])));
-      if (!cambio) { toast("Sin cambios."); return true; }
+      if (!cambio) { if (G.mod === "obras" && await obraAvanceTrasGuardar(fondo, base, datos)) return true; toast("Sin cambios."); return true; }
     }
     const faltan = cols.filter(c => c.req && !c.ro && !String(datos[c.k] || "").trim()).map(c => c.t);
     if (faltan.length) return err("Falta: " + faltan.join(", "));
@@ -11295,6 +11296,7 @@ async function abrirFormulario(key){
     cols.filter(c => !c.ro).forEach(c => { p[c.k] = datos[c.k] ?? ""; });
     const { data, error } = await db.rpc(cfg.guardar, { p });
     if (error) return err(errorAmigable(error.message));
+    if (G.mod === "obras") await obraAvanceTrasGuardar(fondo, { ...base, id: data.id, codigo_atr: data.codigo || base.codigo_atr }, datos);
     const { data: fila } = await db.from(cfg.vista).select("*").eq("id", data.id).maybeSingle();
     if (!nueva) G.filas = G.filas.filter(r => claveFila(r) !== key);
     if (fila) G.filas.unshift(fila);
@@ -11309,6 +11311,7 @@ async function abrirFormulario(key){
     fondo.querySelector(".modal").classList.add("f-modal");
     fondo.addEventListener("input", () => formDerivar(fondo, base));
     if (G.mod === "obras" && ed) obraFormInit(fondo, nueva, base);
+    if (G.mod === "obras" && ed) obraAvanceInit(fondo, nueva, base);
     fondo.addEventListener("change", e => { if (e.target.id && e.target.id.endsWith("-na")) { const d = fondo.querySelector("#" + e.target.id.slice(0, -3)); if (d) d.disabled = e.target.checked; } formDerivar(fondo, base); });
   }
   return pr;
@@ -13525,7 +13528,9 @@ function liqAbrirModal(titulo, nota){
   const f = [...document.querySelectorAll(".modal-fondo")].pop(); f.querySelector(".modal").classList.add("liq-modal"); return f;
 }
 async function liqModalAvance(obra){
-  const l = LIQ.filas[obra]; if (!l) return;
+  let l = LIQ.filas[obra];
+  if (!l) { const r = await db.from("v_liquidacion_obra").select("*").eq("obra", obra).maybeSingle(); l = r.data; }
+  if (!l) { toast("Esta obra no está en Control de Pagos (sin fecha de contrato o cerrada)."); return; }
   const f = liqAbrirModal(`Avance y actas · ${esc(obra)}`, `El avance que registras en Obras (o en el Excel) queda aquí con su fecha y <b>nunca se pisa el anterior</b>.
     Para que un avance se use en una liquidación debe tener <b>acta</b>: márcala y escribe la fecha del acta. Si el avance registrado no tiene acta queda <b>pendiente de validación</b>.`);
   const ed = puedeEditar() && !enExcel();
@@ -13566,7 +13571,9 @@ async function liqModalAvance(obra){
   dibujar();
 }
 async function liqModalMateriales(obra){
-  const l = LIQ.filas[obra]; if (!l) return;
+  let l = LIQ.filas[obra];
+  if (!l) { const r = await db.from("v_liquidacion_obra").select("*").eq("obra", obra).maybeSingle(); l = r.data; }
+  if (!l) { toast("Esta obra no está en Control de Pagos (sin fecha de contrato o cerrada)."); return; }
   const f = liqAbrirModal(`Materiales del franquiciado · ${esc(obra)}`, `Materiales que el franquiciado compró con sus propios recursos para esta obra. <b>Sólo es un registro</b>:
     no es un movimiento de la obra ni se descuenta. Se le <b>reembolsan</b> en la próxima liquidación (van primero) y quedan marcados para no volver a sumarse.`);
   const ed = puedeEditar() && !enExcel();
@@ -13626,6 +13633,43 @@ function liqPendientesHTML(){
     </tbody></table></div></details>`;
 }
 document.addEventListener("toggle", e => { if (e.target.matches && e.target.matches("[data-liqpend]")) CPX.liqPendAbierto = e.target.open; }, true);
+
+/* ---------------- v74c · Obras: fecha del avance y acta, al lado de "Avance obra (%)" (historial obra_avance, 74_liquidacion_progresiva.sql) ---------------- */
+const avFrac = v => { const n = numTxt(String(v ?? "").replace("%", "")); return n === null ? null : (n > 1 ? n / 100 : n); };
+async function obraAvanceInit(fondo, nueva, base){
+  const inp = fondo.querySelector("#ff-avance"); if (!inp) return;
+  const caja = document.createElement("div");
+  caja.className = "av-acta";
+  caja.innerHTML = `<label class="m-campo" style="margin:0">Fecha del avance / acta<input type="date" id="ffx-avfecha"></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:4px"><input type="checkbox" id="ffx-avacta"> Tengo el acta firmada de este avance</label>
+    <small class="f-ayuda" id="ffx-avinfo">Al guardar, el avance queda en el historial con esta fecha (no se pisa el anterior). Para usarlo en las transferencias por avance debe tener acta.</small>`;
+  inp.closest(".m-campo, label, div").after(caja);
+  if (nueva || !base.id) return;
+  try {
+    const { data } = await db.from("obra_avance").select("avance_pct,fecha,con_acta").eq("obra_id", base.id).order("avance_pct", { ascending: false }).order("id", { ascending: false });
+    const L = data || [], act = avFrac(base.avance), igual = L.find(a => act !== null && Math.abs(Number(a.avance_pct) - act) < 0.0001), acta = L.find(a => a.con_acta);
+    if (igual) { if (igual.fecha) caja.querySelector("#ffx-avfecha").value = String(igual.fecha).slice(0, 10); caja.querySelector("#ffx-avacta").checked = !!igual.con_acta; }
+    caja.querySelector("#ffx-avinfo").innerHTML = (acta ? `Último avance con acta: <b>${pct(100 * acta.avance_pct, 0)}</b>${acta.fecha ? " (" + fecha(acta.fecha) + ")" : ""}.` : "<b>Aún no hay ningún avance con acta.</b>")
+      + ` <a href="#" data-liqav="${esc(base.codigo_atr)}">Ver historial</a>`;
+  } catch (_) {}
+}
+async function obraAvanceTrasGuardar(fondo, base, datos){
+  const f = fondo.querySelector("#ffx-avfecha"), a = fondo.querySelector("#ffx-avacta");
+  if (!f || !a) return false;
+  const fv = f.value || null, acta = a.checked, av = avFrac(datos.avance);
+  if (av === null || (!fv && !acta)) return false;
+  try {
+    const { data } = await db.from("obra_avance").select("id,avance_pct,fecha,con_acta").eq("obra_id", base.id).order("id", { ascending: false });
+    const fila = (data || []).find(x => Math.abs(Number(x.avance_pct) - av) < 0.0001);
+    if (fila && String(fila.fecha || "").slice(0, 10) === (fv || "") && !!fila.con_acta === acta) return false;
+    const p = fila ? { id: fila.id, fecha: fv, con_acta: acta } : { obra: base.codigo_atr, avance: Math.round(av * 10000) / 100 + "%", fecha: fv, con_acta: acta };
+    const { error } = await db.rpc("obra_avance_guardar", { p });
+    if (error) { toast("⚠ El avance se guardó, pero no la fecha/acta: " + esc(errorAmigable(error.message)), 9000); return false; }
+    toast(`✓ Avance ${pct(100 * av, 0)}${acta ? " con acta" : ""}${fv ? " del " + fecha(fv) : ""} registrado en el historial.`);
+    if (typeof liqCargar === "function") { CP.cargado = false; }
+    return true;
+  } catch (_) { return false; }
+}
 </script>
 </body>
 </html>
