@@ -570,6 +570,10 @@
     #vista-sf .sf-razon,#vista-sf .sf-recon tr td,#vista-sf .sf-kpi{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
   .bv-estado{border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:13px}.bv-estado.ok{background:#eef7ef;border:1px solid #b9dcb9}.bv-estado.pend{background:#fff4e5;border:1px solid #f1cf9a}
+  /* v70 · pagos eliminados del Excel */
+  .el-caja{border:1px solid #f1b9b2;background:#fff7f6;border-radius:12px;padding:12px 14px;margin:0 0 16px}
+  .el-caja h3{margin:0 0 4px;color:#a1281f}.el-caja table td{vertical-align:top}.el-sug{font-size:12px}.el-sug.dup{color:#1e6b2b;font-weight:700}.el-sug.rev{color:#a1281f;font-weight:700}
+  .el-barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}.el-barra span{flex:1;font-size:13px}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -1363,6 +1367,7 @@
       <h5 data-area="operaciones">Transición Excel ↔ Web</h5>
       <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web (transición)<small>Id T… por anotar en el Excel · duplicados · cargas<span class="n-ctrl" id="trans-n"></span></small></button>
       <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Pagos, negocios y franquicias → Excel · historial<span class="n-ctrl" id="tw-n"></span></small></button>
+      <button data-ptarea="oficial" data-area="operaciones" data-solo-supabase="1">Descargar Excel oficial<small><span class="tag-p">PANEL</span>Franquiciados y BBDD-Clientes Obras completos desde la base</small></button>
 
       <h4 class="sep">Control Facturación</h4>
       <button data-rep="cfx" data-area="operaciones" data-solo-supabase="1">Mapa de facturación<small>Todas las facturas de ATR: qué está OK y qué falta<span class="n-ctrl" id="cfx-n"></span></small></button>
@@ -9669,7 +9674,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 69;
+const VERSION_PAGINA = 70;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -11298,7 +11303,8 @@ async function transContador(){
   try {
     const [p, d] = await Promise.all([db.from("v_trans_por_anotar").select("id", { count: "exact", head: true }), db.from("v_trans_duplicados").select("id_web")]);
     const np = p.count || 0, nd = (d.data || []).length;
-    if ($("trans-n")) $("trans-n").innerHTML = nd ? ` · <b style="color:#a1281f">${nd} duplicado(s)</b>` : np ? ` · ${np} por anotar` : "";
+    try { const el = await db.from("v_pago_eliminado_excel").select("pago_id", { count: "exact", head: true }); TRANS.nElim = el.error ? 0 : (el.count || 0); } catch (_) { TRANS.nElim = 0; }
+    if ($("trans-n")) $("trans-n").innerHTML = TRANS.nElim ? ` · <b style="color:#a1281f">${TRANS.nElim} eliminado(s) del Excel</b>` : nd ? ` · <b style="color:#a1281f">${nd} duplicado(s)</b>` : np ? ` · ${np} por anotar` : "";
     if (nd && !TRANS.avisado) { TRANS.avisado = true;
       toast(`⚠ Hay <b>${nd} posible(s) pago(s) duplicado(s)</b> entre el Excel y la web. <a href="#" data-ir="trans">Revisar</a>`, 12000); }
   } catch (_) {}
@@ -11311,6 +11317,7 @@ async function cargarTrans(){
   TRANS.pend = p.data || []; TRANS.dup = d.data || [];
   try { const r = await db.from("v_trans_folios_clientes").select("*"); TRANS.fc = r.error ? [] : (r.data || []); } catch (_) { TRANS.fc = []; }
   TRANS.cargas = await transCargasHTML();
+  await elimCargar();
   dibujarTrans(); transContador();
 }
 const transCopiar = id => `<button class="cf-btn" data-trcop="${esc(id)}" title="Copiar el Id">📋 ${esc(id)}</button>`;
@@ -11344,6 +11351,7 @@ function dibujarTrans(){
   }
   if (!P.length) h += `<p class="nota-g">${TRANS.pend.length ? "Sin resultados." : "✓ No hay pagos de la web pendientes de anotar en el Excel."}</p>`;
   else h += `<p class="nota-g">Anótalos en la hoja Pagos del libro que corresponde, en una fila nueva, con <b>el mismo Id</b> (botón 📋 lo copia) y los mismos datos. Con la próxima carga desaparecen de esta lista.</p>`;
+  h = elimHTML() + h;
   h += transFcHTML() + (TRANS.cargas || "");
   $("trans-cuerpo").innerHTML = h;
 }
@@ -11351,6 +11359,7 @@ $("vista-trans").addEventListener("click", async e => {
   const c = e.target.closest("[data-trcop]");
   if (c) { try { await navigator.clipboard.writeText(c.dataset.trcop); } catch (_) {} toast(`Id ${esc(c.dataset.trcop)} copiado. Pégalo en la columna "Id pago" del Excel.`); return; }
   if (e.target.id === "trans-act") return cargarTrans();
+  if (await elimClick(e)) return;
   if (e.target.id === "trans-xlsx") return twListaTrans();      // v60: mismo formato que la hoja Pagos
   if (false) {
     const fila = x => x.origen === "OBRA"
@@ -13107,16 +13116,27 @@ function sfObra(o){
     enProceso: -sumar(M.filter(x => !sfCuenta(x) && /^Transferencia franquiciado/i.test(x.item) && sfN(x.monto) < 0), x => x.monto) };
   r.otros = r.cliente - r.royalty - r.aquiclub - r.proveedores - r.comisiones - r.obligaciones - r.transferido - r.saldo;
   r.obj20 = Math.round(0.2 * contrato);                         // primera transferencia: 20% del contrato (siempre)
-  r.falta20 = Math.max(r.obj20 - r.transferido, 0);
+  r.proc = M.filter(x => !sfCuenta(x) && /^Transferencia franquiciado/i.test(x.item) && sfN(x.monto) < 0);   // enviadas a pagar, aún sin cartola
+  r.procTxt = r.proc.map(x => `${x.id_pago} · ${$$(-sfN(x.monto))} · ${sfEstProc(x)}`);
+  r.falta20 = Math.max(r.obj20 - r.transferido - r.enProceso, 0);
   r.razon = sfRazon(r);
   r.corr = sfCorr(r);
   return r;
+}
+// estado de una transferencia que ya se pidió pero aún no está en la cartola
+function sfEstProc(x){
+  const e = x.estado_pago || "", sp = x.solicitud_pago ? ` (${x.solicitud_pago})` : "";
+  if (e === "Solicitado") return `en Contabilidad${sp}, por pagar`;
+  if (e === "Pendiente") return "por pagar: en Control de Pagos, aún no enviada a Contabilidad";
+  if (e === "Pagado") return `pagada por Contabilidad${sp}, falta la cartola`;
+  return "en proceso";
 }
 const SF_ETAPA = { "Anticipo 20%": "Primera transferencia (20%)", "Saldo final": "Saldo de liquidación", "Regla especial": "Regla especial" };
 // lo que corresponde pagar según la etapa (sólo montos ya determinados)
 function sfCorr(r){
   const c = r.c, z = r.razon, fin = /finalizada/i.test(r.o.estado || "");
   if (z.tipo === "na") return { txt: "No aplica", monto: 0 };
+  if (z.tipo === "proc") return { txt: z.titulo, monto: 0, proc: true };
   if (z.tipo === "listo") return { txt: `${SF_ETAPA[z.etapa] || "Transferencia"}: ${$$(c.monto_sugerido)} listo para transferir`, monto: sfN(c.monto_sugerido), listo: true };
   if (z.tipo === "ok") return { txt: /cerrada/i.test(r.o.estado || "") ? "Obra cerrada" : "Saldo de liquidación transferido", monto: 0 };
   if (z.etapa === "Anticipo 20%" && !r.contrato) return { txt: "Primera transferencia (20%): se calcula al registrar el monto del contrato", monto: 0 };
@@ -13146,6 +13166,12 @@ function sfRazon(r){
     return { tipo: "na", titulo: `Fuera del cálculo de Control de Pagos (${est || "sin estado"})`, items: [] };
   }
   const fal = c.faltantes || [], comp = sfN(c.oc_por_facturar) + sfN(c.facturas_por_pagar);
+  if (r.enProceso > 0) {                                // ya se envió a pagar: se informa su estado (no "falta saldo")
+    const et = r.transferido + 1 < 0.19 * r.contrato ? "Anticipo 20%" : "Saldo final";
+    const est = [...new Set(r.proc.map(sfEstProc))];
+    return { tipo: "proc", etapa: et, titulo: `${SF_ETAPA[et]} en proceso: ${$$(r.enProceso)} ${est.length === 1 ? est[0] : "en proceso de pago"}`,
+      items: [...r.procTxt, "Queda transferida cuando Contabilidad la pague y aparezca en la cartola (fecha de conciliación)."] };
+  }
   const notaComp = comp > 0 ? [`Se reservan ${$$(comp)} para OC por facturar y facturas de proveedor por pagar.`] : [];
   if (String(c.decision || "").startsWith("Pagar"))
     return { tipo: "listo", etapa: c.etapa, titulo: `Lista para transferir ${$$(c.monto_sugerido)} · ${SF_ETAPA[c.etapa] || pillTexto(c.decision)}`, items: ["Cumple las condiciones: se propone en el próximo Control de Pagos (Por revisar)."] };
@@ -13168,7 +13194,7 @@ function sfRazon(r){
   return { tipo: "bloq", etapa: "Saldo final", titulo: "Primera transferencia pagada · saldo de liquidación pendiente", items: [...(it.length ? [...it, ...notaComp] : sinDisp()), ...nota] };
 }
 // ---------- dibujo ----------
-const SF_PILL = { listo: ["ok", "Lista para transferir"], bloq: ["parcial", "Pendiente"], ok: ["ok", "Al día"], na: ["sin", "No aplica"] };
+const SF_PILL = { proc: ["transf", "En proceso de pago"], listo: ["ok", "Lista para transferir"], bloq: ["parcial", "Pendiente"], ok: ["ok", "Al día"], na: ["sin", "No aplica"] };
 function sfDet(id, titulo, cuerpo, abierto, extra = ""){
   const ab = SF.abiertos && id in SF.abiertos ? SF.abiertos[id] : abierto;
   return `<details class="sf-det ${extra}" data-sfid="${id}" ${ab ? "open" : ""}><summary>${titulo}</summary><div class="sf-body">${cuerpo}</div></details>`;
@@ -13234,9 +13260,9 @@ function dibujarSF(){
           ${r.comisiones ? lin("− Comisiones (Getnet)", -r.comisiones) : ""}${r.obligaciones ? lin("− Obligaciones franquiciado (traspasos)", -r.obligaciones) : ""}
           ${Math.abs(r.otros) >= 1 ? lin("− Otros movimientos", -r.otros) : ""}
           <tr class="sf-tr"><td><b>Transferido al franquiciado</b></td><td class="n"><b>${$$(r.transferido)}</b></td><td class="n sf-p"><b>${sfPct(r.transferido, r.contrato)}</b> del contrato</td></tr>
-          ${r.enProceso ? lin("Transferencias en proceso (sin cartola)", r.enProceso) : ""}
+          ${r.enProceso ? `<tr><td>Transferencias en proceso de pago</td><td class="n">${$$(r.enProceso)}</td><td class="n sf-p">${esc([...new Set(r.proc.map(sfEstProc))].join(" · "))}</td></tr>` : ""}
           ${lin("Saldo en obra hoy", r.saldo)}
-          <tr class="sf-pt"><td><b>Primera transferencia (20% del contrato)</b></td><td class="n"><b>${$$(r.obj20)}</b></td><td class="n sf-p">${r.falta20 > 0 ? `faltan ${$$(r.falta20)}` : "pagada"}</td></tr>
+          <tr class="sf-pt"><td><b>Primera transferencia (20% del contrato)</b></td><td class="n"><b>${$$(r.obj20)}</b></td><td class="n sf-p">${r.falta20 > 0 ? `faltan ${$$(r.falta20)}` : r.transferido + 1 < r.obj20 ? "en proceso de pago" : "pagada"}</td></tr>
           <tr class="sf-pt"><td><b>Saldo de liquidación</b></td><td class="n" colspan="2"><small>${r.razon.tipo === "listo" && r.razon.etapa === "Saldo final" ? `<b>${$$(r.c.monto_sugerido)}</b> determinado, listo para transferir`
             : r.razon.tipo === "ok" ? "liquidado" : /finalizada/i.test(r.o.estado || "") ? "por determinar (faltan condiciones)" : "se determina al finalizar la obra"}</small></td></tr>
         </tbody></table>`;
@@ -13250,7 +13276,7 @@ function dibujarSF(){
     }).join("") || `<p class="nota-g">La franquicia no tiene obras.</p>`;
     h += sfDet("obras", `Obras · ingresos, egresos y transferencias al franquiciado <small>${obras.length} obra(s) · transferido ${$$(tot.transferido)} (${sfPct(tot.transferido, tot.contrato)})</small>`, cuerpoOb, true);
     // no transferidos
-    const NT = obras.filter(r => r.razon.tipo === "bloq" || r.razon.tipo === "listo");
+    const NT = obras.filter(r => ["bloq", "listo", "proc"].includes(r.razon.tipo));
     const det = NT.filter(r => r.corr.monto > 0);
     h += sfDet("nt", `Transferencias pendientes y sus razones <small>${NT.length} obra(s) · determinado ${$$(sumar(det, r => r.corr.monto))}</small>`,
       NT.length ? `<table class="sf-t sf-nt"><thead><tr><th>Obra</th><th>Etapa</th><th class="n">Contrato</th><th class="n">Transferido</th><th>Corresponde según la etapa</th><th>Por qué está pendiente · qué falta para liberarlo</th></tr></thead><tbody>
@@ -13288,6 +13314,89 @@ $("vista-sf").addEventListener("click", e => {
   if (t.id === "sf-xlsx") return sfXlsx();
   if (t.id === "sf-act") return cargarSF();
 });
+
+/* ---------------- v70 · Pagos eliminados del Excel que siguen en la web (70_limpieza_pagos_eliminados.sql) ---------------- */
+const ELIM = { filas: [], resp: [], sel: new Set(), falta: false, err: "" };
+async function elimCargar(){
+  ELIM.falta = false; ELIM.err = "";
+  const [a, b] = await Promise.all([
+    db.from("v_pago_eliminado_excel").select("*").order("origen").order("franquicia").order("item"),
+    db.from("pago_respaldo_eliminado").select("id,lote,codigo_legacy,origen,gemelo_codigo,motivo,eliminado_en,eliminado_por,restaurado_en,restaurado_por,pago")
+      .order("eliminado_en", { ascending: false }).limit(60)]);
+  if (a.error) { ELIM.filas = []; ELIM.falta = /does not exist|schema cache|no existe/i.test(a.error.message); ELIM.err = ELIM.falta ? "" : a.error.message; }
+  else ELIM.filas = a.data || [];
+  ELIM.resp = b.error ? [] : (b.data || []);
+  const ids = new Set(ELIM.filas.map(x => x.pago_id)); for (const i of [...ELIM.sel]) if (!ids.has(i)) ELIM.sel.delete(i);
+}
+const elimDestino = x => x.origen === "OBRA" ? `${esc(x.centro_costo || "")} <small>${esc(x.obra || "")}</small>` : esc(x.franquicia);
+const elimVinc = v => (v || []).map(x => `${esc(x.tabla)}${x.n > 1 ? " ×" + x.n : ""}`).join(", ");
+function elimHTML(){
+  if (ELIM.falta) return `<div class="cf-aviso">Para revisar los pagos borrados del Excel que siguen en la web, ejecuta <b>70_limpieza_pagos_eliminados.sql</b> en Supabase.</div>`;
+  if (ELIM.err) return `<div class="cf-aviso rojo">${esc(ELIM.err)}</div>`;
+  const admin = SESION.rol === "admin", F = ELIM.filas;
+  let h = "";
+  if (F.length) {
+    const tot = sumar(F, x => x.monto), selT = sumar(F.filter(x => ELIM.sel.has(x.pago_id)), x => x.monto);
+    h += `<div class="el-caja"><h3>⚠ ${F.length} pago(s) borrados del Excel siguen en la web · ${$$(tot)}</h3>
+      <p class="nota-g" style="margin:0">No están en el último Excel cargado, pero la carga normal no los borra. Si el mismo movimiento ya está en el Excel con otro Id (columna <b>Gemelo</b>),
+      está <b>duplicado</b> y genera deudas o totales falsos. Revisa cada uno con el Excel y elimina sólo los que correspondan:
+      queda un <b>respaldo completo</b> (se puede restaurar) y sus vínculos (factura, conciliación, solicitud…) pasan al gemelo.</p>
+      ${admin ? `<div class="el-barra"><span>${ELIM.sel.size ? `<b>${ELIM.sel.size}</b> seleccionado(s) · ${$$(selT)}` : "Marca los que vas a eliminar"}</span>
+        <button class="btn sec" id="el-dup">Marcar sólo duplicados claros</button>
+        <button class="btn" id="el-borrar" ${ELIM.sel.size ? "" : "disabled"} style="background:#a1281f;border-color:#a1281f">Eliminar con respaldo…</button></div>`
+        : `<p class="nota-g">Sólo un administrador puede eliminarlos.</p>`}
+      <div class="tabla-wrap"><table class="cp"><thead><tr>${admin ? "<th></th>" : ""}<th>Libro</th><th>Id pago</th><th>Franquicia / obra</th><th>Ítem</th><th class="n">Monto</th><th>Fecha pago</th>
+        <th>Conciliación</th><th>Gemelo (en el Excel)</th><th>Vínculos</th><th>Qué hacer</th></tr></thead><tbody>
+      ${F.map(x => `<tr>${admin ? `<td><input type="checkbox" data-elsel="${x.pago_id}" ${ELIM.sel.has(x.pago_id) ? "checked" : ""}></td>` : ""}
+        <td><small>${x.origen === "OBRA" ? "Obras" : "Franquiciados"}</small></td><td><b>${esc(x.id_pago)}</b>${x.fuente === "APP" ? `<br><small title="Se editó en la web">editado en web</small>` : ""}</td>
+        <td>${elimDestino(x)}</td><td><small>${esc(x.item)}</small></td><td class="n">${$$(x.monto)}</td><td>${fecha(x.fecha_pago) || "—"}</td>
+        <td>${x.no_bancario ? "N/A" : fecha(x.fecha_conciliacion) || "<small>sin conciliar</small>"}</td>
+        <td>${x.gemelo ? `<b>${esc(x.gemelo)}</b><br><small>${fecha(x.gemelo_fecha) || ""}${x.gemelo_conciliacion ? " · conc. " + fecha(x.gemelo_conciliacion) : x.gemelo_no_bancario ? " · N/A" : ""}</small>` : "—"}</td>
+        <td><small>${elimVinc(x.vinculos) || "—"}</small></td>
+        <td class="el-sug ${x.gemelo && x.n_comparten_gemelo <= 1 ? "dup" : "rev"}">${esc(x.sugerencia)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  }
+  const R = ELIM.resp;
+  if (R.length) h += `<details class="el-caja" style="background:#faf7f5;border-color:var(--linea)"><summary style="cursor:pointer;font-weight:700;color:var(--cafe)">Pagos eliminados con respaldo (${R.length}) · se pueden restaurar</summary>
+      <div class="tabla-wrap" style="margin-top:8px"><table class="cp"><thead><tr><th>Lote</th><th>Id pago</th><th class="n">Monto</th><th>Gemelo</th><th>Motivo</th><th>Eliminado</th><th></th></tr></thead><tbody>
+      ${R.map(r => `<tr><td><small>${esc(r.lote)}</small></td><td><b>${esc(r.codigo_legacy)}</b> <small>${r.origen === "OBRA" ? "obras" : "franq."}</small></td>
+        <td class="n">${$$(r.pago && r.pago.monto)}</td><td>${esc(r.gemelo_codigo || "—")}</td><td><small>${esc(r.motivo || "")}</small></td>
+        <td><small>${twFechaHora(r.eliminado_en)}<br>${esc(r.eliminado_por || "")}</small></td>
+        <td>${r.restaurado_en ? `<small>Restaurado ${twFechaHora(r.restaurado_en)}</small>` : admin ? `<button class="cf-btn" data-elrest="${r.id}">Restaurar</button>` : ""}</td></tr>`).join("")}</tbody></table></div></details>`;
+  return h;
+}
+async function elimClick(e){
+  const cb = e.target.closest("[data-elsel]");
+  if (cb) { const id = +cb.dataset.elsel; cb.checked ? ELIM.sel.add(id) : ELIM.sel.delete(id); dibujarTrans(); return true; }
+  if (e.target.id === "el-dup") {
+    ELIM.sel = new Set(ELIM.filas.filter(x => x.gemelo && x.n_comparten_gemelo <= 1).map(x => x.pago_id));
+    if (!ELIM.sel.size) toast("No hay duplicados claros (con un solo gemelo). Revisa los demás con el Excel.");
+    dibujarTrans(); return true;
+  }
+  if (e.target.id === "el-borrar") {
+    const L = ELIM.filas.filter(x => ELIM.sel.has(x.pago_id)); if (!L.length) return true;
+    const comp = L.filter(x => x.n_comparten_gemelo > 1);
+    if (comp.length && L.length > 1) { toast(`${comp.map(x => x.id_pago).join(", ")} comparte(n) gemelo con otra fila: elimínalo(s) de a uno.`, 9000); return true; }
+    const lista = L.map(x => `• ${x.id_pago} · ${x.item} · ${$$(x.monto)}${x.gemelo ? " (gemelo " + x.gemelo + ")" : " (SIN gemelo)"}`).join("\n");
+    const motivo = prompt(`Vas a eliminar ${L.length} pago(s) por ${$$(sumar(L, x => x.monto))}:\n\n${lista}\n\n` +
+      `Queda un respaldo completo y se puede restaurar. Escribe el motivo (ej. "duplicado: ya está como TPFRA000002"):`, L.length === 1 && L[0].gemelo ? `Duplicado: ya está en el Excel como ${L[0].gemelo}` : "");
+    if (motivo === null) return true;
+    if (!motivo.trim()) { toast("Escribe el motivo."); return true; }
+    if (comp.length && !confirm(`${comp[0].id_pago}: hay ${comp[0].n_comparten_gemelo} filas que se parecen a ${comp[0].gemelo}. ¿Confirmas que ESTA es la duplicada?`)) return true;
+    const { data, error } = await db.rpc("pago_eliminar_con_respaldo", { p: { ids: L.map(x => x.pago_id), motivo: motivo.trim(), confirmo_compartido: !!comp.length } });
+    if (error) { toast("❌ " + esc(error.message), 12000); return true; }
+    toast(`✓ ${data.eliminados} pago(s) eliminado(s) con respaldo (${esc(data.lote)}): ${esc((data.codigos || []).join(", "))}`, 9000);
+    ELIM.sel.clear(); await cargarTrans(); return true;
+  }
+  const r = e.target.closest("[data-elrest]");
+  if (r) {
+    const b = ELIM.resp.find(x => x.id === +r.dataset.elrest); if (!b) return true;
+    if (!confirm(`¿Restaurar ${b.codigo_legacy} (${$$(b.pago && b.pago.monto)})? Vuelve a la web con sus mismos datos.`)) return true;
+    const { error } = await db.rpc("pago_restaurar_respaldo", { p_respaldo: b.id });
+    if (error) { toast("❌ " + esc(error.message), 12000); return true; }
+    toast(`✓ ${esc(b.codigo_legacy)} restaurado.`); await cargarTrans(); return true;
+  }
+  return false;
+}
 </script>
 </body>
 </html>
