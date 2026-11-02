@@ -3427,7 +3427,7 @@ const MODULOS = {
       { k: "estado", t: "Estado Obra", ro: 1, w: 110, ayuda: "Se calcula solo (Reportes › Estado de obras)" },
       { k: "fecha_renuncia", t: "Fecha renuncia", tipo: "fecha", w: 105, ayuda: "Si el cliente renunció: la obra pasa a Renuncia" },
       { k: "avance", t: "Avance obra (%)", tipo: "pct", w: 100 },
-      { k: "canal", t: "Canal Cliente", tipo: "lista", lista: "canal", w: 120 },
+      { k: "canal", t: "Canal Cliente", tipo: "lista", lista: "canal", w: 120, req: 1, ayuda: "Obligatorio: define el royalty (Digital 7% · Grandes cuentas, Partner y Premium 12% · Referido y Tienda 5% · + marketing 1%)." },
       { k: "tipo_remodelacion", t: "Tipo de remodelación", tipo: "lista", lista: "tipo_remodelacion", libre: 1, w: 160 },
       { k: "comentarios", t: "Comentarios del Negocio", w: 240 },
       { k: "saldo_en_obra", t: "Saldo en obra", ro: 1, tipo: "monto", w: 120 },
@@ -7764,10 +7764,10 @@ function dibujarArrfm(){
       <small>aprobada ${s.aprobado_en ? fecha(s.aprobado_en) : ""}${s.enviada_en ? ` · solicitada a Contabilidad el ${fecha(s.enviada_en)} por ${esc((s.enviada_por || "").split("@")[0])}` : ""}</small>
       <b style="margin-left:auto">${$$(s.total)}</b>
       ${s.estado === "Aprobada" && ed ? `<button class="btn" data-arrfm-env="${s.id}">Solicitar emisión a Contabilidad</button>` : ""}</div>
-    <div class="tabla-wrap" style="border:0;border-radius:0"><table class="ct-t"><thead><tr><th>ID Franquicia</th><th>Razón Social</th><th>RUT</th><th>Tienda</th><th>Centro costo</th><th>Glosa</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th>Factura</th></tr></thead><tbody>
+    <div class="tabla-wrap" style="border:0;border-radius:0"><table class="ct-t"><thead><tr><th>ID Franquicia</th><th>Razón Social</th><th>RUT</th><th>Tienda</th><th>Centro costo</th><th>Glosa</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th>Vence</th><th>Factura</th></tr></thead><tbody>
     ${(ARRFM.lin[s.id] || []).map(l => `<tr><td><b>${esc(l.franquicia || "")}</b></td><td>${esc(l.receptor || "")}</td><td style="white-space:nowrap">${esc(rut(l.rut))}</td><td>${esc(l.tienda || "")}</td>
       <td style="white-space:nowrap">${esc(l.centro_costo || "")}</td><td style="min-width:240px">${esc(l.glosa || "")}</td><td class="n">${$$(l.neto)}</td><td class="n">${Number(l.iva) ? $$(l.iva) : "Exento"}</td>
-      <td class="n"><b>${$$(l.total)}</b></td><td>${l.folio ? `<span class="pill ok">F° ${esc(l.folio)}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>`;
+      <td class="n"><b>${$$(l.total)}</b></td><td style="white-space:nowrap">${fecha(l.vencimiento) || "—"}</td><td>${l.folio ? `<span class="pill ok">F° ${esc(l.folio)}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>`;
   $("arrfm-cuerpo").innerHTML = (pend.length ? pend.map(card).join("") : `<p class="nota-g">No hay arriendos aprobados por solicitar a Contabilidad.</p>`)
     + (hist.length ? `<p class="nota-g"><a href="#" id="arrfm-hist">${ARRFM.verHist ? "Ocultar" : "Ver"} historial (${hist.length})</a></p>${ARRFM.verHist ? hist.map(card).join("") : ""}` : "");
 }
@@ -9674,7 +9674,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 70;
+const VERSION_PAGINA = 72;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -12589,11 +12589,18 @@ async function transCargasHTML(){
   try {
     const { data, error } = await db.from("carga_excel_log").select("*").order("fecha", { ascending: false }).limit(15);
     if (error || !data || !data.length) return error ? "" : `<h3 class="fres-h" style="margin-top:18px">Cargas desde Excel</h3><p class="nota-g">Aún no hay cargas registradas (se registran desde la versión 61 de cargar_base).</p>`;
-    return `<h3 class="fres-h" style="margin-top:18px">Cargas desde Excel <small>cada cargar_base.bat con su revisión previa</small></h3>
-      <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Usuario PC</th><th>Archivos</th><th class="n">Nuevos</th><th class="n">Modificados</th><th class="n">Advertencias</th><th>Confirmación</th></tr></thead><tbody>
-      ${data.map(c => { const r = c.resumen || {}; return `<tr><td>${twFechaHora(c.fecha)}</td><td><small>${esc(c.usuario_pc || "")}</small></td>
+    const ok = data.find(c => !c.estado || c.estado === "ok"), ult = data[0];
+    const EST = { ok: ["ok", "✓ Correcta"], error: ["rojo", "✗ Error"], cancelada: ["parcial", "Cancelada"], "solo revisar": ["", "Sólo revisión"] };
+    const pill = c => { const e = EST[c.estado || "ok"] || ["", c.estado]; return `<span class="pill ${e[0]}">${esc(e[1])}</span>`; };
+    return `<h3 class="fres-h" style="margin-top:18px">Cargas desde Excel <small>cada cargar_base.bat con su revisión previa y su resultado</small></h3>
+      <div class="kpis" style="grid-template-columns:repeat(2,1fr);margin:6px 0 10px">
+        <div class="kpi"><div class="t">Última carga exitosa</div><div class="v" style="font-size:20px">${ok ? twFechaHora(ok.fecha) : "—"}</div><div class="s">${ok ? esc(ok.usuario_pc || "") + (ok.duracion_s ? ` · ${ok.duracion_s} s` : "") : "Sin cargas correctas en las últimas 15"}</div></div>
+        <div class="kpi ${ult && ult.estado === "error" ? "alerta" : ""}"><div class="t">Último intento</div><div class="v" style="font-size:20px">${ult ? twFechaHora(ult.fecha) : "—"}</div><div class="s">${ult ? pill(ult) + (ult.error ? ` <small>${esc(String(ult.error).slice(0, 120))}</small>` : "") : ""}</div></div></div>
+      <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Resultado</th><th>Usuario PC</th><th>Archivos</th><th class="n">Nuevos</th><th class="n">Modificados</th><th class="n">Eliminados del Excel</th><th class="n">Advertencias</th><th>Confirmación</th></tr></thead><tbody>
+      ${data.map(c => { const r = c.resumen || {}; return `<tr><td>${twFechaHora(c.fecha)}${c.duracion_s ? `<br><small>${c.duracion_s} s</small>` : ""}</td>
+        <td>${pill(c)}${c.error ? `<br><small style="color:#a1281f">${esc(String(c.error).slice(0, 160))}</small>` : ""}</td><td><small>${esc(c.usuario_pc || "")}</small></td>
         <td><small>${(c.archivos || []).map(a => esc(a.archivo) + (a.modificado ? " (" + esc(String(a.modificado).replace("T", " ")) + ")" : "")).join("<br>")}</small></td>
-        <td class="n">${r.NUEVOS ?? ""}</td><td class="n">${r.MODIF ?? ""}</td><td class="n">${r.ADV ?? ""}</td><td><small>${esc(c.confirmado || "")}</small></td></tr>`; }).join("")}</tbody></table></div>`;
+        <td class="n">${r.NUEVOS ?? ""}</td><td class="n">${r.MODIF ?? ""}</td><td class="n">${r.ELIM ?? ""}</td><td class="n">${r.ADV ?? ""}</td><td><small>${esc(c.confirmado || "")}</small></td></tr>`; }).join("")}</tbody></table></div>`;
   } catch (_) { return ""; }
 }
 </script>
