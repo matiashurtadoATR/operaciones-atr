@@ -586,6 +586,9 @@
   .liq-add{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea)}
   .liq-add label{display:flex;flex-direction:column;font-size:12px;color:var(--gris);gap:2px}.liq-add input{min-width:0}
   .modal.liq-modal{max-width:980px;width:95vw}
+  .liq-pend{border:1px dashed #e0c3b0;border-radius:12px;background:#fffaf6;margin:-4px 0 14px;padding:0 12px}
+  .liq-pend>summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--cafe)}.liq-pend>summary small{font-weight:400;color:var(--gris)}
+  .liq-pend ul{margin:0;padding-left:16px;font-size:12.5px;color:#a1281f}
   @media (max-width:800px){.liq-grid{grid-template-columns:1fr}}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
@@ -3096,6 +3099,7 @@ function cpxDibRev(sug){
     + sec("B", "Transferencias a franquiciados", "Monto sugerido por el cálculo de cada obra (anticipo 20% o saldo final). ¿Una fuera de las reglas? “+ Agregar transferencia”: queda aquí para revisarla con su cálculo.",
       [B.map(filaB), B], `<th>Obra</th><th>Motivo</th><th class="n">Monto sugerido</th>${ed ? "<th></th>" : ""}`,
       ed ? `<button class="btn sec" id="cpx-nueva-tr" style="margin-left:auto">+ Agregar transferencia</button>` : "")
+    + liqPendientesHTML()
     + sec("C", "Traspasos de fondos para pagar facturas", "Mueve saldo desde otras obras del mismo franquiciado. Al aceptar se registra de inmediato (movimiento interno, conciliación N/A): no pasa por Contabilidad.",
       [C.map(filaC), C], `<th>Obra que recibe</th><th>Desde</th><th class="n">Monto</th>${ed ? "<th></th>" : ""}`)
     + (() => { const D = cpxCobros();
@@ -13599,6 +13603,29 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-liqav]"); if (a) { e.preventDefault(); return liqModalAvance(a.dataset.liqav); }
   const m = e.target.closest("[data-liqmat]"); if (m) { e.preventDefault(); return liqModalMateriales(m.dataset.liqmat); }
 });
+
+/* v74b · obras que podrían liquidar por avance pero aún no cumplen: se muestra el motivo */
+function liqPendientesHTML(){
+  if (!LIQ.ok) return "";
+  const fr = $("cp-franquicia").value, q = $("cp-buscar").value.toLowerCase().trim();
+  const L = Object.values(LIQ.filas).filter(l => Number(l.recomendado) <= TOL_ACC && !l.en_saldo_final
+      && (Number(l.avance_reg) >= 0.5 || Number(l.pct_cliente) > 0.5 || Number(l.reembolso_pend) > 0))
+    .filter(l => (!fr || l.franquicia === fr) && (!q || [l.obra, l.cliente].some(t => String(t || "").toLowerCase().includes(q))))
+    .sort((a, b) => Number(b.avance_reg) - Number(a.avance_reg));
+  if (!L.length) return "";
+  const motivo = l => { const o = [...(l.observaciones || [])];
+    if (l.aplica && Number(l.disponible) <= TOL_ACC) o.push("Cumple, pero la obra no tiene disponible (después de reservar proveedores y gastos)");
+    else if (l.aplica && Number(l.a_liberar) <= TOL_ACC && l.saldo50_hecho) o.push("Cumple, pero no hay monto nuevo: el pago del cliente o el avance con acta no han subido desde la última liquidación");
+    return o; };
+  return `<details class="liq-pend" ${CPX.liqPendAbierto ? "open" : ""} data-liqpend><summary>Liquidación por avance · ${L.length} obra(s) que aún no se sugieren <small>— por qué y qué falta</small></summary>
+    <div class="tabla-wrap" style="margin:0 0 10px"><table class="cp"><thead><tr><th>Obra</th><th class="n">Cliente pagó</th><th class="n">Avance registrado · con acta</th><th class="n">Disponible</th><th>Qué falta</th><th></th></tr></thead><tbody>
+    ${L.map(l => `<tr><td class="ob"><b>${esc(l.cliente || "")}</b><span>${obraLink(l.obra)} · ${esc(l.franquicia)}</span></td>
+      <td class="n">${liqP(l.pct_cliente)}</td><td class="n">${liqP(l.avance_reg)} · <b>${liqP(l.avance_usable)}</b></td><td class="n">${$$(l.disponible)}</td>
+      <td><ul>${motivo(l).map(t => `<li>${esc(t)}</li>`).join("") || "<li>—</li>"}</ul></td>
+      <td style="white-space:nowrap"><button class="cf-btn" data-liqav="${esc(l.obra)}">Avance y actas</button> <button class="cf-btn" data-liqmat="${esc(l.obra)}">Materiales</button></td></tr>`).join("")}
+    </tbody></table></div></details>`;
+}
+document.addEventListener("toggle", e => { if (e.target.matches && e.target.matches("[data-liqpend]")) CPX.liqPendAbierto = e.target.open; }, true);
 </script>
 </body>
 </html>
