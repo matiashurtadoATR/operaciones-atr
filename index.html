@@ -574,6 +574,9 @@
   .el-caja{border:1px solid #f1b9b2;background:#fff7f6;border-radius:12px;padding:12px 14px;margin:0 0 16px}
   .el-caja h3{margin:0 0 4px;color:#a1281f}.el-caja table td{vertical-align:top}.el-sug{font-size:12px}.el-sug.dup{color:#1e6b2b;font-weight:700}.el-sug.rev{color:#a1281f;font-weight:700}
   .el-barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}.el-barra span{flex:1;font-size:13px}
+  /* v73 · solicitar factura desde Cobros */
+  .m-fact{border:1px solid #f0c9ad;background:#fff7f1;border-radius:10px;padding:8px 12px;margin-top:10px}.m-fact legend{font-weight:700;color:var(--cafe)}
+  .m-fact label{display:block;margin:4px 0}.m-fact .sfc-extra{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}.m-fact small{color:var(--gris)}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -9674,7 +9677,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 72;
+const VERSION_PAGINA = 73;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9802,7 +9805,8 @@ function actualizarSelCob(){
   $("cob-sel").innerHTML = !ed ? "" : sel.length ? `<b>${sel.length}</b> seleccionado(s) · ${$$(sumar(sel, r => r.monto))}
       <button class="btn sec" id="cob-informar" ${pc.length ? "" : "disabled"}>Comprobante recibido</button>
       <button class="btn" id="cob-pagar" ${pc.length ? "" : "disabled"}>Registrar pago (cartola)</button>
-      <button class="btn sec" id="cob-factura">Asignar factura</button>`
+      <button class="btn sec" id="cob-factura">Asignar factura</button>
+      <button class="btn" id="cob-solfact">Solicitar factura a Contabilidad</button>`
     : `<span>Selecciona cobros para anotar el <b>comprobante recibido</b>, <b>registrar su pago</b> (cuando aparece en la cartola) o <b>asignarles la factura</b> que los paga.</span>`;
 }
 function modalPagoCobro(){
@@ -9861,11 +9865,12 @@ function modalNuevoCobro(){
       <label><input type="radio" name="nc-e" value="porcobrar" checked> Por cobrar</label>
       <label><input type="radio" name="nc-e" value="comp"> Comprobante recibido, falta cartola · fecha <input type="date" id="nc-fcomp" value="${hoyISO()}"></label>
       <label><input type="radio" name="nc-e" value="cartola"> Ya está en la cartola · fecha <input type="date" id="nc-fconc" value="${hoyISO()}"></label>
-    </fieldset><div class="error" id="nc-error"></div>`,
+    </fieldset>${sfcCampos("nc")}<div class="error" id="nc-error"></div>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Crear cobro", fn: async () => {
       const p = { origen: "FRANQUICIA", franquicia: $("nc-fr").value, item: $("nc-item").value, monto: $("nc-monto").value.trim(),
                   vencimiento: $("nc-venc").value ? fecha($("nc-venc").value) : null, factura_venta: $("nc-folio").value.trim() || null, observaciones: $("nc-obs").value.trim() || null };
       if (!p.monto) { $("nc-error").textContent = "Escribe el monto."; return false; }
+      let pfNC; try { pfNC = sfcLeer("nc"); } catch (e) { $("nc-error").textContent = e.message; return false; }
       const est = document.querySelector('input[name="nc-e"]:checked').value;
       if (est === "cartola") { if (!$("nc-fconc").value) { $("nc-error").textContent = "Escribe la fecha de la cartola."; return false; }
         Object.assign(p, { fecha_conciliacion: $("nc-fconc").value, fecha_pago: $("nc-fconc").value, medio: "Transferencia" }); }
@@ -9875,7 +9880,13 @@ function modalNuevoCobro(){
         const r2 = await db.rpc("informar_pago_cobro", { p: { ids: [data.id], fecha_pago: $("nc-fcomp").value || null, medio: "Transferencia" } });
         if (r2.error) toast("⚠ Cobro creado, pero no se pudo marcar el comprobante: " + esc(errorAmigable(r2.error.message)), 9000);
       }
-      toast(`✓ Cobro ${esc(data.codigo)} creado (${est === "cartola" ? "pagado: ya está en Pagos" : est === "comp" ? "informado, falta cartola" : "por cobrar"}).`);
+      let msgF = "";
+      const pf = pfNC;
+      if (pf && !p.factura_venta) {
+        const rf = await db.rpc("solicitar_factura_cobros", { p: { ids: [data.id], ...pf } });
+        msgF = rf.error ? `<br>⚠ No se pudo solicitar la factura: ${esc(errorAmigable(rf.error.message))}` : `<br>Factura solicitada en <b>${esc(rf.data.codigo)}</b>: ${esc(rf.data.estado)}.`;
+      }
+      toast(`✓ Cobro ${esc(data.codigo)} creado (${est === "cartola" ? "pagado: ya está en Pagos" : est === "comp" ? "informado, falta cartola" : "por cobrar"}).` + msgF, msgF ? 10000 : 4000);
       if (est === "cartola") invalidarPagos();
       COB.filas = null; await cargarCobros(); return true; } }]);
 }
@@ -9886,6 +9897,7 @@ $("vista-cob").addEventListener("click", e => {
   if (t.id === "cob-informar") return modalInformarCobro();
   if (t.dataset.cobDel) return eliminarCobro(COB.filas.find(r => r.id === +t.dataset.cobDel));
   if (t.id === "cob-factura") return modalFacturaCobro();
+  if (t.id === "cob-solfact") return modalSolicitarFacturaCobros();
 });
 $("vista-cob").addEventListener("change", e => {
   const t = e.target;
@@ -13403,6 +13415,43 @@ async function elimClick(e){
     toast(`✓ ${esc(b.codigo_legacy)} restaurado.`); await cargarTrans(); return true;
   }
   return false;
+}
+
+/* ---------------- v73 · Solicitar factura a Contabilidad desde Cobros a franquiciados (73_solicitar_factura_cobros.sql) ---------------- */
+function sfcCampos(pre, porDefecto){
+  const def = porDefecto || "no";
+  return `<fieldset class="m-fact"><legend>Factura</legend>
+    <label><input type="radio" name="${pre}-sf" value="no" ${def === "no" ? "checked" : ""}> No solicitar factura ahora</label>
+    <label><input type="radio" name="${pre}-sf" value="vb" ${def === "vb" ? "checked" : ""}> Solicitar factura a Contabilidad <small>(pasa por el visto bueno de Patricio)</small></label>
+    ${SESION.suple ? `<label><input type="radio" name="${pre}-sf" value="cont"> Enviar directo a Contabilidad <small>(supliendo el visto bueno de Patricio; queda registrado el motivo)</small></label>` : ""}
+    <div class="sfc-extra"><label class="m-campo">Fecha de emisión<input type="date" id="${pre}-sfemi" value="${hoyISO()}"></label>
+      <label class="m-campo">Vencimiento <small>(vacío = 30 días)</small><input type="date" id="${pre}-sfven"></label>
+      ${SESION.suple ? `<label class="m-campo">Motivo para suplir el VB<input id="${pre}-sfmot" placeholder="ej. urgente, Patricio de vacaciones"></label>` : ""}</div></fieldset>`;
+}
+function sfcLeer(pre){
+  const r = document.querySelector(`input[name="${pre}-sf"]:checked`); if (!r || r.value === "no") return null;
+  const p = { fecha_emision: $(`${pre}-sfemi`).value || null, vencimiento: $(`${pre}-sfven`).value || null };
+  if (r.value === "cont") {
+    const m = ($(`${pre}-sfmot`) || {}).value; p.suplir_motivo = (m || "").trim();
+    if (!p.suplir_motivo) throw new Error("Escribe el motivo para enviarla directo a Contabilidad.");
+  }
+  return p;
+}
+function modalSolicitarFacturaCobros(){
+  const L = COB.filas.filter(r => COB.sel.has(r.id));
+  if (!L.length) return;
+  return modal(`<h3>Solicitar factura · ${L.length} cobro(s) · ${$$(sumar(L, r => r.monto))}</h3>
+    <p class="nota-sol">${L.map(r => `${esc(r.id_pago)} ${esc(r.franquicia || "")} ${esc(r.concepto)} ${$$(r.monto)}`).join(" · ")}<br>
+    Se crea una solicitud de factura (SF-…) sólo con estos cobros, ya confirmada. Se factura el monto como total (neto + IVA).</p>
+    ${sfcCampos("sfc", "vb")}<div class="error" id="sfc-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Solicitar factura", fn: async () => {
+      let pf; try { pf = sfcLeer("sfc"); } catch (e) { $("sfc-error").textContent = e.message; return false; }
+      if (!pf) { $("sfc-error").textContent = "Elige cómo solicitar la factura."; return false; }
+      const { data, error } = await db.rpc("solicitar_factura_cobros", { p: { ids: L.map(r => r.id), ...pf } });
+      if (error) { $("sfc-error").textContent = /does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 73_solicitar_factura_cobros.sql en Supabase." : errorAmigable(error.message); return false; }
+      toast(`✓ Solicitud <b>${esc(data.codigo)}</b> (${data.lineas} cobro(s), ${$$(data.total)}): ${esc(data.estado)}.` +
+            (/Patricio/.test(data.estado) ? `<br>Siguiente paso: Panel de operaciones › Solicitudes de factura › Enviar a Patricio.` : ""), 10000);
+      COB.sel.clear(); COB.filas = null; await cargarCobros(); return true; } }]);
 }
 </script>
 </body>
