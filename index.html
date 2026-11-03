@@ -700,6 +700,17 @@
   .rc-obs{width:100%;min-height:60px;margin-top:6px;font:inherit;border:1px solid var(--linea);border-radius:10px;padding:8px 10px}
   .rc-pie{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:#6f625a;flex-wrap:wrap}
   @media (max-width:900px){.rc-wrap,.rc-cols{grid-template-columns:1fr}.rc-lista{position:static;max-height:none}#rcon-filas{max-height:300px}}
+  /* v81 · fechas no válidas · Comisión Getnet */
+  input.fecha-mala{border-color:#c0392b!important;background:#fdecea!important;outline:2px solid #f3b4ab}
+  .gn-obra{background:#fff;border:1px solid var(--linea);border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .gn-obra .gn-cab{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;background:#faf5f1;padding:10px 14px;border-bottom:1px solid var(--linea)}
+  .gn-obra .gn-cab b{color:var(--cafe)}.gn-obra .gn-cab small{color:#6f625a}
+  .gn-obra table{width:100%;border-collapse:collapse}.gn-obra td,.gn-obra th{padding:8px 12px;border-bottom:1px solid #f1e6df;text-align:left;font-size:13px}
+  .gn-obra th{font-size:11px;text-transform:uppercase;color:#6f625a;font-weight:600}.gn-obra .n{text-align:right;white-space:nowrap}
+  .gn-obra input.gn-com{width:120px;text-align:right}
+  .gn-ok{padding:40px;text-align:center;background:#fff;border:1px solid var(--linea);border-radius:14px;color:#1e6b2b;font-size:18px;font-weight:700}
+  .gn-ok small{display:block;color:#6f625a;font-weight:400;font-size:13px;margin-top:6px}
+  @media (max-width:760px){.gn-obra input.gn-com{width:100%}}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -1474,6 +1485,7 @@
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
       <button data-rep="ctrl" data-mod="royalty" data-area="operaciones">Alerta de royalties<small>Esperado vs cobrado<span class="n-ctrl" data-ctrl-n="royalty"></span></small></button>
       <button data-rep="ctrl" data-mod="negativo" data-area="operaciones">Alerta de saldo negativo<small>Obras bajo cero y por qué<span class="n-ctrl" data-ctrl-n="negativo"></span></small></button>
+      <button data-rep="getnet" data-area="operaciones" data-solo-supabase="1">Comisión Getnet<small>Pagos con tarjeta sin comisión<span class="n-ctrl" id="getnet-n"></span></small></button>
       <h5 data-area="operaciones" class="req-ses oculto">Ingreso de datos</h5>
       <button data-rep="ing" data-mod="pagos_obra" data-area="operaciones" class="req-ses oculto">Pagos obras<small>Hoja Pagos · Clientes Obras</small></button>
       <button data-rep="ing" data-mod="obras" data-area="operaciones" class="req-ses oculto">Obras<small>Hoja Negocios</small></button>
@@ -2102,6 +2114,18 @@
       <div class="areas" id="ini-areas"></div>
       <div class="ag-pie">Atrium Go<span>|</span>Gestión y operaciones</div>
      </section>
+     <section id="vista-getnet" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Comisión Getnet</h1><p>Pagos de clientes con <b>tarjeta</b> que aún no tienen su <b>Comisión Getnet (egreso)</b>. La comisión siempre se descuenta de la obra:
+          escribe el monto y guarda. Se crea la fila de comisión unida al pago (igual que en Ingreso de datos › Pagos obras) y el pago sale de esta lista.</p></div>
+        <div class="acciones"><button class="btn sec" id="gn-act">Actualizar</button><button class="btn" id="gn-todas">Guardar las escritas</button></div>
+      </div>
+      <div class="kpis" id="gn-kpis"></div>
+      <div class="controles"><div class="campo obra"><label>Buscar</label><input id="gn-q" placeholder="Obra, cliente, franquicia, Id pago…" autocomplete="off"></div></div>
+      <div id="gn-cuerpo"></div>
+     </section>
+
      <section id="vista-eo" class="oculto">
       <button class="volver oculto" data-volver="1">← Volver</button>
       <div class="cp-head">
@@ -2629,7 +2653,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "sf", "porc", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm", "rcon"];
+const VISTAS = ["negocio", "sf", "porc", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm", "rcon", "getnet"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2651,6 +2675,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "solp") cargarSolicitudesPago();
   if (rep === "cprech") cargarCprech(mod);
   if (rep === "eo") cargarEo();
+  if (rep === "getnet") cargarGetnet();
   if (rep === "resp") cargarResp();
   if (rep === "fres") cargarFres();
   if (rep === "cuad") cargarCuad(mod || CUAD.mod);
@@ -2687,7 +2712,7 @@ document.querySelectorAll(".menu button[data-rep]").forEach(b => b.onclick = () 
 const NAV = { pila: [] };
 const NOMBRE_VISTA = { pagos: "Control de Pagos", act: "Activación franquicias", ger: "Panorama gerencial", franq: "Resumen Franquiciado",
                        negocio: "Resumen Negocio", sol: "Solicitudes de factura", ing: "Ingreso de datos", reg: "Registro de Pagos",
-                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Facturación mensual", mt: "Mínimos trimestrales", onb: "Estado de activación", rcon: "Revisión contrato", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Control Facturación", cfx: "Mapa de facturación", arrfm: "Arriendo · solicitar a Contabilidad" };
+                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Facturación mensual", mt: "Mínimos trimestrales", onb: "Estado de activación", rcon: "Revisión contrato", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", getnet: "Comisión Getnet", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Control Facturación", cfx: "Mapa de facturación", arrfm: "Arriendo · solicitar a Contabilidad" };
 const vistaActual = () => VISTAS.find(v => !$("vista-" + v).classList.contains("oculto"));
 function actualizarVolver(){
   const prev = NAV.pila[NAV.pila.length - 1];
@@ -3973,6 +3998,17 @@ const celdaTd = (key, c) => document.querySelector(`#ing-tabla tr[data-key="${ke
 
 function setValor(key, col, valor){
   valor = valor === null || valor === undefined ? "" : String(valor).trim();
+  if ((col.tipo === "fecha" || col.tipo === "fecha_na") && valor) {
+    const f = fechaNorm(valor, col.tipo === "fecha_na");
+    if (f === false) { toast(`⚠ Fecha no válida en ${esc(col.t)}: "${esc(valor)}". Usa dd-mm-aaaa con año entre 2000 y ${new Date().getFullYear() + 30}.`, 7000); return; }
+    valor = f;
+  }
+  if (/(^|_)rut(_|$)/i.test(col.k) && valor) {
+    valor = rutFmt(valor);
+    const orig0 = key.startsWith("n:") ? "" : String((G.filas.find(r => claveFila(r) === key) || {})[col.k] ?? "");
+    if (orig0 && rutNorm(orig0) === rutNorm(valor)) valor = orig0;
+    rutAvisar(valor);
+  }
   if (key.startsWith("n:")) { const n = G.nuevas.find(x => x.key === key); if (n) n.datos[col.k] = valor; }
   else {
     const base = G.filas.find(r => claveFila(r) === key) || {};
@@ -3999,8 +4035,14 @@ function editar(key, c, textoInicial){
   const inp = td.querySelector("input"); inp.focus();
   if (textoInicial === undefined) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
   let hecho = false;
-  const terminar = (guardar, mover) => {
-    if (hecho) return; hecho = true;
+  const terminar = (guardar, mover, porBlur) => {
+    if (hecho) return;
+    if (guardar && (col.tipo === "fecha" || col.tipo === "fecha_na") && inp.value.trim() && fechaNorm(inp.value, col.tipo === "fecha_na") === false) {
+      toast(`⚠ Fecha no válida: "${esc(inp.value.trim())}". Usa dd-mm-aaaa con año entre 2000 y ${new Date().getFullYear() + 30}.`, 7000);
+      if (!porBlur) { inp.classList.add("fecha-mala"); inp.select(); return; }   // Enter/Tab: sigue editando
+      guardar = false;                                                             // salió de la celda: se descarta lo escrito
+    }
+    hecho = true;
     if (guardar) setValor(key, col, inp.value);
     G.editando = null; dibujarGrilla();
     if (mover) mover(); else seleccionar(key, c);
@@ -4012,7 +4054,7 @@ function editar(key, c, textoInicial){
     else if (e.key === "Escape") { e.preventDefault(); terminar(false); }
     e.stopPropagation();
   });
-  inp.addEventListener("blur", () => setTimeout(() => terminar(true), 120));
+  inp.addEventListener("blur", () => setTimeout(() => terminar(true, null, true), 120));
 }
 
 function mover(dr, dc){
@@ -5564,6 +5606,7 @@ function modal(html, botones){
       if (!bt) { if (e.target === fondo) cerrar(null); return; }
       const b = botones[+bt.dataset.mb];
       if (!b.fn) return cerrar(null);
+      const fm = fondo.querySelector("input.fecha-mala"); if (fm) { toast("⚠ Hay una fecha no válida (año entre 2000 y " + (new Date().getFullYear() + 30) + "). Corrígela antes de guardar."); fm.focus(); return; }
       bt.disabled = true; const r = await b.fn(fondo); bt.disabled = false;
       if (r !== false) cerrar(r);
     });
@@ -9828,7 +9871,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 80;
+const VERSION_PAGINA = 81;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -14192,6 +14235,155 @@ window.addEventListener("beforeprint", () => {
 });
 window.addEventListener("afterprint", () => { const h = $("fq-hoja"); if (h) h.classList.remove("fit1"); });
 { const _dibFq = dibujarFranquicia; dibujarFranquicia = function(A){ const r = _dibFq.apply(this, arguments); try { fqRcon(A && A.f && A.f.codigo_atr); } catch (_) {} return r; }; }
+
+/* ---------------- v81 · ventanas (modales): no se cierran por arrastrar, seleccionar texto o mover la barra de desplazamiento ---------------- */
+(function(){
+  let abajo = null, abajoFuera = false;
+  const esFondo = t => t && t.classList && (t.classList.contains("modal-fondo") || t.classList.contains("ptl-fondo"));
+  document.addEventListener("mousedown", e => {
+    abajo = e.target;
+    abajoFuera = esFondo(e.target) && e.offsetX > e.target.clientWidth;      // clic en la barra de desplazamiento
+  }, true);
+  document.addEventListener("click", e => {
+    const t = e.target; if (!esFondo(t)) return;
+    // sólo cuenta como "clic fuera" si el clic empezó y terminó en el fondo (no al soltar un arrastre que empezó dentro)
+    if (abajo !== t || abajoFuera) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+    if (t.dataset.sucio && !confirm("Escribiste datos en esta ventana y no los has guardado. ¿Cerrarla igual?")) { e.stopImmediatePropagation(); e.preventDefault(); }
+  }, true);
+  document.addEventListener("input", e => { const f = e.target.closest && e.target.closest(".modal-fondo,.ptl-fondo"); if (f) f.dataset.sucio = "1"; }, true);
+})();
+
+/* ---------------- v81 · fechas: como en Excel, sin fechas imposibles ni años absurdos ---------------- */
+const FECHA_MIN = 2000, fechaMax = () => new Date().getFullYear() + 30;
+function fechaNorm(t, admiteNA){
+  t = String(t ?? "").trim(); if (!t) return "";
+  if (admiteNA && /^n\/?a$/i.test(t)) return "N/A";
+  let d, m, a, x;
+  if ((x = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) [a, m, d] = [+x[1], +x[2], +x[3]];
+  else if ((x = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/))) [d, m, a] = [+x[1], +x[2], x[3].length === 2 ? 2000 + +x[3] : +x[3]];
+  else if ((x = t.match(/^(\d{2})(\d{2})(\d{4})$/))) [d, m, a] = [+x[1], +x[2], +x[3]];
+  else return false;
+  const f = new Date(a, m - 1, d);
+  if (f.getFullYear() !== a || f.getMonth() !== m - 1 || f.getDate() !== d) return false;   // 31-02, 00-13…
+  if (a < FECHA_MIN || a > fechaMax()) return false;
+  return `${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${a}`;
+}
+function fechaInputRevisar(inp){
+  const v = inp.value, a = v ? +v.slice(0, 4) : null, mala = !!v && (a < FECHA_MIN || a > fechaMax());
+  inp.classList.toggle("fecha-mala", mala);
+  inp.setCustomValidity(mala ? `Año entre ${FECHA_MIN} y ${fechaMax()}` : "");
+  return mala;
+}
+document.addEventListener("focusin", e => {
+  const i = e.target; if (i.tagName !== "INPUT" || i.type !== "date") return;
+  if (!i.min) i.min = `${FECHA_MIN}-01-01`; if (!i.max) i.max = `${fechaMax()}-12-31`;
+}, true);
+document.addEventListener("focusout", e => {
+  const i = e.target; if (i.tagName !== "INPUT" || i.type !== "date") return;
+  if (fechaInputRevisar(i)) toast(`⚠ Fecha no válida (${esc(i.value)}): el año debe estar entre ${FECHA_MIN} y ${fechaMax()}.`, 7000);
+}, true);
+document.addEventListener("input", e => { const i = e.target; if (i.tagName === "INPUT" && i.type === "date" && i.classList.contains("fecha-mala")) fechaInputRevisar(i); }, true);
+
+/* ---------------- v81 · RUT: se escribe sólo números y guion (o sin guion) y se formatea solo: 19.455.669-1 ---------------- */
+const rutNorm = v => String(v ?? "").toUpperCase().replace(/[^0-9K]/g, "");
+function rutFmt(v){
+  const t = String(v ?? "").trim(); if (!t || /^(n\/?a|no aplica)$/i.test(t)) return t;
+  const s = rutNorm(t).replace(/^0+/, ""); if (s.length < 2) return t;
+  const cuerpo = s.slice(0, -1), dv = s.slice(-1); if (!/^\d+$/.test(cuerpo)) return t;
+  return cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "-" + dv;
+}
+function rutDv(cuerpo){ let s = 0, m = 2; for (let i = cuerpo.length - 1; i >= 0; i--) { s += +cuerpo[i] * m; m = m === 7 ? 2 : m + 1; } const r = 11 - (s % 11); return r === 11 ? "0" : r === 10 ? "K" : String(r); }
+function rutAvisar(v){
+  const s = rutNorm(v); if (s.length < 7 || !/^\d+[0-9K]$/.test(s)) return;
+  const esp = rutDv(s.slice(0, -1)); if (esp !== s.slice(-1)) toast(`⚠ El RUT ${esc(rutFmt(v))} tiene el dígito verificador incorrecto (debería terminar en ${esp}).`, 7000);
+}
+const esCampoRut = i => i && i.tagName === "INPUT" && !["date", "checkbox", "radio", "number", "file", "hidden"].includes(i.type)
+  && !i.classList.contains("ed") && (/(^|[-_])rut([-_]|$)/i.test(i.id || "") || /(^|[-_])rut([-_]|$)/i.test(i.name || "") || /\bRUT\b/.test(i.placeholder || "") || i.dataset.rut !== undefined);
+document.addEventListener("focusout", e => {
+  const i = e.target; if (!esCampoRut(i) || !i.value.trim()) return;
+  const f = rutFmt(i.value); if (f !== i.value) { i.value = f; i.dispatchEvent(new Event("input", { bubbles: true })); }
+  rutAvisar(f);
+}, true);
+
+/* ---------------- v81 · Obras › Comisión Getnet (81_getnet_fechas_estado_obras.sql) ---------------- */
+const GN = { filas: null, q: "", escrito: {} };
+async function cargarGetnet(){
+  $("gn-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const { data, error } = await todo(() => db.from("v_getnet_sin_comision").select("*").order("obra").order("pago_id"));
+  if (error) { $("gn-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar <b>81_getnet_fechas_estado_obras.sql</b> en Supabase." : esc(error.message)}</div>`; return; }
+  GN.filas = data || []; getnetContador(GN.filas.length); dibujarGetnet();
+}
+function dibujarGetnet(){
+  const L0 = GN.filas || [], q = GN.q.trim().toLowerCase();
+  const L = L0.filter(r => !q || [r.obra, r.codigo_umb, r.cliente, r.franquicia, r.franquiciado, r.id_pago].some(x => String(x || "").toLowerCase().includes(q)));
+  const obras = [...new Set(L0.map(r => r.obra))];
+  $("gn-kpis").innerHTML = L0.length ? `<div class="kpi destacado"><div class="t">Pagos con tarjeta sin comisión</div><div class="v">${L0.length}</div><div class="s">en ${obras.length} obra(s)</div></div>
+    <div class="kpi"><div class="t">Monto de esos pagos</div><div class="v">${$$(sumar(L0, r => r.monto))}</div><div class="s">la comisión se descuenta de la obra</div></div>
+    <div class="kpi"><div class="t">El más antiguo</div><div class="v">${Math.max(0, ...L0.map(r => Number(r.dias) || 0))} días</div><div class="s">desde el pago</div></div>` : "";
+  $("gn-todas").classList.toggle("oculto", !L0.length || !puedeEditar());
+  if (!L0.length) { $("gn-cuerpo").innerHTML = `<div class="gn-ok">✓ Todo al día<small>Todos los pagos con tarjeta tienen su comisión Getnet registrada.</small></div>`; return; }
+  const ed = puedeEditar(), grupos = {};
+  L.forEach(r => (grupos[r.obra] = grupos[r.obra] || []).push(r));
+  $("gn-cuerpo").innerHTML = Object.entries(grupos).map(([ob, rs]) => `<div class="gn-obra"><div class="gn-cab"><div>${obraLink(ob)} <b>${esc(rs[0].cliente || "")}</b>
+        <small> · ${esc(rs[0].franquicia)} ${esc(rs[0].franquiciado || "")}${rs[0].codigo_umb ? " · CC " + esc(rs[0].codigo_umb) : ""} · obra ${esc(rs[0].estado_obra || "")}</small></div>
+        <small>${rs.length} pago(s) sin comisión</small></div>
+      <table><thead><tr><th>Id pago</th><th>Fecha pago</th><th>Medio</th><th>Conciliación</th><th class="n">Monto pagado</th><th class="n">Comisión Getnet</th><th></th></tr></thead><tbody>
+      ${rs.map(r => `<tr><td><b>${esc(r.id_pago || "")}</b>${r.observaciones ? `<br><small class="gris">${esc(r.observaciones)}</small>` : ""}</td><td>${fecha(r.fecha_pago) || '<span class="gris">sin fecha</span>'}</td>
+        <td>${esc(r.medio || "")}</td><td>${fecha(r.fecha_conciliacion) || '<span class="gris">falta conciliar</span>'}</td><td class="n">${$$(r.monto)}</td>
+        <td class="n">${ed ? `<input class="gn-com" data-gn="${r.pago_id}" inputmode="numeric" placeholder="$ comisión" value="${esc(GN.escrito[r.pago_id] || "")}"><br><small class="gris" data-gnpct="${r.pago_id}"></small>` : '<span class="gris">—</span>'}</td>
+        <td>${ed ? `<button class="btn chico" data-gnok="${r.pago_id}">Guardar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`).join("")
+    || `<p class="nota-g">Sin resultados para la búsqueda.</p>`;
+  L.forEach(r => gnPct(r.pago_id));
+}
+function gnPct(id){
+  const r = (GN.filas || []).find(x => x.pago_id === id), el = document.querySelector(`[data-gnpct="${id}"]`); if (!r || !el) return;
+  const n = numTxt(GN.escrito[id] || ""); el.textContent = n ? `${(100 * n / Number(r.monto)).toFixed(2).replace(".", ",")}% del pago` : "";
+}
+async function gnGuardar(id, silencioso){
+  const v = numTxt(GN.escrito[id] || ""), r = GN.filas.find(x => x.pago_id === id);
+  if (!v || v <= 0) { if (!silencioso) toast("Escribe el monto de la comisión."); return false; }
+  if (v > 0.1 * Number(r.monto) && !confirm(`La comisión ${$$(v)} es más del 10% del pago (${$$(r.monto)}). ¿Guardarla igual?`)) return false;
+  const { data, error } = await db.rpc("getnet_registrar_comision", { p: { pago_id: id, comision: String(v) } });
+  if (error) { toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 81_getnet_fechas_estado_obras.sql en Supabase." : errorAmigable(error.message)), 9000); return false; }
+  delete GN.escrito[id]; if (!silencioso) toast(`✓ Comisión ${$$(data.comision)} registrada (${esc(data.codigo || "")}) para ${esc(data.pago)}.`);
+  return true;
+}
+$("vista-getnet").addEventListener("input", e => {
+  if (e.target.id === "gn-q") { GN.q = e.target.value; return dibujarGetnet(); }
+  const id = +e.target.dataset.gn; if (id) { GN.escrito[id] = e.target.value; gnPct(id); }
+});
+$("vista-getnet").addEventListener("keydown", e => { const id = +e.target.dataset.gn; if (id && e.key === "Enter") { e.preventDefault(); document.querySelector(`[data-gnok="${id}"]`).click(); } });
+$("vista-getnet").addEventListener("click", async e => {
+  const t = e.target;
+  if (t.id === "gn-act") return cargarGetnet();
+  if (t.dataset.gnok) { t.disabled = true; if (await gnGuardar(+t.dataset.gnok)) { if (typeof invalidarPagos === "function") invalidarPagos(); await cargarGetnet(); } else t.disabled = false; return; }
+  if (t.id === "gn-todas") {
+    const ids = Object.keys(GN.escrito).map(Number).filter(i => numTxt(GN.escrito[i] || "") > 0 && GN.filas.some(r => r.pago_id === i));
+    if (!ids.length) return toast("Escribe al menos una comisión.");
+    t.disabled = true; let ok = 0; for (const i of ids) if (await gnGuardar(i, true)) ok++; t.disabled = false;
+    toast(`✓ ${ok} de ${ids.length} comisión(es) registrada(s).`); if (typeof invalidarPagos === "function") invalidarPagos(); return cargarGetnet();
+  }
+});
+function getnetContador(n){ const el = $("getnet-n"); if (el) el.textContent = n ? ` · ${n} sin comisión` : ""; }
+document.addEventListener("click", e => { const a = e.target.closest("[data-irgetnet]"); if (a) { e.preventDefault(); irA("getnet"); } });
+
+/* al entrar (editores, 1 vez por día): estados de obra al día + aviso de comisiones Getnet faltantes */
+setTimeout(function rev81(){
+  if (typeof SESION === "undefined" || !SESION.rol) return setTimeout(rev81, 4000);
+  if (SESION.rol === "sin_acceso" || enExcel()) return;
+  (async () => {
+    try {
+      const { data } = await db.from("v_getnet_sin_comision").select("pago_id");
+      const n = (data || []).length; getnetContador(n);
+      if (n && puedeEditar()) setTimeout(() => toast(`⚠ Hay <b>${n} pago(s) con tarjeta sin comisión Getnet</b>: la comisión siempre debe descontarse. <a href="#" data-irgetnet="1">Registrar</a>`, 12000), 9000);
+    } catch (_) {}
+    if (!puedeEditar()) return;
+    let ult = ""; try { ult = localStorage.getItem("atr_eo_recalc") || ""; } catch (_) {}
+    if (ult === hoyISO()) return;
+    const { data, error } = await db.rpc("recalcular_estados_obras");
+    if (!error) { try { localStorage.setItem("atr_eo_recalc", hoyISO()); } catch (_) {} if (data && data.cambiadas) console.log("Estados de obra recalculados:", data.cambiadas); }
+  })();
+}, 7000);
 </script>
 </body>
 </html>
