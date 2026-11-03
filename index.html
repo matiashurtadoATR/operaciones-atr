@@ -641,6 +641,44 @@
     .cobz-imp-pie{margin-top:14px;border:1px solid #e4d8ce;border-radius:8px;padding:10px 12px;font-size:11px;color:#2c211b;break-inside:avoid}
     .cobz-imp-pie b{color:#4a2a1c}
   }
+  /* v78 · Revisión contrato */
+  .rc-wrap{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start}
+  .rc-lista{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:12px;position:sticky;top:12px;max-height:calc(100vh - 140px);display:flex;flex-direction:column;gap:8px}
+  .rc-lista input{width:100%}
+  #rcon-filas{overflow:auto;margin:0 -4px}
+  .rc-fila{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+  .rc-fila:hover{background:#faf5f1}.rc-fila.on{background:#fbeee6;border-color:#e8c3ad}
+  .rc-fila .tx{flex:1;min-width:0}.rc-fila .tx b{display:block;font-size:13px}.rc-fila .tx small{display:block;color:#6f625a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rc-pill{font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap;background:#f1e9e3;color:#6f4a36}
+  .rc-pill.ok{background:#dff3e3;color:#1e6b2b}.rc-pill.cero{background:#f4f1ee;color:#9a8f88}
+  .rc-ficha{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:18px 20px;min-height:300px}
+  .rc-cab{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .rc-cab h2{margin:0;font-size:20px;color:var(--cafe,#4a2a1c)}.rc-cab .sub{color:#6f625a;font-size:13px;margin-top:3px}
+  .rc-prog{margin:14px 0 6px;display:flex;align-items:center;gap:10px}
+  .rc-prog .bar{flex:1;height:10px;background:#f1e9e3;border-radius:999px;overflow:hidden}.rc-prog .bar i{display:block;height:100%;background:#c2531f;border-radius:999px;transition:width .25s}
+  .rc-prog.ok .bar i{background:#2e8b45}.rc-prog b{font-size:13px;white-space:nowrap}
+  .rc-okban{display:flex;align-items:center;gap:12px;background:#e6f5e9;border:1px solid #b7e0c0;color:#1e6b2b;border-radius:12px;padding:12px 16px;margin:10px 0 4px;font-size:14px}
+  .rc-okban .g{font-size:26px;line-height:1;width:40px;height:40px;border-radius:50%;background:#2e8b45;color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+  .rc-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:12px}
+  .rc-grupo h3{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a6a58;margin:0 0 8px;display:flex;justify-content:space-between}
+  .rc-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin-bottom:6px;font:inherit;cursor:pointer;transition:background .15s,border-color .15s}
+  .rc-item:hover:not(:disabled){border-color:#d9b9a6;background:#fdf9f6}
+  .rc-item .ck{width:24px;height:24px;border-radius:50%;border:2px solid #cbb8ab;display:flex;align-items:center;justify-content:center;flex:none;color:#fff;font-size:14px;font-weight:800;transition:all .15s}
+  .rc-item .nm{flex:1;font-weight:600;color:#2c211b}
+  .rc-item .tg{font-size:10.5px;border-radius:999px;padding:2px 7px;background:#f3ebe5;color:#7a5644;white-space:nowrap}
+  .rc-item .tg.atr{background:#fde7d9;color:#a4441f}
+  .rc-item.on{background:#f1faf3;border-color:#b7e0c0}.rc-item.on .ck{background:#2e8b45;border-color:#2e8b45}
+  .rc-item.on .ok{display:inline}.rc-item .ok{display:none;font-size:11px;font-weight:800;color:#2e8b45}
+  .rc-item:disabled{cursor:default}
+  .rc-mod{display:flex;align-items:center;gap:12px;border:1px solid var(--linea);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+  .rc-mod.on{background:#f1faf3;border-color:#b7e0c0}
+  .rc-mod .nm{flex:1;font-weight:600}
+  .rc-seg{display:inline-flex;border:1px solid #d9c6b9;border-radius:999px;overflow:hidden}
+  .rc-seg button{border:0;background:#fff;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer;color:#6f625a}
+  .rc-seg button.on{background:#2e8b45;color:#fff;font-weight:700}
+  .rc-obs{width:100%;min-height:60px;margin-top:6px;font:inherit;border:1px solid var(--linea);border-radius:10px;padding:8px 10px}
+  .rc-pie{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:#6f625a;flex-wrap:wrap}
+  @media (max-width:900px){.rc-wrap,.rc-cols{grid-template-columns:1fr}.rc-lista{position:static;max-height:none}#rcon-filas{max-height:300px}}
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -1464,6 +1502,7 @@
       <h4 class="sep" data-area="operaciones">Onboarding</h4>
       <h5 data-area="operaciones">Activación</h5>
       <button data-rep="onb" data-area="operaciones" data-solo-supabase="1">Estado de activación<small>Avance, faltantes y accesos por franquicia</small></button>
+      <button data-rep="rcon" data-area="operaciones" data-solo-supabase="1">Revisión contrato<small>Check list del contrato de cada franquicia</small></button>
       <button data-rep="act" data-area="operaciones" data-solo-supabase="1">Estado franquiciados (ACT-FRA)<small>Activación · canon y seguros → Patricio</small></button>
       <button data-ptarea="onboarding" data-area="operaciones" data-solo-supabase="1">Onboarding de documentos<small><span class="tag-p">PANEL</span>Los 19 documentos del franquiciado</small></button>
       <h5 data-area="operaciones">Accesos</h5>
@@ -1877,6 +1916,18 @@
       <div class="chips" id="onb-chips" style="margin-bottom:12px"></div>
       <div class="tabla-wrap"><table class="cp" id="onb-tabla"></table></div>
       <p class="nota-g">Los pasos se editan en Ingreso de datos › Franquicias (o en el Excel de Franquiciados y cargar_base). Documentos del franquiciado: Panel › Onboarding de documentos.</p>
+     </section>
+
+     <section id="vista-rcon" class="oculto">
+      <button class="volver oculto" data-volver="1">← Volver</button>
+      <div class="cp-head">
+        <div><h1>Revisión contrato</h1><p>Check list del contrato de franquicia: marca cada punto a medida que lo revisas. Cuando están todos, el contrato queda <b>OK</b>. Se guarda solo, con historial.</p></div>
+        <div class="acciones"><button class="btn sec" id="rcon-act">Actualizar</button></div>
+      </div>
+      <div class="rc-wrap">
+        <div class="rc-lista"><input id="rcon-q" placeholder="Buscar Id o razón social" autocomplete="off"><div class="chips" id="rcon-chips"></div><div id="rcon-filas"></div></div>
+        <div id="rcon-ficha" class="rc-ficha"></div>
+      </div>
      </section>
 
      <section id="vista-cred" class="oculto">
@@ -2557,7 +2608,7 @@ function dibujar({ enc, res, oc, mov }){
 }
 
 /* ================= navegación entre reportes ================= */
-const VISTAS = ["negocio", "sf", "porc", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm"];
+const VISTAS = ["negocio", "sf", "porc", "pagos", "eo", "cuad", "cobz", "trans", "tw", "hpag", "aqh", "cfx", "fres", "resp", "cprech", "reg", "solp", "ctrl", "franq", "act", "ger", "sol", "ing", "config", "panel", "cpi", "arr", "cob", "inicio", "aqc", "esp", "conc", "rsp", "cf", "onb", "cred", "bienv", "cc", "cont", "sugf", "arrfm", "rcon"];
 async function irA(rep, mod, desdeDetalle){
   if (!desdeDetalle) { NAV.pila = []; actualizarVolver(); }
   const b = document.querySelector(`.menu button[data-rep="${rep}"]${mod ? `[data-mod="${mod}"]` : ""}`);
@@ -2598,6 +2649,7 @@ async function irA(rep, mod, desdeDetalle){
   if (rep === "cf") cargarCF();
   if (rep === "onb") cargarOnb();
   if (rep === "cred") cargarCred();
+  if (rep === "rcon") cargarRcon();
   if (rep === "bienv") cargarBienv();
   if (rep === "cc") cargarCC(mod || CC.mod || CC.tab);
   if (rep === "cont") cargarCont(mod || CONT.mod);
@@ -2614,7 +2666,7 @@ document.querySelectorAll(".menu button[data-rep]").forEach(b => b.onclick = () 
 const NAV = { pila: [] };
 const NOMBRE_VISTA = { pagos: "Control de Pagos", act: "Activación franquicias", ger: "Panorama gerencial", franq: "Resumen Franquiciado",
                        negocio: "Resumen Negocio", sol: "Solicitudes de factura", ing: "Ingreso de datos", reg: "Registro de Pagos",
-                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Facturación mensual", mt: "Mínimos trimestrales", onb: "Estado de activación", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Control Facturación", cfx: "Mapa de facturación", arrfm: "Arriendo · solicitar a Contabilidad" };
+                       solp: "Solicitud de pagos", ctrl: "Control", panel: "Panel de operaciones", cpi: "Reporte CPI", arr: "Facturas de arriendo", cob: "Cobros a franquiciados", inicio: "Menú principal", aqc: "Aquí Club", esp: "Informe financiero España", conc: "Conciliación bancaria", rsp: "Reporte España (cobro)", cf: "Facturación mensual", mt: "Mínimos trimestrales", onb: "Estado de activación", rcon: "Revisión contrato", cred: "Credenciales", bienv: "Bienvenida AquíClub", cc: "Centros de costo", cont: "Contabilidad", cprech: "Pagos rechazados", eo: "Estado de obras", resp: "Respaldos de facturas", fres: "Resumen de facturación", cuad: "Cuadratura bancaria", cobz: "Cobranza franquiciados", trans: "Excel ↔ Web", sugf: "Royalty y Aquí Club", fop: "Control Facturación", cfx: "Mapa de facturación", arrfm: "Arriendo · solicitar a Contabilidad" };
 const vistaActual = () => VISTAS.find(v => !$("vista-" + v).classList.contains("oculto"));
 function actualizarVolver(){
   const prev = NAV.pila[NAV.pila.length - 1];
@@ -9755,7 +9807,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 77;
+const VERSION_PAGINA = 78;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -13944,6 +13996,101 @@ function cobzMontar(fr){
   if (!fr) return; COBZ.fr = fr;
   COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: fr });
 }
+
+/* ---------------- v78 · Onboarding › Revisión contrato (78_revision_contrato.sql) ---------------- */
+const RC_ITEMS = {
+  contenido: [["encabezado", "Encabezado"], ["fecha", "Fecha"], ["comparecencia", "Comparecencia cliente"], ["__modalidad", "Modalidad"],
+              ["monto_canon", "Monto canon"], ["forma_pago", "Forma de pago"], ["copia_cedula", "Copia cédula identidad adjunta"]],
+  firmas: [["contrato_firma", "Contrato", ["firma", "Firma Atrium"]], ["anexo_1", "Anexo 1"], ["anexo_2", "Anexo 2"], ["anexo_3", "Anexo 3", ["firma RRLL"]],
+           ["anexo_4", "Anexo 4"], ["anexo_5", "Anexo 5", ["firma"]], ["anexo_6", "Anexo 6", ["firma"]], ["anexo_7", "Anexo 7"], ["anexo_8", "Anexo 8", ["firma dual", "Firma Atrium"]]] };
+const RC_TOTAL = RC_ITEMS.contenido.length + RC_ITEMS.firmas.length;
+const RC = { fr: "", fqs: null, rev: {}, chip: "pend", q: "", tm: null, sin78: false };
+async function cargarRcon(forzar){
+  if (!RC.fqs || forzar) {
+    $("rcon-filas").innerHTML = `<p class="nota-g">Cargando…</p>`;
+    const [a, b] = await Promise.all([todo(() => db.from("v_onb_estado").select("codigo_atr,franquiciado,etapa,fecha_contrato,fecha_reserva,tipo").order("codigo_atr")),
+                                      todo(() => db.from("v_onb_revision_contrato").select("*"))]);
+    if (a.error) { $("rcon-filas").innerHTML = `<p class="nota-g">${esc(a.error.message)}</p>`; return; }
+    RC.sin78 = !!b.error; RC.fqs = a.data || []; RC.rev = {};
+    (b.data || []).forEach(r => RC.rev[r.franquicia] = r);
+  }
+  if (!RC.fr || !RC.fqs.some(f => f.codigo_atr === RC.fr)) { const L = rcFiltrar(); RC.fr = (L[0] || RC.fqs[0] || {}).codigo_atr || ""; }
+  rcLista(); rcFicha();
+}
+const rcN = c => { const r = RC.rev[c]; return r ? Number(r.n_ok || 0) : 0; };
+const rcOk = c => rcN(c) >= RC_TOTAL;
+function rcFiltrar(){
+  const q = RC.q.trim().toLowerCase();
+  return (RC.fqs || []).filter(f => (RC.chip === "todas" || (RC.chip === "ok" ? rcOk(f.codigo_atr) : !rcOk(f.codigo_atr) && f.etapa !== "Renunciada"))
+    && (!q || `${f.codigo_atr} ${f.franquiciado || ""}`.toLowerCase().includes(q)))
+    .sort((x, y) => (RC.chip === "pend" ? (["En activación", "Reserva"].includes(y.etapa) - ["En activación", "Reserva"].includes(x.etapa)) : 0) || String(x.codigo_atr).localeCompare(y.codigo_atr));
+}
+function rcLista(){
+  const T = RC.fqs || [], nOk = T.filter(f => rcOk(f.codigo_atr)).length, nPend = T.filter(f => !rcOk(f.codigo_atr) && f.etapa !== "Renunciada").length;
+  $("rcon-chips").innerHTML = [["pend", "Por revisar", nPend], ["ok", "OK", nOk], ["todas", "Todas", T.length]]
+    .map(([k, t, n]) => `<button class="chip ${RC.chip === k ? "activo" : ""}" data-rcchip="${k}">${t} · ${n}</button>`).join("");
+  const L = rcFiltrar();
+  $("rcon-filas").innerHTML = L.map(f => { const n = rcN(f.codigo_atr), ok = n >= RC_TOTAL;
+    return `<div class="rc-fila ${f.codigo_atr === RC.fr ? "on" : ""}" data-rcfr="${esc(f.codigo_atr)}" data-nolink="1"><div class="tx"><b>${esc(f.codigo_atr)}</b><small>${esc(f.franquiciado || "")}</small><small>${esc(f.etapa || "")}</small></div>
+      <span class="rc-pill ${ok ? "ok" : n ? "" : "cero"}">${ok ? "✓ OK" : `${n}/${RC_TOTAL}`}</span></div>`; }).join("") || `<p class="nota-g">Sin franquicias en esta lista.</p>`;
+}
+function rcFicha(){
+  const el = $("rcon-ficha"), f = (RC.fqs || []).find(x => x.codigo_atr === RC.fr);
+  if (RC.sin78) { el.innerHTML = `<div class="cf-aviso rojo">Falta ejecutar <b>78_revision_contrato.sql</b> en Supabase.</div>`; return; }
+  if (!f) { el.innerHTML = `<p class="nota-g">Elige una franquicia.</p>`; return; }
+  const r = RC.rev[f.codigo_atr] || { items: {}, modalidad: null, observaciones: "" }, it = r.items || {}, ed = puedeEditar() ? "" : "disabled";
+  const n = rcN(f.codigo_atr), ok = n >= RC_TOTAL;
+  const item = ([k, t, tags = []]) => k === "__modalidad"
+    ? `<div class="rc-mod ${r.modalidad ? "on" : ""}"><span class="ck" style="display:none"></span><span class="nm">${t}</span>
+        <span class="rc-seg">${["Tienda", "Digital"].map(m => `<button data-rcmod="${m}" class="${r.modalidad === m ? "on" : ""}" ${ed}>${m}</button>`).join("")}</span>
+        ${r.modalidad ? `<span class="ok" style="display:inline;font-size:11px;font-weight:800;color:#2e8b45">OK</span>` : ""}</div>`
+    : `<button class="rc-item ${it[k] ? "on" : ""}" data-rcit="${k}" ${ed}><span class="ck">${it[k] ? "✓" : ""}</span><span class="nm">${t}</span>
+        ${tags.map(g => `<span class="tg ${g === "Firma Atrium" ? "atr" : ""}">${esc(g)}</span>`).join("")}<span class="ok">OK</span></button>`;
+  const nG = L => L.filter(([k]) => k === "__modalidad" ? r.modalidad : it[k]).length;
+  el.innerHTML = `<div class="rc-cab"><div><h2>${esc(f.franquiciado || f.codigo_atr)}</h2>
+      <div class="sub"><a href="#" data-franq="${esc(f.codigo_atr)}">${esc(f.codigo_atr)}</a> · ${esc(f.etapa || "")}${f.tipo ? " · " + esc(f.tipo) : ""}${f.fecha_contrato ? " · contrato " + fecha(f.fecha_contrato) : " · sin fecha de contrato"}</div></div></div>
+    ${ok ? `<div class="rc-okban"><span class="g">✓</span><div><b>Contrato OK</b> · todos los puntos revisados${r.completado_en ? ` el ${fecha(String(r.completado_en).slice(0, 10))}` : ""}${r.actualizado_por ? ` por ${esc(String(r.actualizado_por).split("@")[0])}` : ""}.</div></div>` : ""}
+    <div class="rc-prog ${ok ? "ok" : ""}"><span class="bar"><i style="width:${(100 * n / RC_TOTAL).toFixed(1)}%"></i></span><b>${n} de ${RC_TOTAL}</b></div>
+    <div class="rc-cols">
+      <div class="rc-grupo"><h3><span>Contenido del contrato</span><span>${nG(RC_ITEMS.contenido)}/${RC_ITEMS.contenido.length}</span></h3>${RC_ITEMS.contenido.map(item).join("")}</div>
+      <div class="rc-grupo"><h3><span>Contrato y anexos (firmas)</span><span>${nG(RC_ITEMS.firmas)}/${RC_ITEMS.firmas.length}</span></h3>${RC_ITEMS.firmas.map(item).join("")}</div>
+    </div>
+    <label style="display:block;margin-top:12px;font-weight:600;font-size:13px">Observaciones<textarea id="rc-obs" class="rc-obs" placeholder="Qué falta o qué corregir en el contrato…" ${ed}>${esc(r.observaciones || "")}</textarea></label>
+    <div class="rc-pie"><span id="rc-estado">${r.actualizado_en ? `Última revisión: ${fecha(String(r.actualizado_en).slice(0, 10))}${r.actualizado_por ? " · " + esc(String(r.actualizado_por).split("@")[0]) : ""}` : "Sin revisar todavía."}</span>
+      ${puedeEditar() ? "<span>Se guarda solo al marcar.</span>" : "<span>Sólo lectura.</span>"}</div>`;
+}
+function rcProgramarGuardar(){
+  $("rc-estado") && ($("rc-estado").textContent = "Guardando…");
+  clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, 500);
+}
+async function rcGuardar(){
+  const fr = RC.fr, r = RC.rev[fr]; if (!r) return;
+  const { data, error } = await db.rpc("onb_contrato_guardar", { p: { franquicia: fr, items: r.items || {}, modalidad: r.modalidad || null, observaciones: r.observaciones || "" } });
+  if (error) { toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 78_revision_contrato.sql en Supabase." : errorAmigable(error.message)), 8000); return; }
+  const antes = rcOk(fr);
+  RC.rev[fr] = Object.assign({}, data, { franquicia: fr });
+  if (!antes && rcOk(fr)) toast(`✓ Contrato de ${esc(fr)} OK: todos los puntos revisados.`);
+  if (RC.fr === fr) { const ta = $("rc-obs"), foco = document.activeElement === ta; if (!foco) rcFicha(); else $("rc-estado").textContent = "Guardado ✓"; }
+  rcLista();
+}
+$("vista-rcon").addEventListener("click", e => {
+  const t = e.target;
+  if (t.id === "rcon-act") return cargarRcon(true);
+  const ch = t.closest("[data-rcchip]"); if (ch) { RC.chip = ch.dataset.rcchip; return rcLista(); }
+  const fl = t.closest("[data-rcfr]"); if (fl) { RC.fr = fl.dataset.rcfr; rcLista(); rcFicha(); if (innerWidth < 900) $("rcon-ficha").scrollIntoView({ behavior: "smooth" }); return; }
+  if (!puedeEditar()) return;
+  const r = RC.rev[RC.fr] = RC.rev[RC.fr] || { franquicia: RC.fr, items: {}, modalidad: null, observaciones: "", n_ok: 0 };
+  const it = t.closest("[data-rcit]");
+  if (it) { const k = it.dataset.rcit; r.items = Object.assign({}, r.items); if (r.items[k]) delete r.items[k]; else r.items[k] = true;
+    r.n_ok = Object.keys(r.items).length + (r.modalidad ? 1 : 0); rcFicha(); rcLista(); return rcProgramarGuardar(); }
+  const m = t.closest("[data-rcmod]");
+  if (m) { r.modalidad = r.modalidad === m.dataset.rcmod ? null : m.dataset.rcmod; r.n_ok = Object.keys(r.items || {}).length + (r.modalidad ? 1 : 0); rcFicha(); rcLista(); return rcProgramarGuardar(); }
+});
+$("vista-rcon").addEventListener("input", e => {
+  if (e.target.id === "rcon-q") { RC.q = e.target.value; return rcLista(); }
+  if (e.target.id === "rc-obs") { const r = RC.rev[RC.fr] = RC.rev[RC.fr] || { franquicia: RC.fr, items: {}, modalidad: null, n_ok: 0 }; r.observaciones = e.target.value;
+    clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, 1200); $("rc-estado").textContent = "Escribiendo…"; }
+});
 </script>
 </body>
 </html>
