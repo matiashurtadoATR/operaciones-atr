@@ -14330,18 +14330,21 @@ function dibujarGetnet(){
       <table><thead><tr><th>Id pago</th><th>Fecha pago</th><th>Medio</th><th>Conciliación</th><th class="n">Monto pagado</th><th class="n">Comisión Getnet</th><th></th></tr></thead><tbody>
       ${rs.map(r => `<tr><td><b>${esc(r.id_pago || "")}</b>${r.observaciones ? `<br><small class="gris">${esc(r.observaciones)}</small>` : ""}</td><td>${fecha(r.fecha_pago) || '<span class="gris">sin fecha</span>'}</td>
         <td>${esc(r.medio || "")}</td><td>${fecha(r.fecha_conciliacion) || '<span class="gris">falta conciliar</span>'}</td><td class="n">${$$(r.monto)}</td>
-        <td class="n">${ed ? `<input class="gn-com" data-gn="${r.pago_id}" inputmode="numeric" placeholder="$ comisión" value="${esc(GN.escrito[r.pago_id] || "")}"><br><small class="gris" data-gnpct="${r.pago_id}"></small>` : '<span class="gris">—</span>'}</td>
+        <td class="n">${ed ? `<input class="gn-com" data-gn="${r.pago_id}" inputmode="numeric" placeholder="ej. 60816" title="Escribir sin signo, queda como egreso" value="${esc(GN.escrito[r.pago_id] || "")}"><br><small class="gris" data-gnpct="${r.pago_id}"></small>` : '<span class="gris">—</span>'}</td>
         <td>${ed ? `<button class="btn chico" data-gnok="${r.pago_id}">Guardar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`).join("")
     || `<p class="nota-g">Sin resultados para la búsqueda.</p>`;
   L.forEach(r => gnPct(r.pago_id));
 }
 function gnPct(id){
   const r = (GN.filas || []).find(x => x.pago_id === id), el = document.querySelector(`[data-gnpct="${id}"]`); if (!r || !el) return;
-  const n = numTxt(GN.escrito[id] || ""); el.textContent = n ? `${(100 * n / Number(r.monto)).toFixed(2).replace(".", ",")}% del pago` : "";
+  const n = numTxt(GN.escrito[id] || "");
+  const inp = document.querySelector(`[data-gn="${id}"]`); if (inp) inp.classList.toggle("fecha-mala", n != null && n < 0);
+  el.innerHTML = n != null && n < 0 ? `<b style="color:#a1281f">Sin signo menos</b>` : n ? `${(100 * n / Number(r.monto)).toFixed(2).replace(".", ",")}% del pago · queda como egreso` : "Escribir sin signo, queda como egreso";
 }
 async function gnGuardar(id, silencioso){
   const v = numTxt(GN.escrito[id] || ""), r = GN.filas.find(x => x.pago_id === id);
-  if (!v || v <= 0) { if (!silencioso) toast("Escribe el monto de la comisión."); return false; }
+  if (v != null && v < 0) { toast("Escribe la comisión <b>sin signo menos</b>: queda como egreso automáticamente."); return false; }
+  if (!v) { if (!silencioso) toast("Escribe el monto de la comisión."); return false; }
   if (v > 0.1 * Number(r.monto) && !confirm(`La comisión ${$$(v)} es más del 10% del pago (${$$(r.monto)}). ¿Guardarla igual?`)) return false;
   const { data, error } = await db.rpc("getnet_registrar_comision", { p: { pago_id: id, comision: String(v) } });
   if (error) { toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 81_getnet_fechas_estado_obras.sql en Supabase." : errorAmigable(error.message)), 9000); return false; }
@@ -14358,7 +14361,7 @@ $("vista-getnet").addEventListener("click", async e => {
   if (t.id === "gn-act") return cargarGetnet();
   if (t.dataset.gnok) { t.disabled = true; if (await gnGuardar(+t.dataset.gnok)) { if (typeof invalidarPagos === "function") invalidarPagos(); await cargarGetnet(); } else t.disabled = false; return; }
   if (t.id === "gn-todas") {
-    const ids = Object.keys(GN.escrito).map(Number).filter(i => numTxt(GN.escrito[i] || "") > 0 && GN.filas.some(r => r.pago_id === i));
+    const ids = Object.keys(GN.escrito).map(Number).filter(i => (numTxt(GN.escrito[i] || "") || 0) !== 0 && GN.filas.some(r => r.pago_id === i));
     if (!ids.length) return toast("Escribe al menos una comisión.");
     t.disabled = true; let ok = 0; for (const i of ids) if (await gnGuardar(i, true)) ok++; t.disabled = false;
     toast(`✓ ${ok} de ${ids.length} comisión(es) registrada(s).`); if (typeof invalidarPagos === "function") invalidarPagos(); return cargarGetnet();
