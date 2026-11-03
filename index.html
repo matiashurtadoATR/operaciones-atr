@@ -9728,7 +9728,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 75;
+const VERSION_PAGINA = 77;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -9792,6 +9792,7 @@ function aqcHTML(oc, mov){
 const COB = { filas: null, canon: [], fr: "", q: "", chip: "porcobrar", sel: new Set() };
 async function cargarCobros(forzar){
   if (forzar || !COB.filas) {
+    if (await ufDiaria()) forzar = true;
     $("cob-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Cargando…</td></tr></tbody>`;
     const [a, b] = await Promise.all([todo(() => db.from("v_cobros_franquicia").select("*").order("id")),
                                       todo(() => db.from("v_canon_entrada").select("*").order("codigo_atr"))]);
@@ -9840,13 +9841,13 @@ function dibujarCobros(){
       <td><b>${esc(r.id_pago)}</b>${r.observaciones ? `<br><small>${esc(r.observaciones)}</small>` : ""}</td>
       <td class="ob"><b>${esc(r.franquiciado)}</b><span>${esc(r.franquicia)}</span></td>
       <td>${esc(r.concepto)}<br><small style="color:var(--gris)">Factura: ${esc(r.regla_factura)}</small></td>
-      <td class="n"><b>${$$(r.monto)}</b></td>
+      <td class="n"><b>${$$(r.monto)}</b>${r.monto_uf != null ? `<br><small title="${r.estado_cobro === "Pagado" ? "Calculado con la UF del día del pago" : "Se actualiza cada día con la UF del día hasta que se pague"}">${nf.format(Number(r.monto_uf))} UF${r.estado_cobro === "Pagado" ? "" : " · UF del día"}</small>` : ""}</td>
       <td>${fecha(r.vencimiento) || "—"}${r.dias_vencido > 0 ? `<br><small class="rojo">vencido hace ${r.dias_vencido} días</small>` : ""}</td>
       <td>${r.folio ? `N° ${fpdfTxt(r.folio)}${r.fecha_factura ? `<br><small>${fecha(r.fecha_factura)}</small>` : ""}` : r.regla_factura === "Sin factura" ? "<small>No aplica</small>" : r.facturacion_estado ? `<small>${esc(r.facturacion_estado)}</small>` : "—"}</td>
       <td>${r.estado_cobro === "Pagado" ? '<span class="pill ok">Pagado</span>' : r.estado_cobro === "Informado" ? '<span class="pill transf">Informado · falta cartola</span>' : '<span class="pill parcial">Por cobrar</span>'}</td>
       <td>${r.estado_cobro === "Pagado" ? `${r.no_bancario ? "N/A" : fecha(r.fecha_conciliacion)}<br><small>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`
           : r.estado_cobro === "Informado" ? (fqCheque(r) ? `<small><b>Cheque</b> al ${fecha(r.fecha_pago)}<br>${esc(r.banco || "")}</small>` : `<small>comprobante ${fecha(r.informado_en)}<br>${esc(r.medio || "")} ${esc(r.banco || "")}</small>`) : ""}</td>
-      ${ed ? `<td><button class="cob-del" data-cob-del="${r.id}" title="Eliminar este cobro (ingresado por error o de prueba)">✕</button></td>` : ""}</tr>`).join("")
+      ${ed ? `<td style="white-space:nowrap"><button class="cob-del" data-cob-edit="${r.id}" title="Editar este cobro (monto, UF, concepto, fechas, observaciones)">✎</button> <button class="cob-del" data-cob-del="${r.id}" title="Eliminar este cobro (ingresado por error o de prueba)">✕</button></td>` : ""}</tr>`).join("")
      || `<tr><td colspan="10" class="cp-vacio">Sin cobros con este filtro.</td></tr>`) + `</tbody>`;
   actualizarSelCob();
 }
@@ -9916,7 +9917,7 @@ function modalNuevoCobro(){
       <label><input type="radio" name="nc-e" value="porcobrar" checked> Por cobrar</label>
       <label><input type="radio" name="nc-e" value="comp"> Comprobante recibido, falta cartola · fecha <input type="date" id="nc-fcomp" value="${hoyISO()}"></label>
       <label><input type="radio" name="nc-e" value="cartola"> Ya está en la cartola · fecha <input type="date" id="nc-fconc" value="${hoyISO()}"></label>
-    </fieldset>${sfcCampos("nc")}<div class="error" id="nc-error"></div>`,
+    </fieldset><p class="nota-sol" id="nc-uf" style="display:none"></p>${sfcCampos("nc")}<div class="error" id="nc-error"></div>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Crear cobro", fn: async () => {
       const p = { origen: "FRANQUICIA", franquicia: $("nc-fr").value, item: $("nc-item").value, monto: $("nc-monto").value.trim(),
                   vencimiento: $("nc-venc").value ? fecha($("nc-venc").value) : null, factura_venta: $("nc-folio").value.trim() || null, observaciones: $("nc-obs").value.trim() || null };
@@ -9947,6 +9948,7 @@ $("vista-cob").addEventListener("click", e => {
   if (t.id === "cob-pagar") return modalPagoCobro();
   if (t.id === "cob-informar") return modalInformarCobro();
   if (t.dataset.cobDel) return eliminarCobro(COB.filas.find(r => r.id === +t.dataset.cobDel));
+  if (t.dataset.cobEdit) return modalEditarCobro(COB.filas.find(r => r.id === +t.dataset.cobEdit));
   if (t.id === "cob-factura") return modalFacturaCobro();
   if (t.id === "cob-solfact") return modalSolicitarFacturaCobros();
 });
@@ -13753,6 +13755,68 @@ function autoEnlaces(raiz){
   // las listas (selects) fuera del contenido también: menús, modales
   document.addEventListener("focusin", e => { if (e.target.tagName === "SELECT") autoOpciones(e.target); });
 })();
+
+/* ---------------- v77 · UF del día (garantía de obra en UF) y edición de cobros (77_garantia_uf_editar_cobros.sql) ---------------- */
+const UFD = { hecho: null, valor: null };
+async function ufDiaria(){
+  if (!puedeEditar()) return false;
+  const hoy = hoyISO(); if (UFD.hecho === hoy) return false;
+  UFD.hecho = hoy;
+  try {
+    const [a, m, d] = hoy.split("-");
+    const j = await (await fetch(`https://mindicador.cl/api/uf/${d}-${m}-${a}`)).json();
+    const v = j.serie && j.serie[0] && j.serie[0].valor; if (!v) return false;
+    UFD.valor = Number(v);
+    const { data, error } = await db.rpc("uf_registrar", { p: { fecha: hoy, valor: String(v) } });
+    return !error && data && data.actualizados > 0;
+  } catch (_) { return false; }
+}
+async function ufHoy(){
+  if (UFD.valor) return UFD.valor;
+  try { const { data } = await db.rpc("app_uf", {}); UFD.valor = Number(data) || null; } catch (_) {}
+  return UFD.valor;
+}
+document.addEventListener("change", async e => {
+  if (e.target.id !== "nc-item") return;
+  const nota = $("nc-uf"); if (!nota) return;
+  if (e.target.value !== "Garantía Ejecución Obras") { nota.style.display = "none"; return; }
+  const uf = await ufHoy();
+  nota.style.display = "";
+  nota.innerHTML = uf ? `La garantía de obra se cobra en <b>150 UF</b>: hoy ${$$(Math.round(150 * uf))} (UF ${nf.format(uf)}). El monto se actualiza solo cada día con la UF del día hasta que se pague.`
+                      : "La garantía de obra se cobra en <b>150 UF</b>: el monto se calcula con la UF del día al guardar.";
+  if (uf && $("nc-monto")) $("nc-monto").value = String(Math.round(150 * uf));
+});
+function modalEditarCobro(r){
+  if (!r) return;
+  const items = (LISTAS.item_franquicia || []).map(o => o.valor), pagado = r.estado_cobro === "Pagado";
+  modal(`<h3>Editar cobro · ${esc(r.id_pago)}</h3>
+    <p class="nota-sol">${esc(r.franquicia)} · ${esc(r.franquiciado || "")}${pagado ? "<br><b>Ya está pagado (conciliado):</b> sólo puedes cambiar fechas y observaciones." : ""}</p>
+    <div class="m-grid">
+      <label class="m-campo">Concepto<select id="ce-item" ${pagado ? "disabled" : ""}>${items.map(i => `<option ${i === r.concepto ? "selected" : ""}>${esc(i)}</option>`).join("")}</select></label>
+      <label class="m-campo">Monto en UF <small>(vacío = monto fijo en pesos)</small><input id="ce-uf" value="${r.monto_uf != null ? String(Number(r.monto_uf)).replace(".", ",") : ""}" ${pagado ? "disabled" : ""} placeholder="ej. 150"></label>
+      <label class="m-campo">Monto en pesos<input id="ce-monto" value="${Math.round(Number(r.monto))}" ${pagado ? "disabled" : ""}></label>
+      <label class="m-campo">Fecha del cobro<input type="date" id="ce-fpago" value="${esc(String(r.fecha_pago || "").slice(0, 10))}"></label>
+      <label class="m-campo">Vencimiento<input type="date" id="ce-venc" value="${esc(String(r.vencimiento || "").slice(0, 10))}"></label>
+      <label class="m-campo" style="grid-column:1/-1">Observaciones<input id="ce-obs" value="${esc(r.observaciones || "")}"></label>
+    </div><p class="nota-g" id="ce-nota" style="margin:4px 0 0">${r.monto_uf != null ? "Con monto en UF, los pesos se calculan con la UF del día y se actualizan solos hasta que se pague." : ""}</p>
+    <div class="error" id="ce-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Guardar", fn: async () => {
+      const p = { id: r.id, vencimiento: $("ce-venc").value || null, fecha_pago: $("ce-fpago").value || null, observaciones: $("ce-obs").value };
+      if (!pagado) { p.item = $("ce-item").value; p.monto_uf = $("ce-uf").value.trim(); p.monto = String(numTxt($("ce-monto").value) ?? ""); }
+      const { data, error } = await db.rpc("cobro_editar", { p });
+      if (error) { $("ce-error").textContent = /does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 77_garantia_uf_editar_cobros.sql en Supabase." : errorAmigable(error.message); return false; }
+      toast(`✓ ${esc(data.codigo)} actualizado: ${$$(data.monto)}${data.monto_uf != null ? ` (${nf.format(Number(data.monto_uf))} UF)` : ""}.`);
+      invalidarPagos(); COB.filas = null; await cargarCobros(); return true; } }]);
+  const f = [...document.querySelectorAll(".modal-fondo")].pop();
+  f.addEventListener("input", async e => {
+    if (e.target.id !== "ce-uf") return;
+    const u = numTxt(e.target.value.replace(",", ".")) ?? Number(String(e.target.value).replace(",", "."));
+    const uf = await ufHoy();
+    if (u && uf) { f.querySelector("#ce-monto").value = String(Math.round(u * uf)); f.querySelector("#ce-nota").textContent = `= ${nf.format(u)} UF × UF de hoy ${nf.format(uf)}. Se actualiza solo cada día hasta que se pague.`; }
+    else if (!e.target.value.trim()) f.querySelector("#ce-nota").textContent = "Sin UF: el monto queda fijo en pesos.";
+  });
+}
+setTimeout(function esperarSesion(){ if (typeof SESION !== "undefined" && SESION.rol && SESION.rol !== "sin_acceso") ufDiaria(); else setTimeout(esperarSesion, 4000); }, 6000);
 </script>
 </body>
 </html>
