@@ -9704,7 +9704,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 74;
+const VERSION_PAGINA = 75;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -13507,7 +13507,8 @@ function liqBloque(obra){
       <tr><td>= Nueva liquidación</td><td class="n">${$$(l.nueva)}</td></tr>
       <tr><td>+ Saldos pendientes de liquidaciones anteriores</td><td class="n">${$$(l.pend_prev)}</td></tr>
       <tr><td>+ Reembolso de materiales del franquiciado (${l.n_materiales_pend})</td><td class="n">${$$(l.reembolso_pend)}</td></tr>
-      <tr class="tot"><td>A liberar${!l.saldo50_hecho ? " (+ saldo de la etapa 50%: todo el disponible)" : ""}</td><td class="n">${$$(l.a_liberar)}</td></tr>
+      ${!l.saldo50_hecho ? `<tr><td>+ Saldo de la etapa 50% <small>(disponible ${$$(l.disponible)} − lo pagado por el cliente sobre el 50% ${$$(Math.max(Number(l.pago_cliente_conc) - Math.round(Number(l.contrato) * 0.5), 0))})</small></td><td class="n">${$$(l.saldo_etapa50 ?? 0)}</td></tr>` : ""}
+      <tr class="tot"><td>A liberar</td><td class="n">${$$(l.a_liberar)}</td></tr>
     </table></div><div><table class="calc">
       <tr><td>Saldo en obra (ya descontados materiales ATRIUM ${$$(l.pagado_proveedores)}, royalty ${$$(l.royalty_cobrado)}, comisiones ${$$(l.getnet)} y transferencias ${$$(l.transferido)})</td><td class="n">${$$(l.saldo_obra)}</td></tr>
       <tr class="sub"><td>− Egresos programados sin cartola</td><td class="n">${$$(-l.programado)}</td></tr>
