@@ -2013,6 +2013,7 @@
           <button class="btn" id="cob-nuevo">+ Nuevo cobro</button></div>
       </div>
       <div class="kpis" id="cob-kpis"></div>
+      <p class="nota-g" id="cob-uf" style="margin:-4px 0 10px"></p>
       <div class="cob-canon" id="cob-canon"></div>
       <div class="controles" id="cob-filtros"></div>
       <div class="chips" id="cob-chips" style="margin-bottom:10px"></div>
@@ -9818,14 +9819,14 @@ function aqcHTML(oc, mov){
 const COB = { filas: null, canon: [], fr: "", q: "", chip: "porcobrar", sel: new Set() };
 async function cargarCobros(forzar){
   if (forzar || !COB.filas) {
-    if (await ufDiaria()) forzar = true;
+    if (await ufDiaria(forzar)) forzar = true;
     $("cob-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Cargando…</td></tr></tbody>`;
     const [a, b] = await Promise.all([todo(() => db.from("v_cobros_franquicia").select("*").order("id")),
                                       todo(() => db.from("v_canon_entrada").select("*").order("codigo_atr"))]);
     if (a.error) { $("cob-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Error: ${esc(a.error.message)}<br>¿Ejecutaste 18_pagos_reales.sql en Supabase?</td></tr></tbody>`; return; }
     COB.filas = a.data || []; COB.canon = b.data || []; COB.sel.clear();
   }
-  dibujarCobros();
+  dibujarCobros(); cobUfLinea();
 }
 const cobVisibles = () => COB.filas.filter(r => (!COB.fr || r.franquicia === COB.fr)
   && (COB.chip === "todos" || (COB.chip === "porcobrar" ? r.estado_cobro !== "Pagado" : COB.chip === "informados" ? r.estado_cobro === "Informado" : COB.chip === "pagados" ? r.estado_cobro === "Pagado"
@@ -13787,18 +13788,20 @@ function autoEnlaces(raiz){
 
 /* ---------------- v77 · UF del día (garantía de obra en UF) y edición de cobros (77_garantia_uf_editar_cobros.sql) ---------------- */
 const UFD = { hecho: null, valor: null };
-async function ufDiaria(){
+async function ufDiaria(forzar){
   if (!puedeEditar()) return false;
-  const hoy = hoyISO(); if (UFD.hecho === hoy) return false;
+  const hoy = hoyISO(); if (UFD.hecho === hoy && !forzar) return false;
+  const [a, m, d] = hoy.split("-"); let v = null; UFD.error = null;
+  const traer = async u => { const c = new AbortController(), t = setTimeout(() => c.abort(), 8000);
+    try { return await (await fetch(u, { signal: c.signal, cache: "no-store" })).json(); } finally { clearTimeout(t); } };
+  try { const j = await traer(`https://mindicador.cl/api/uf/${d}-${m}-${a}`); v = j.serie && j.serie[0] && j.serie[0].valor; } catch (_) {}
+  if (!v) try { const j = await traer("https://mindicador.cl/api/uf"); const x = (j.serie || []).find(z => String(z.fecha).slice(0, 10) === hoy); v = x && x.valor; } catch (_) {}
+  if (!v) { UFD.error = "No se pudo traer la UF de hoy desde mindicador.cl."; return false; }
+  UFD.valor = Number(v);
+  const { data, error } = await db.rpc("uf_registrar", { p: { fecha: hoy, valor: String(v) } });
+  if (error) { UFD.error = error.message; return false; }
   UFD.hecho = hoy;
-  try {
-    const [a, m, d] = hoy.split("-");
-    const j = await (await fetch(`https://mindicador.cl/api/uf/${d}-${m}-${a}`)).json();
-    const v = j.serie && j.serie[0] && j.serie[0].valor; if (!v) return false;
-    UFD.valor = Number(v);
-    const { data, error } = await db.rpc("uf_registrar", { p: { fecha: hoy, valor: String(v) } });
-    return !error && data && data.actualizados > 0;
-  } catch (_) { return false; }
+  return !!(data && data.actualizados > 0);
 }
 async function ufHoy(){
   if (UFD.valor) return UFD.valor;
@@ -13870,6 +13873,45 @@ async function cobzImprimir(){
   const fin = () => { document.body.classList.remove("imp-cobz"); document.title = titulo; cab.remove(); pie.remove(); window.removeEventListener("afterprint", fin); };
   window.addEventListener("afterprint", fin);
   setTimeout(() => window.print(), 50);
+}
+
+/* ---------------- v77c · UF usada en los cobros en UF (línea en Cobros + ingreso manual) ---------------- */
+const ufFmt = n => new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n));
+function ufTxtANum(t){
+  t = String(t || "").trim().replace(/[$\s]/g, "");
+  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+  const n = Number(t); return isFinite(n) && n > 0 ? n : null;
+}
+async function cobUfLinea(){
+  const el = $("cob-uf"); if (!el) return;
+  if (!(COB.filas || []).some(r => r.monto_uf != null)) { el.innerHTML = ""; return; }
+  let u = null;
+  try { const r = await db.from("valor_uf").select("fecha,valor").order("fecha", { ascending: false }).lte("fecha", hoyISO()).limit(1); u = r.data && r.data[0]; } catch (_) {}
+  const hoy = hoyISO(), aldia = u && String(u.fecha).slice(0, 10) === hoy;
+  el.innerHTML = (u ? `Cobros en UF calculados con UF <b>$ ${ufFmt(u.valor)}</b> del <b>${fecha(u.fecha)}</b>`
+                    : `Aún no hay UF registrada`) +
+    (aldia ? " ✓ (UF de hoy)." : ` · <span style="color:#a4441f"><b>no es la UF de hoy</b>${UFD.error ? " (" + esc(UFD.error) + ")" : ""}.</span>`) +
+    (puedeEditar() ? ` <button class="btn sec chico" id="cob-uf-btn">${aldia ? "Corregir UF de hoy" : "Ingresar UF de hoy"}</button>` : "");
+}
+document.addEventListener("click", e => { if (e.target.id === "cob-uf-btn") modalUfHoy(); });
+function modalUfHoy(){
+  const hoy = hoyISO();
+  modal(`<h3>UF de hoy · ${fecha(hoy)}</h3>
+    <p class="nota-sol">Normalmente la página la trae sola (mindicador.cl). Si no pudo, cópiala del
+      <a href="https://www.sii.cl/valores_y_fechas/uf/uf${hoy.slice(0, 4)}.htm" target="_blank" rel="noopener">SII</a> o del Banco Central y pégala aquí.
+      Al guardar se recalculan todos los cobros en UF que aún no se pagan.</p>
+    <label class="m-campo">Valor UF del ${fecha(hoy)}<input id="uf-val" placeholder="ej. 41.263,57" value="${UFD.valor ? ufFmt(UFD.valor) : ""}"></label>
+    <div class="error" id="uf-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Guardar UF", fn: async () => {
+      const v = ufTxtANum($("uf-val").value);
+      if (!v || v < 30000 || v > 60000) { $("uf-error").textContent = "Escribe el valor de la UF, ej. 41.263,57"; return false; }
+      const { data, error } = await db.rpc("uf_registrar", { p: { fecha: hoy, valor: String(v) } });
+      if (error) { $("uf-error").textContent = errorAmigable(error.message); return false; }
+      if (data && data.ok === false) { $("uf-error").textContent = "Sólo editores pueden registrar la UF."; return false; }
+      UFD.valor = v; UFD.hecho = hoy; UFD.error = null;
+      toast(`✓ UF ${ufFmt(v)} guardada · ${data.actualizados || 0} cobro(s) en UF recalculado(s).`);
+      if (typeof invalidarPagos === "function") invalidarPagos(); COB.filas = null; await cargarCobros(); return true; } }]);
 }
 </script>
 </body>
