@@ -14383,8 +14383,9 @@ setTimeout(function rev81(){
     if (!puedeEditar()) return;
     let ult = ""; try { ult = localStorage.getItem("atr_eo_recalc") || ""; } catch (_) {}
     if (ult === hoyISO()) return;
+    try { localStorage.setItem("atr_eo_recalc", hoyISO()); } catch (_) {}      // una vez al día por navegador, aunque falle (no reintenta en cada carga)
     const { data, error } = await db.rpc("recalcular_estados_obras");
-    if (!error) { try { localStorage.setItem("atr_eo_recalc", hoyISO()); } catch (_) {} if (data && data.cambiadas) console.log("Estados de obra recalculados:", data.cambiadas); }
+    if (!error && data && data.cambiadas) console.log("Estados de obra recalculados:", data.cambiadas);
   })();
 }, 7000);
 </script>
