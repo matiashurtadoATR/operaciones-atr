@@ -4342,7 +4342,7 @@ function dibujarFranquicia(A){
         <tr><td>Pagado por conciliar <small>(cheques / comprobantes)</small></td><td class="n">${pesos(F.porConciliar)}</td></tr>
       </tbody></table></div>`;
   const activ = `<div class="seccion"><div class="cab">ACTIVACIÓN (${f.pasos_ok}/${PASOS.length})</div><table class="pasos">
-        <tbody>${PASOS.map(([, t, ok]) => `<tr><td>${t}</td><td class="c">${siNo(ok(f))}</td></tr>`).join("")}</tbody></table></div>`;
+        <tbody>${PASOS.map(([k, t, ok]) => `<tr><td>${t}${k === "canon_ok" && !Number(f.canon_entrada_neto) ? ` <span style="color:#a1281f;font-size:.9em">(sin monto de canon en la ficha)</span>` : k === "canon_ok" && !ok(f) && f.pct_canon != null ? ` <span style="font-size:.9em">(${Math.round(100 * f.pct_canon)}% pagado)</span>` : ""}</td><td class="c">${siNo(ok(f))}</td></tr>`).join("")}</tbody></table></div>`;
   const sinDatos = A.cobros === null ? `<div class="alerta-deuda"><b class="t">Faltan datos de cobros</b>No se pudo leer v_cobros_franquicia (¿ejecutaste 18 y 19 en Supabase?).</div>` : "";
   const obrasTabla = obras.length ? `<div class="seccion"><div class="cab">OBRAS DE LA FRANQUICIA</div><table>
       <thead><tr><th style="text-align:left">Id ATR obra</th><th style="text-align:left">Cliente</th><th>CC</th><th>Estado</th><th>Contrato</th><th>Cobrado conciliado</th><th>Saldo en obra</th></tr></thead>
@@ -9828,7 +9828,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 79;
+const VERSION_PAGINA = 80;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -14182,15 +14182,15 @@ $("fq-hoja").addEventListener("click", e => {
 });
 $("fq-hoja").addEventListener("input", e => { const d = $("fq-rcon"); if (d && d.contains(e.target)) { RC.fr = d.dataset.fr; rcInput(e); } });
 window.addEventListener("beforeprint", () => {
-  const d = $("fq-rcon"); if (d) { d.dataset.antes = d.open ? "1" : ""; d.open = true; }
-  // Resumen Franquiciado (sin detalle): siempre en 1 hoja → se achica lo justo (carta, márgenes 8 mm ≈ 995 px de alto útil)
+  // la Revisión contrato se imprime tal como está: abierta = con el detalle; cerrada = sólo la barra con su estado
+  // Resumen Franquiciado (sin detalle): se achica lo justo para caber en 1 hoja, pero nunca bajo 90% (legible; si no cabe, usa 2 hojas)
   const h = $("fq-hoja");
   if (h && !h.classList.contains("fit1") && !matchMedia("print").matches && !$("vista-franq").classList.contains("oculto") && FQ.modo !== "detalle") {
     const alto = h.getBoundingClientRect().height * 0.62;            // alto aproximado ya con la letra de impresión
-    h.style.setProperty("--fqz", Math.min(1, 970 / Math.max(alto, 1)).toFixed(3)); h.classList.add("fit1");
+    h.style.setProperty("--fqz", Math.max(0.9, Math.min(1, 970 / Math.max(alto, 1))).toFixed(3)); h.classList.add("fit1");
   }
 });
-window.addEventListener("afterprint", () => { const d = $("fq-rcon"); if (d) d.open = !!d.dataset.antes; const h = $("fq-hoja"); if (h) h.classList.remove("fit1"); });
+window.addEventListener("afterprint", () => { const h = $("fq-hoja"); if (h) h.classList.remove("fit1"); });
 { const _dibFq = dibujarFranquicia; dibujarFranquicia = function(A){ const r = _dibFq.apply(this, arguments); try { fqRcon(A && A.f && A.f.codigo_atr); } catch (_) {} return r; }; }
 </script>
 </body>
