@@ -669,7 +669,16 @@
   .rc-item .tg.atr{background:#fde7d9;color:#a4441f}
   .rc-item.on{background:#f1faf3;border-color:#b7e0c0}.rc-item.on .ck{background:#2e8b45;border-color:#2e8b45}
   .rc-item.on .ok{display:inline}.rc-item .ok{display:none;font-size:11px;font-weight:800;color:#2e8b45}
-  .rc-item:disabled{cursor:default}
+  .rc-item.ro{cursor:default}
+  .rc-item.na{background:#f6f4f2;border-color:#ddd5cf}.rc-item.na .ck{background:#9a8f88;border-color:#9a8f88}.rc-item.na .nm{color:#7d726b}
+  .rc-item.na .ok{display:none}
+  .rc-mod.na .okm{display:none}
+  .rc-na{font-size:10.5px;font-weight:700;border:1px solid #d6cbc3;color:#8a7f78;border-radius:999px;padding:2px 7px;cursor:pointer;background:#fff}
+  .rc-na:hover{border-color:#8a7f78;color:#4a3f38}.rc-na.on{background:#7d726b;border-color:#7d726b;color:#fff}
+  .rc-mod.na{background:#f6f4f2;border-color:#ddd5cf}.rc-mod .okm{font-size:11px;font-weight:800;color:#2e8b45}.rc-mod.na .okm{color:#7d726b}
+  .rc-seg button.on[data-rcmod="N/A"]{background:#7d726b}
+  .rc-fq summary{cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap;color:var(--cafe)}.rc-fq summary small{color:#8a7f78;font-weight:400}
+  @media print{.rc-fq{display:none!important}}
   .rc-mod{display:flex;align-items:center;gap:12px;border:1px solid var(--linea);border-radius:10px;padding:8px 12px;margin-bottom:6px}
   .rc-mod.on{background:#f1faf3;border-color:#b7e0c0}
   .rc-mod .nm{flex:1;font-weight:600}
@@ -1638,6 +1647,7 @@
       </div>
       <div id="fq-vacio" class="vacio">Elige una franquicia para ver su Resumen Franquiciado.</div>
       <div class="hoja-wrap"><div id="fq-hoja" class="hoja oculto"></div></div>
+      <details class="cf-caja rc-fq oculto" id="fq-rcon" style="margin-top:14px"><summary><b>Revisión contrato</b> <span id="fq-rcon-est"></span><small>check list del contrato · clic para ver</small></summary><div id="fq-rcon-body" style="margin-top:12px"></div></details>
      </section>
 
      <section id="vista-act" class="oculto">
@@ -9807,7 +9817,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 78;
+const VERSION_PAGINA = 79;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -13997,28 +14007,32 @@ function cobzMontar(fr){
   COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: fr });
 }
 
-/* ---------------- v78 · Onboarding › Revisión contrato (78_revision_contrato.sql) ---------------- */
+/* ---------------- v78 · Onboarding › Revisión contrato (78/79_revision_contrato.sql) ---------------- */
 const RC_ITEMS = {
   contenido: [["encabezado", "Encabezado"], ["fecha", "Fecha"], ["comparecencia", "Comparecencia cliente"], ["__modalidad", "Modalidad"],
               ["monto_canon", "Monto canon"], ["forma_pago", "Forma de pago"], ["copia_cedula", "Copia cédula identidad adjunta"]],
   firmas: [["contrato_firma", "Contrato", ["firma", "Firma Atrium"]], ["anexo_1", "Anexo 1"], ["anexo_2", "Anexo 2"], ["anexo_3", "Anexo 3", ["firma RRLL"]],
            ["anexo_4", "Anexo 4"], ["anexo_5", "Anexo 5", ["firma"]], ["anexo_6", "Anexo 6", ["firma"]], ["anexo_7", "Anexo 7"], ["anexo_8", "Anexo 8", ["firma dual", "Firma Atrium"]]] };
 const RC_TOTAL = RC_ITEMS.contenido.length + RC_ITEMS.firmas.length;
+const RC_CLAVES = [...RC_ITEMS.contenido, ...RC_ITEMS.firmas].map(x => x[0]).filter(k => k !== "__modalidad");
 const RC = { fr: "", fqs: null, rev: {}, chip: "pend", q: "", tm: null, sin78: false };
+async function rcAsegurar(forzar){
+  if (RC.fqs && !forzar) return;
+  const [a, b] = await Promise.all([todo(() => db.from("v_onb_estado").select("codigo_atr,franquiciado,etapa,fecha_contrato,fecha_reserva,tipo").order("codigo_atr")),
+                                    todo(() => db.from("v_onb_revision_contrato").select("*"))]);
+  if (a.error) throw new Error(a.error.message);
+  RC.sin78 = !!b.error; RC.fqs = a.data || []; RC.rev = {};
+  (b.data || []).forEach(r => RC.rev[r.franquicia] = r);
+}
 async function cargarRcon(forzar){
-  if (!RC.fqs || forzar) {
-    $("rcon-filas").innerHTML = `<p class="nota-g">Cargando…</p>`;
-    const [a, b] = await Promise.all([todo(() => db.from("v_onb_estado").select("codigo_atr,franquiciado,etapa,fecha_contrato,fecha_reserva,tipo").order("codigo_atr")),
-                                      todo(() => db.from("v_onb_revision_contrato").select("*"))]);
-    if (a.error) { $("rcon-filas").innerHTML = `<p class="nota-g">${esc(a.error.message)}</p>`; return; }
-    RC.sin78 = !!b.error; RC.fqs = a.data || []; RC.rev = {};
-    (b.data || []).forEach(r => RC.rev[r.franquicia] = r);
-  }
+  if (!RC.fqs || forzar) $("rcon-filas").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  try { await rcAsegurar(forzar); } catch (e) { $("rcon-filas").innerHTML = `<p class="nota-g">${esc(e.message)}</p>`; return; }
   if (!RC.fr || !RC.fqs.some(f => f.codigo_atr === RC.fr)) { const L = rcFiltrar(); RC.fr = (L[0] || RC.fqs[0] || {}).codigo_atr || ""; }
-  rcLista(); rcFicha();
+  rcLista(); rcPintar();
 }
 const rcN = c => { const r = RC.rev[c]; return r ? Number(r.n_ok || 0) : 0; };
 const rcOk = c => rcN(c) >= RC_TOTAL;
+const rcContar = r => RC_CLAVES.filter(k => r.items && r.items[k]).length + (r.modalidad ? 1 : 0);
 function rcFiltrar(){
   const q = RC.q.trim().toLowerCase();
   return (RC.fqs || []).filter(f => (RC.chip === "todas" || (RC.chip === "ok" ? rcOk(f.codigo_atr) : !rcOk(f.codigo_atr) && f.etapa !== "Renunciada"))
@@ -14026,6 +14040,7 @@ function rcFiltrar(){
     .sort((x, y) => (RC.chip === "pend" ? (["En activación", "Reserva"].includes(y.etapa) - ["En activación", "Reserva"].includes(x.etapa)) : 0) || String(x.codigo_atr).localeCompare(y.codigo_atr));
 }
 function rcLista(){
+  if (!$("rcon-chips")) return;
   const T = RC.fqs || [], nOk = T.filter(f => rcOk(f.codigo_atr)).length, nPend = T.filter(f => !rcOk(f.codigo_atr) && f.etapa !== "Renunciada").length;
   $("rcon-chips").innerHTML = [["pend", "Por revisar", nPend], ["ok", "OK", nOk], ["todas", "Todas", T.length]]
     .map(([k, t, n]) => `<button class="chip ${RC.chip === k ? "activo" : ""}" data-rcchip="${k}">${t} · ${n}</button>`).join("");
@@ -14034,63 +14049,105 @@ function rcLista(){
     return `<div class="rc-fila ${f.codigo_atr === RC.fr ? "on" : ""}" data-rcfr="${esc(f.codigo_atr)}" data-nolink="1"><div class="tx"><b>${esc(f.codigo_atr)}</b><small>${esc(f.franquiciado || "")}</small><small>${esc(f.etapa || "")}</small></div>
       <span class="rc-pill ${ok ? "ok" : n ? "" : "cero"}">${ok ? "✓ OK" : `${n}/${RC_TOTAL}`}</span></div>`; }).join("") || `<p class="nota-g">Sin franquicias en esta lista.</p>`;
 }
-function rcFicha(){
-  const el = $("rcon-ficha"), f = (RC.fqs || []).find(x => x.codigo_atr === RC.fr);
+// dibuja el check list de RC.fr en todos los lugares donde está a la vista (menú Revisión contrato y hoja del franquiciado)
+function rcPintar(){
+  if (!$("vista-rcon").classList.contains("oculto")) rcFicha($("rcon-ficha"), true);
+  const fb = $("fq-rcon-body"); if (fb && $("fq-rcon").dataset.fr === RC.fr) { rcFicha(fb, false); fqRconResumen(); }
+}
+function rcFicha(el, conCab){
+  if (!el) return;
+  const f = (RC.fqs || []).find(x => x.codigo_atr === RC.fr);
   if (RC.sin78) { el.innerHTML = `<div class="cf-aviso rojo">Falta ejecutar <b>78_revision_contrato.sql</b> en Supabase.</div>`; return; }
   if (!f) { el.innerHTML = `<p class="nota-g">Elige una franquicia.</p>`; return; }
-  const r = RC.rev[f.codigo_atr] || { items: {}, modalidad: null, observaciones: "" }, it = r.items || {}, ed = puedeEditar() ? "" : "disabled";
-  const n = rcN(f.codigo_atr), ok = n >= RC_TOTAL;
-  const item = ([k, t, tags = []]) => k === "__modalidad"
-    ? `<div class="rc-mod ${r.modalidad ? "on" : ""}"><span class="ck" style="display:none"></span><span class="nm">${t}</span>
-        <span class="rc-seg">${["Tienda", "Digital"].map(m => `<button data-rcmod="${m}" class="${r.modalidad === m ? "on" : ""}" ${ed}>${m}</button>`).join("")}</span>
-        ${r.modalidad ? `<span class="ok" style="display:inline;font-size:11px;font-weight:800;color:#2e8b45">OK</span>` : ""}</div>`
-    : `<button class="rc-item ${it[k] ? "on" : ""}" data-rcit="${k}" ${ed}><span class="ck">${it[k] ? "✓" : ""}</span><span class="nm">${t}</span>
-        ${tags.map(g => `<span class="tg ${g === "Firma Atrium" ? "atr" : ""}">${esc(g)}</span>`).join("")}<span class="ok">OK</span></button>`;
+  const r = RC.rev[f.codigo_atr] || { items: {}, modalidad: null, observaciones: "" }, it = r.items || {}, ed = puedeEditar();
+  const n = rcN(f.codigo_atr), ok = n >= RC_TOTAL, nNa = RC_CLAVES.filter(k => it[k] === "na").length + (r.modalidad === "N/A" ? 1 : 0);
+  const item = ([k, t, tags = []]) => {
+    if (k === "__modalidad") return `<div class="rc-mod ${r.modalidad === "N/A" ? "na" : r.modalidad ? "on" : ""}"><span class="nm">${t}</span>
+        <span class="rc-seg">${["Tienda", "Digital", "N/A"].map(m => `<button data-rcmod="${m}" class="${r.modalidad === m ? "on" : ""}" ${ed ? "" : "disabled"}>${m}</button>`).join("")}</span>
+        ${r.modalidad ? `<span class="okm">${r.modalidad === "N/A" ? "N/A" : "OK"}</span>` : ""}</div>`;
+    const st = it[k];
+    return `<div class="rc-item ${st === true ? "on" : st === "na" ? "na" : ""} ${ed ? "" : "ro"}" data-rcit="${k}" role="button" tabindex="0"><span class="ck">${st === true ? "✓" : st === "na" ? "–" : ""}</span><span class="nm">${t}</span>
+        ${tags.map(g => `<span class="tg ${g === "Firma Atrium" ? "atr" : ""}">${esc(g)}</span>`).join("")}<span class="ok">${st === "na" ? "N/A" : "OK"}</span>
+        ${ed ? `<span class="rc-na ${st === "na" ? "on" : ""}" data-rcna="${k}" title="No aplica: cuenta como revisado, sin más gestión">N/A</span>` : ""}</div>`; };
   const nG = L => L.filter(([k]) => k === "__modalidad" ? r.modalidad : it[k]).length;
-  el.innerHTML = `<div class="rc-cab"><div><h2>${esc(f.franquiciado || f.codigo_atr)}</h2>
-      <div class="sub"><a href="#" data-franq="${esc(f.codigo_atr)}">${esc(f.codigo_atr)}</a> · ${esc(f.etapa || "")}${f.tipo ? " · " + esc(f.tipo) : ""}${f.fecha_contrato ? " · contrato " + fecha(f.fecha_contrato) : " · sin fecha de contrato"}</div></div></div>
-    ${ok ? `<div class="rc-okban"><span class="g">✓</span><div><b>Contrato OK</b> · todos los puntos revisados${r.completado_en ? ` el ${fecha(String(r.completado_en).slice(0, 10))}` : ""}${r.actualizado_por ? ` por ${esc(String(r.actualizado_por).split("@")[0])}` : ""}.</div></div>` : ""}
-    <div class="rc-prog ${ok ? "ok" : ""}"><span class="bar"><i style="width:${(100 * n / RC_TOTAL).toFixed(1)}%"></i></span><b>${n} de ${RC_TOTAL}</b></div>
+  el.innerHTML = (conCab ? `<div class="rc-cab"><div><h2>${esc(f.franquiciado || f.codigo_atr)}</h2>
+      <div class="sub"><a href="#" data-franq="${esc(f.codigo_atr)}">${esc(f.codigo_atr)}</a> · ${esc(f.etapa || "")}${f.tipo ? " · " + esc(f.tipo) : ""}${f.fecha_contrato ? " · contrato " + fecha(f.fecha_contrato) : " · sin fecha de contrato"}</div></div>
+      ${ed && !ok ? `<button class="btn" data-rctodo="1" title="Marca como OK todos los puntos pendientes">✓ Dar OK a todo</button>` : ""}</div>`
+      : (ed && !ok ? `<div style="display:flex;justify-content:flex-end"><button class="btn" data-rctodo="1" title="Marca como OK todos los puntos pendientes">✓ Dar OK a todo</button></div>` : ""))
+    + (ok ? `<div class="rc-okban"><span class="g">✓</span><div><b>Contrato OK</b> · todos los puntos revisados${nNa ? ` (${nNa} no aplica${nNa === 1 ? "" : "n"})` : ""}${r.completado_en ? ` el ${fecha(String(r.completado_en).slice(0, 10))}` : ""}${r.actualizado_por ? ` por ${esc(String(r.actualizado_por).split("@")[0])}` : ""}.</div></div>` : "")
+    + `<div class="rc-prog ${ok ? "ok" : ""}"><span class="bar"><i style="width:${(100 * n / RC_TOTAL).toFixed(1)}%"></i></span><b>${n} de ${RC_TOTAL}</b></div>
     <div class="rc-cols">
       <div class="rc-grupo"><h3><span>Contenido del contrato</span><span>${nG(RC_ITEMS.contenido)}/${RC_ITEMS.contenido.length}</span></h3>${RC_ITEMS.contenido.map(item).join("")}</div>
       <div class="rc-grupo"><h3><span>Contrato y anexos (firmas)</span><span>${nG(RC_ITEMS.firmas)}/${RC_ITEMS.firmas.length}</span></h3>${RC_ITEMS.firmas.map(item).join("")}</div>
     </div>
-    <label style="display:block;margin-top:12px;font-weight:600;font-size:13px">Observaciones<textarea id="rc-obs" class="rc-obs" placeholder="Qué falta o qué corregir en el contrato…" ${ed}>${esc(r.observaciones || "")}</textarea></label>
-    <div class="rc-pie"><span id="rc-estado">${r.actualizado_en ? `Última revisión: ${fecha(String(r.actualizado_en).slice(0, 10))}${r.actualizado_por ? " · " + esc(String(r.actualizado_por).split("@")[0]) : ""}` : "Sin revisar todavía."}</span>
-      ${puedeEditar() ? "<span>Se guarda solo al marcar.</span>" : "<span>Sólo lectura.</span>"}</div>`;
+    <label style="display:block;margin-top:12px;font-weight:600;font-size:13px">Observaciones<textarea class="rc-obs" data-rcobs="1" placeholder="Qué falta o qué corregir en el contrato…" ${ed ? "" : "disabled"}>${esc(r.observaciones || "")}</textarea></label>
+    <div class="rc-pie"><span class="rc-estado">${r.actualizado_en ? `Última revisión: ${fecha(String(r.actualizado_en).slice(0, 10))}${r.actualizado_por ? " · " + esc(String(r.actualizado_por).split("@")[0]) : ""}` : "Sin revisar todavía."}</span>
+      ${ed ? "<span>Clic = OK · <b>N/A</b> = no aplica (cuenta como revisado). Se guarda solo.</span>" : "<span>Sólo lectura.</span>"}</div>`;
 }
-function rcProgramarGuardar(){
-  $("rc-estado") && ($("rc-estado").textContent = "Guardando…");
-  clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, 500);
-}
+const rcEstado = t => document.querySelectorAll(".rc-estado").forEach(x => x.textContent = t);
+function rcProgramarGuardar(ms = 500){ rcEstado("Guardando…"); clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, ms); }
 async function rcGuardar(){
   const fr = RC.fr, r = RC.rev[fr]; if (!r) return;
   const { data, error } = await db.rpc("onb_contrato_guardar", { p: { franquicia: fr, items: r.items || {}, modalidad: r.modalidad || null, observaciones: r.observaciones || "" } });
-  if (error) { toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 78_revision_contrato.sql en Supabase." : errorAmigable(error.message)), 8000); return; }
+  if (error) { toast("⚠ " + esc(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 78_revision_contrato.sql en Supabase."
+                                : /check constraint|Modalidad no v|na/i.test(error.message) && /N\/A|na/.test(JSON.stringify(r)) ? "Para usar N/A falta ejecutar 79_revision_contrato_na.sql en Supabase." : errorAmigable(error.message)), 9000); return; }
   const antes = rcOk(fr);
   RC.rev[fr] = Object.assign({}, data, { franquicia: fr });
   if (!antes && rcOk(fr)) toast(`✓ Contrato de ${esc(fr)} OK: todos los puntos revisados.`);
-  if (RC.fr === fr) { const ta = $("rc-obs"), foco = document.activeElement === ta; if (!foco) rcFicha(); else $("rc-estado").textContent = "Guardado ✓"; }
+  const foco = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.rcobs;
+  if (RC.fr === fr && !foco) rcPintar(); else rcEstado("Guardado ✓");
   rcLista();
+}
+function rcBase(){ return RC.rev[RC.fr] = RC.rev[RC.fr] || { franquicia: RC.fr, items: {}, modalidad: null, observaciones: "", n_ok: 0 }; }
+function rcClick(e){
+  const t = e.target;
+  if (!puedeEditar()) return false;
+  const r = rcBase();
+  const na = t.closest("[data-rcna]"), it = !na && t.closest("[data-rcit]"), m = t.closest("[data-rcmod]"), todoB = t.closest("[data-rctodo]");
+  if (na) { e.stopPropagation(); const k = na.dataset.rcna; r.items = Object.assign({}, r.items); if (r.items[k] === "na") delete r.items[k]; else r.items[k] = "na"; }
+  else if (it) { const k = it.dataset.rcit; r.items = Object.assign({}, r.items); if (r.items[k]) delete r.items[k]; else r.items[k] = true; }
+  else if (m) { r.modalidad = r.modalidad === m.dataset.rcmod ? null : m.dataset.rcmod; }
+  else if (todoB) {
+    if (!r.modalidad) { toast("Elige primero la modalidad (Tienda, Digital o N/A)."); return true; }
+    const pend = RC_CLAVES.filter(k => !(r.items || {})[k]);
+    if (!confirm(`¿Dar OK a ${pend.length} punto(s) pendiente(s) del contrato de ${RC.fr}?\nLos marcados como N/A se mantienen.`)) return true;
+    r.items = Object.assign({}, r.items); pend.forEach(k => r.items[k] = true);
+  } else return false;
+  r.n_ok = rcContar(r); rcPintar(); rcLista(); rcProgramarGuardar(); return true;
+}
+function rcInput(e){
+  if (!e.target.dataset.rcobs) return;
+  const r = rcBase(); r.observaciones = e.target.value;
+  document.querySelectorAll("[data-rcobs]").forEach(x => { if (x !== e.target) x.value = e.target.value; });
+  rcEstado("Escribiendo…"); clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, 1200);
 }
 $("vista-rcon").addEventListener("click", e => {
   const t = e.target;
   if (t.id === "rcon-act") return cargarRcon(true);
   const ch = t.closest("[data-rcchip]"); if (ch) { RC.chip = ch.dataset.rcchip; return rcLista(); }
-  const fl = t.closest("[data-rcfr]"); if (fl) { RC.fr = fl.dataset.rcfr; rcLista(); rcFicha(); if (innerWidth < 900) $("rcon-ficha").scrollIntoView({ behavior: "smooth" }); return; }
-  if (!puedeEditar()) return;
-  const r = RC.rev[RC.fr] = RC.rev[RC.fr] || { franquicia: RC.fr, items: {}, modalidad: null, observaciones: "", n_ok: 0 };
-  const it = t.closest("[data-rcit]");
-  if (it) { const k = it.dataset.rcit; r.items = Object.assign({}, r.items); if (r.items[k]) delete r.items[k]; else r.items[k] = true;
-    r.n_ok = Object.keys(r.items).length + (r.modalidad ? 1 : 0); rcFicha(); rcLista(); return rcProgramarGuardar(); }
-  const m = t.closest("[data-rcmod]");
-  if (m) { r.modalidad = r.modalidad === m.dataset.rcmod ? null : m.dataset.rcmod; r.n_ok = Object.keys(r.items || {}).length + (r.modalidad ? 1 : 0); rcFicha(); rcLista(); return rcProgramarGuardar(); }
+  const fl = t.closest("[data-rcfr]"); if (fl) { RC.fr = fl.dataset.rcfr; rcLista(); rcPintar(); if (innerWidth < 900) $("rcon-ficha").scrollIntoView({ behavior: "smooth" }); return; }
+  rcClick(e);
 });
-$("vista-rcon").addEventListener("input", e => {
-  if (e.target.id === "rcon-q") { RC.q = e.target.value; return rcLista(); }
-  if (e.target.id === "rc-obs") { const r = RC.rev[RC.fr] = RC.rev[RC.fr] || { franquicia: RC.fr, items: {}, modalidad: null, n_ok: 0 }; r.observaciones = e.target.value;
-    clearTimeout(RC.tm); RC.tm = setTimeout(rcGuardar, 1200); $("rc-estado").textContent = "Escribiendo…"; }
-});
+$("vista-rcon").addEventListener("input", e => { if (e.target.id === "rcon-q") { RC.q = e.target.value; return rcLista(); } rcInput(e); });
+
+/* hoja del franquiciado (Resumen Franquiciado): check list desplegable */
+function fqRconResumen(){
+  const d = $("fq-rcon"); if (!d) return; const fr = d.dataset.fr, n = rcN(fr), r = RC.rev[fr];
+  $("fq-rcon-est").innerHTML = RC.sin78 ? "" : n >= RC_TOTAL ? `<span class="rc-pill ok">✓ Contrato OK</span>` : `<span class="rc-pill ${n ? "" : "cero"}">${n ? `${n} de ${RC_TOTAL} revisados` : "sin revisar"}</span>`;
+}
+async function fqRcon(fr){
+  const d = $("fq-rcon"); if (!d) return;
+  d.classList.toggle("oculto", !fr); if (!fr) return;
+  d.dataset.fr = fr; $("fq-rcon-est").textContent = "…";
+  try { await rcAsegurar(); } catch (_) { d.classList.add("oculto"); return; }
+  if (d.dataset.fr !== fr) return;
+  if (d.open) { RC.fr = fr; rcFicha($("fq-rcon-body"), false); }
+  fqRconResumen();
+}
+$("fq-rcon").addEventListener("toggle", () => { const d = $("fq-rcon"); if (d.open) { RC.fr = d.dataset.fr; rcFicha($("fq-rcon-body"), false); } });
+$("fq-rcon-body").addEventListener("click", e => { RC.fr = $("fq-rcon").dataset.fr; rcClick(e); });
+$("fq-rcon-body").addEventListener("input", e => { RC.fr = $("fq-rcon").dataset.fr; rcInput(e); });
+{ const _dibFq = dibujarFranquicia; dibujarFranquicia = function(A){ const r = _dibFq.apply(this, arguments); try { fqRcon(A && A.f && A.f.codigo_atr); } catch (_) {} return r; }; }
 </script>
 </body>
 </html>
