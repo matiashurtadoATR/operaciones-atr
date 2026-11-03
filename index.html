@@ -11014,8 +11014,13 @@ async function cobzVista(){
   if (error) { $("cobz-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache|no existe/i.test(error.message) ? "Falta ejecutar 53_portal_franquiciados.sql en Supabase." : esc(error.message)}</div>`; return; }
   COBZ.acc = data || [];
   if (!COBZ.fr || !COBZ.acc.some(x => x.franquicia === COBZ.fr)) COBZ.fr = (COBZ.acc.find(x => Number(x.deuda) > 0) || COBZ.acc[0] || {}).franquicia || "";
-  $("cobz-cuerpo").innerHTML = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><label style="font-weight:600">Franquicia</label>
-      <select id="cobz-fr">${COBZ.acc.map(x => `<option value="${esc(x.franquicia)}" ${x.franquicia === COBZ.fr ? "selected" : ""}>${esc(x.franquicia)} · ${esc(x.franquiciado || "")}${Number(x.deuda) ? " · " + $$(x.deuda) : ""}</option>`).join("")}</select>
+  const RS = cobzRazones(), rsAct = cobzRs(COBZ.fr);
+  $("cobz-cuerpo").innerHTML = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><label style="font-weight:600">Razón social</label>
+      <select id="cobz-rs" style="max-width:420px">${RS.map(r => `<option value="${esc(r.rs)}" ${r.rs === rsAct ? "selected" : ""}>${esc(r.rs)}${r.frs.length > 1 ? ` (${r.frs.length} franquicias)` : ""}${r.deuda ? " · " + $$(r.deuda) : ""}</option>`).join("")}</select>
+      <label style="font-weight:600;margin-left:6px">Id franquicia</label>
+      <select id="cobz-fr" data-nolink="1">${cobzOpcionesFr(rsAct)}</select>
+      <input id="cobz-buscafr" list="cobz-ids" placeholder="Buscar Id (ej. R34601)" style="width:150px" title="Escribe un Id franquicia para ir directo">
+      <datalist id="cobz-ids">${COBZ.acc.map(x => `<option value="${esc(x.franquicia)}">${esc(x.franquiciado || "")}</option>`).join("")}</datalist>
       <span style="flex:1"></span><button class="btn" id="cobz-imprimir" title="Imprime (o guarda en PDF) lo que se ve abajo: elige antes la pestaña y el filtro (ej. Por pagar)">Imprimir / PDF</button></div>
     <p class="nota-g" style="margin:-6px 0 12px">Para imprimir el estado de cuenta: elige la pestaña y el filtro (ej. <b>Mis deudas › Por pagar</b> o <b>Todas</b>) y presiona <b>Imprimir / PDF</b>. Se imprime sin botones, con los datos para pagar.</p>
     <div id="cobz-portal" style="background:#f7f3f0;border:1px solid var(--linea);border-radius:14px;padding:20px"></div>`;
@@ -11058,7 +11063,15 @@ $("vista-cobz").addEventListener("click", async e => {
   }
 });
 $("vista-cobz").addEventListener("input", e => { if (e.target.id === "cobz-q") { COBZ.q = e.target.value; const p = e.target.selectionStart; cobzDibujarDeudas(); const i = $("cobz-q"); i.focus(); i.setSelectionRange(p, p); } });
-$("vista-cobz").addEventListener("change", e => { if (e.target.id === "cobz-fr") { COBZ.fr = e.target.value; COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: COBZ.fr }); } });
+$("vista-cobz").addEventListener("change", e => {
+  const id = e.target.id;
+  if (id === "cobz-rs") { const r = cobzRazones().find(z => z.rs === e.target.value); if (!r) return;
+    $("cobz-fr").innerHTML = cobzOpcionesFr(r.rs); return cobzMontar($("cobz-fr").value); }
+  if (id === "cobz-fr") return cobzMontar(e.target.value);
+  if (id === "cobz-buscafr") { const v = e.target.value.trim().toUpperCase(); const x = COBZ.acc.find(a => String(a.franquicia).toUpperCase() === v);
+    if (!x) return toast("No encontré la franquicia " + esc(v)); e.target.value = "";
+    $("cobz-rs").value = cobzRs(x.franquicia); $("cobz-fr").innerHTML = cobzOpcionesFr(cobzRs(x.franquicia)); $("cobz-fr").value = x.franquicia; cobzMontar(x.franquicia); }
+});
 
 /* =====================================================================
    v54 · PDF DE FACTURAS EMITIDAS
@@ -13912,6 +13925,24 @@ function modalUfHoy(){
       UFD.valor = v; UFD.hecho = hoy; UFD.error = null;
       toast(`✓ UF ${ufFmt(v)} guardada · ${data.actualizados || 0} cobro(s) en UF recalculado(s).`);
       if (typeof invalidarPagos === "function") invalidarPagos(); COB.filas = null; await cargarCobros(); return true; } }]);
+}
+
+/* ---------------- v77d · Vista del franquiciado por razón social ---------------- */
+const cobzRs = fr => { const x = (COBZ.acc || []).find(a => a.franquicia === fr); return x ? (String(x.franquiciado || "").trim() || x.franquicia) : ""; };
+function cobzRazones(){
+  const m = new Map();
+  for (const x of COBZ.acc || []) { const k = String(x.franquiciado || "").trim() || x.franquicia;
+    if (!m.has(k)) m.set(k, { rs: k, frs: [], deuda: 0 }); const r = m.get(k); r.frs.push(x); r.deuda += Number(x.deuda || 0); }
+  return [...m.values()].sort((a, b) => a.rs.localeCompare(b.rs, "es"));
+}
+function cobzOpcionesFr(rs){
+  const r = cobzRazones().find(z => z.rs === rs); if (!r) return "";
+  const frs = [...r.frs].sort((a, b) => Number(b.deuda || 0) - Number(a.deuda || 0) || String(a.franquicia).localeCompare(b.franquicia));
+  return frs.map(x => `<option value="${esc(x.franquicia)}" data-rz="1" ${x.franquicia === COBZ.fr ? "selected" : ""}>${esc(x.franquicia)}${Number(x.deuda) ? " · " + $$(x.deuda) : " · sin deuda"}</option>`).join("");
+}
+function cobzMontar(fr){
+  if (!fr) return; COBZ.fr = fr;
+  COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: fr });
 }
 </script>
 </body>
