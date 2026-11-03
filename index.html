@@ -1485,7 +1485,6 @@
       <button data-rep="ctrl" data-mod="sinfact" data-area="operaciones">Pagos sin factura<small>Bandeja · pedir la factura de venta<span class="n-ctrl" data-ctrl-n="sinfact"></span></small></button>
       <button data-rep="ctrl" data-mod="royalty" data-area="operaciones">Alerta de royalties<small>Esperado vs cobrado<span class="n-ctrl" data-ctrl-n="royalty"></span></small></button>
       <button data-rep="ctrl" data-mod="negativo" data-area="operaciones">Alerta de saldo negativo<small>Obras bajo cero y por qué<span class="n-ctrl" data-ctrl-n="negativo"></span></small></button>
-      <button data-rep="getnet" data-area="operaciones" data-solo-supabase="1">Comisión Getnet<small>Pagos con tarjeta sin comisión<span class="n-ctrl" id="getnet-n"></span></small></button>
       <h5 data-area="operaciones" class="req-ses oculto">Ingreso de datos</h5>
       <button data-rep="ing" data-mod="pagos_obra" data-area="operaciones" class="req-ses oculto">Pagos obras<small>Hoja Pagos · Clientes Obras</small></button>
       <button data-rep="ing" data-mod="obras" data-area="operaciones" class="req-ses oculto">Obras<small>Hoja Negocios</small></button>
@@ -14370,24 +14369,8 @@ $("vista-getnet").addEventListener("click", async e => {
 function getnetContador(n){ const el = $("getnet-n"); if (el) el.textContent = n ? ` · ${n} sin comisión` : ""; }
 document.addEventListener("click", e => { const a = e.target.closest("[data-irgetnet]"); if (a) { e.preventDefault(); irA("getnet"); } });
 
-/* al entrar (editores, 1 vez por día): estados de obra al día + aviso de comisiones Getnet faltantes */
-setTimeout(function rev81(){
-  if (typeof SESION === "undefined" || !SESION.rol) return setTimeout(rev81, 4000);
-  if (SESION.rol === "sin_acceso" || enExcel()) return;
-  (async () => {
-    try {
-      const { data } = await db.from("v_getnet_sin_comision").select("pago_id");
-      const n = (data || []).length; getnetContador(n);
-      if (n && puedeEditar()) setTimeout(() => toast(`⚠ Hay <b>${n} pago(s) con tarjeta sin comisión Getnet</b>: la comisión siempre debe descontarse. <a href="#" data-irgetnet="1">Registrar</a>`, 12000), 9000);
-    } catch (_) {}
-    if (!puedeEditar()) return;
-    let ult = ""; try { ult = localStorage.getItem("atr_eo_recalc") || ""; } catch (_) {}
-    if (ult === hoyISO()) return;
-    try { localStorage.setItem("atr_eo_recalc", hoyISO()); } catch (_) {}      // una vez al día por navegador, aunque falle (no reintenta en cada carga)
-    const { data, error } = await db.rpc("recalcular_estados_obras");
-    if (!error && data && data.cambiadas) console.log("Estados de obra recalculados:", data.cambiadas);
-  })();
-}, 7000);
+/* Comisión Getnet: sección pausada (se retoma más adelante) · sin recálculo automático al entrar */
+
 </script>
 </body>
 </html>
