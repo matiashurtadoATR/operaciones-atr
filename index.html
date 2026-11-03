@@ -615,6 +615,32 @@
     .hoja-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .hoja-wrap .hoja table{display:table;overflow:visible;max-width:none}
   }
+  /* v77b · estado de cuenta imprimible (Vista del franquiciado) */
+  .cobz-imp-cab,.cobz-imp-pie{display:none}
+  @media print{
+    @page{size:A4;margin:12mm}
+    body.imp-cobz{background:#fff}
+    body.imp-cobz .barra,body.imp-cobz .menu,body.imp-cobz .menu-fondo,body.imp-cobz #banner-fuente,body.imp-cobz #banner-version,body.imp-cobz #toast,
+    body.imp-cobz #vista-cobz>.volver,body.imp-cobz #vista-cobz .cp-head,body.imp-cobz #cobz-cuerpo>div:first-child,body.imp-cobz #cobz-cuerpo>p.nota-g,
+    body.imp-cobz .ptl-aviso.amb,body.imp-cobz .ptl-cab,body.imp-cobz .ptl-tabs,body.imp-cobz .ptl-filtros,body.imp-cobz .ptl-barra,
+    body.imp-cobz .ptl-btn,body.imp-cobz .ptl-chk,body.imp-cobz .t-chk,body.imp-cobz .t-btn,body.imp-cobz .ptl-buscar,body.imp-cobz .ptl-tabla th:first-child{display:none!important}
+    body.imp-cobz .app,body.imp-cobz .contenido{display:block!important;padding:0!important;margin:0!important}
+    body.imp-cobz #cobz-portal{background:#fff!important;border:0!important;padding:0!important}
+    body.imp-cobz .ptl-tabla .x-movil{display:table-cell!important}
+    body.imp-cobz .ptl-kpi{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body.imp-cobz .ptl-tabla tr{break-inside:avoid}
+    body.imp-cobz .ptl-kpis{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:8px!important}
+    body.imp-cobz .ptl-kpi .v{font-size:17px}
+    body.imp-cobz .ptl-nota{display:none!important}
+    body.imp-cobz .ptl-tabla{width:100%!important;font-size:11px}
+    body.imp-cobz .cobz-imp-cab,body.imp-cobz .cobz-imp-pie{display:block}
+    .cobz-imp-cab{border-bottom:2px solid #4a2a1c;padding-bottom:8px;margin-bottom:12px;font-size:11px;color:#4a2a1c}
+    .cobz-imp-cab .fila{display:flex;justify-content:space-between;gap:12px;align-items:flex-end}
+    .cobz-imp-cab h1{margin:0;font-size:20px;color:#4a2a1c}.cobz-imp-cab .marca{font-weight:800;letter-spacing:2px;font-size:13px}
+    .cobz-imp-cab .sub{color:#6f625a;font-size:11px;margin-top:3px}
+    .cobz-imp-pie{margin-top:14px;border:1px solid #e4d8ce;border-radius:8px;padding:10px 12px;font-size:11px;color:#2c211b;break-inside:avoid}
+    .cobz-imp-pie b{color:#4a2a1c}
+  }
   .env-sol{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f1ee;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;margin:8px 0 12px}
   .env-sol span{font-size:12.5px;color:var(--gris);flex-basis:100%}
   .btn-prueba{background:#e4eef6;color:#1f5a85;border:1px solid #b9d0e3;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px}
@@ -10988,13 +11014,16 @@ async function cobzVista(){
   COBZ.acc = data || [];
   if (!COBZ.fr || !COBZ.acc.some(x => x.franquicia === COBZ.fr)) COBZ.fr = (COBZ.acc.find(x => Number(x.deuda) > 0) || COBZ.acc[0] || {}).franquicia || "";
   $("cobz-cuerpo").innerHTML = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><label style="font-weight:600">Franquicia</label>
-      <select id="cobz-fr">${COBZ.acc.map(x => `<option value="${esc(x.franquicia)}" ${x.franquicia === COBZ.fr ? "selected" : ""}>${esc(x.franquicia)} · ${esc(x.franquiciado || "")}${Number(x.deuda) ? " · " + $$(x.deuda) : ""}</option>`).join("")}</select></div>
+      <select id="cobz-fr">${COBZ.acc.map(x => `<option value="${esc(x.franquicia)}" ${x.franquicia === COBZ.fr ? "selected" : ""}>${esc(x.franquicia)} · ${esc(x.franquiciado || "")}${Number(x.deuda) ? " · " + $$(x.deuda) : ""}</option>`).join("")}</select>
+      <span style="flex:1"></span><button class="btn" id="cobz-imprimir" title="Imprime (o guarda en PDF) lo que se ve abajo: elige antes la pestaña y el filtro (ej. Por pagar)">Imprimir / PDF</button></div>
+    <p class="nota-g" style="margin:-6px 0 12px">Para imprimir el estado de cuenta: elige la pestaña y el filtro (ej. <b>Mis deudas › Por pagar</b> o <b>Todas</b>) y presiona <b>Imprimir / PDF</b>. Se imprime sin botones, con los datos para pagar.</p>
     <div id="cobz-portal" style="background:#f7f3f0;border:1px solid var(--linea);border-radius:14px;padding:20px"></div>`;
   if (COBZ.fr) COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: COBZ.fr });
 }
 $("vista-cobz").addEventListener("click", async e => {
   const t = e.target;
   if (t.id === "cobz-act") return cargarCobz(COBZ.mod);
+  if (t.id === "cobz-imprimir") return cobzImprimir();
   const ch = t.closest("[data-cobzchip]"); if (ch) { COBZ.chip = ch.dataset.cobzchip; return cobzDibujarPagos(); }
   const ir = t.closest("[data-cobzir]"); if (ir) { e.preventDefault(); return irA("cobz", ir.dataset.cobzir); }
   const cp = t.closest("[data-cobzcomp]");
@@ -13817,6 +13846,31 @@ function modalEditarCobro(r){
   });
 }
 setTimeout(function esperarSesion(){ if (typeof SESION !== "undefined" && SESION.rol && SESION.rol !== "sin_acceso") ufDiaria(); else setTimeout(esperarSesion, 4000); }, 6000);
+
+/* ---------------- v77b · Vista del franquiciado imprimible (estado de cuenta) ---------------- */
+async function cobzImprimir(){
+  const cont = $("cobz-portal"); if (!cont || !cont.querySelector(".ptl")) return toast("Espera a que cargue la vista del franquiciado.");
+  const fr = COBZ.fr, x = (COBZ.acc || []).find(a => a.franquicia === fr) || {};
+  const ids = cont.querySelector(".ptl-id"), idsTxt = ids ? [...ids.querySelectorAll("span")].map(s => s.textContent.trim()).join(" · ") : fr;
+  let cta = null;
+  try { const r = await db.from("config_app").select("valor").eq("clave", "portal_cuenta_pago").maybeSingle(); if (r.data && r.data.valor) cta = typeof r.data.valor === "string" ? JSON.parse(r.data.valor) : r.data.valor; } catch (_) {}
+  const tab = (cont.querySelector(".ptl-tabs button.on") || {}).textContent || "", filtro = (cont.querySelector(".ptl-filtros button.on") || {}).textContent || "";
+  document.querySelectorAll(".cobz-imp-cab,.cobz-imp-pie").forEach(n => n.remove());
+  const cab = document.createElement("div"); cab.className = "cobz-imp-cab";
+  cab.innerHTML = `<div class="fila"><div><div class="marca">AQUÍ TU REMODELACIÓN</div><div class="sub">Inversiones Atrium Chile SpA</div></div>
+      <div style="text-align:right">Estado de cuenta al <b>${fecha(hoyISO())}</b>${tab ? `<br>${esc(tab.replace(/\d+$/, "").trim())}${filtro ? " · " + esc(filtro) : ""}` : ""}</div></div>
+    <h1 style="margin-top:8px">${esc(x.franquiciado || fr)}</h1><div class="sub">${esc(idsTxt)}</div>`;
+  const pie = document.createElement("div"); pie.className = "cobz-imp-pie";
+  pie.innerHTML = cta ? `<b>Datos para pagar</b> · ${esc(cta.razon_social || "")} · RUT ${esc(cta.rut || "")} · ${esc(cta.banco || "")} · ${esc(cta.tipo_cuenta || "")} N° <b>${esc(cta.numero || "")}</b>
+      <br>Envía el comprobante a <b>${esc(cta.correo || "operaciones@aquituremodelacion.cl")}</b> indicando qué deuda(s) pagas.` :
+      `Envía el comprobante de pago a <b>operaciones@aquituremodelacion.cl</b> indicando qué deuda(s) pagas.`;
+  cont.prepend(cab); cont.appendChild(pie);
+  document.body.classList.add("imp-cobz");
+  const titulo = document.title; document.title = `Estado de cuenta ${fr} ${hoyISO()}`;
+  const fin = () => { document.body.classList.remove("imp-cobz"); document.title = titulo; cab.remove(); pie.remove(); window.removeEventListener("afterprint", fin); };
+  window.addEventListener("afterprint", fin);
+  setTimeout(() => window.print(), 50);
+}
 </script>
 </body>
 </html>
