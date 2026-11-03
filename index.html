@@ -677,8 +677,20 @@
   .rc-na:hover{border-color:#8a7f78;color:#4a3f38}.rc-na.on{background:#7d726b;border-color:#7d726b;color:#fff}
   .rc-mod.na{background:#f6f4f2;border-color:#ddd5cf}.rc-mod .okm{font-size:11px;font-weight:800;color:#2e8b45}.rc-mod.na .okm{color:#7d726b}
   .rc-seg button.on[data-rcmod="N/A"]{background:#7d726b}
-  .rc-fq summary{cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap;color:var(--cafe)}.rc-fq summary small{color:#8a7f78;font-weight:400}
-  @media print{.rc-fq{display:none!important}}
+  .rc-hoja>summary{list-style:none;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:10px}
+  .rc-hoja>summary::-webkit-details-marker{display:none}
+  .rc-hoja .rc-est-cab{background:#fff;color:var(--cafe);border-radius:999px;padding:0 8px;font-size:10px}
+  .rc-hoja .rc-est-cab.ok{background:#dff3e3;color:#1e6b2b}
+  .rc-hoja .rc-flecha{display:inline-block;transition:transform .15s}.rc-hoja[open] .rc-flecha{transform:rotate(90deg)}
+  .rc-hoja .rc-hbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 8px;font-size:10.5px}
+  .rc-hoja .rc-h2{display:flex;gap:14px;align-items:flex-start}.rc-hoja .rc-h2 table{flex:1}
+  .rc-hoja .rc-c-ok{color:#1e6b2b;font-weight:700}.rc-hoja .rc-c-na{color:#7d726b;font-weight:700}.rc-hoja .rc-c-pend{color:#a1281f;font-weight:700}
+  .rc-hb{font:inherit;font-size:9.5px;border:1px solid #cbb8ab;background:#fff;border-radius:999px;padding:1px 8px;cursor:pointer;color:#6f625a}
+  .rc-hb:hover{border-color:var(--cafe)}.rc-hb.on{background:#2e8b45;border-color:#2e8b45;color:#fff;font-weight:700}.rc-hb.on.na{background:#7d726b;border-color:#7d726b}
+  .rc-hoja .rc-hobs{padding:6px 8px;font-size:10.5px}.rc-hoja .rc-hobs textarea{display:block;width:100%;margin-top:4px;font:inherit;border:1px solid #e0cfc3;border-radius:4px;padding:4px 6px}
+  .rc-hoja .rc-hpie{display:flex;justify-content:space-between;gap:10px;background:var(--naranjo);color:#fff;font-weight:700;padding:4px 8px;font-size:10.5px}
+  .rc-hoja .solo-imp{display:none}
+  @media print{#fq-hoja.fit1{zoom:var(--fqz,1)}.rc-hoja .no-imp{display:none!important}.rc-hoja .solo-imp{display:inline!important}.rc-hoja .rc-h2{gap:10px}.rc-hoja .rc-hobs,.rc-hoja .rc-hpie{font-size:7.4px;padding:2px 6px}.rc-hoja .rc-est-cab{font-size:7px}.rc-hoja>summary{break-after:avoid}.rc-hoja{break-inside:avoid}}
   .rc-mod{display:flex;align-items:center;gap:12px;border:1px solid var(--linea);border-radius:10px;padding:8px 12px;margin-bottom:6px}
   .rc-mod.on{background:#f1faf3;border-color:#b7e0c0}
   .rc-mod .nm{flex:1;font-weight:600}
@@ -1647,7 +1659,6 @@
       </div>
       <div id="fq-vacio" class="vacio">Elige una franquicia para ver su Resumen Franquiciado.</div>
       <div class="hoja-wrap"><div id="fq-hoja" class="hoja oculto"></div></div>
-      <details class="cf-caja rc-fq oculto" id="fq-rcon" style="margin-top:14px"><summary><b>Revisión contrato</b> <span id="fq-rcon-est"></span><small>check list del contrato · clic para ver</small></summary><div id="fq-rcon-body" style="margin-top:12px"></div></details>
      </section>
 
      <section id="vista-act" class="oculto">
@@ -4351,7 +4362,7 @@ function dibujarFranquicia(A){
       <div class="h-paneles tres">${seguros}${deudaBox}${activ}</div>
       ${fqSituacion(F)}
       ${fqCanon(f, F)}
-      ${obrasTabla}${obs}${firmas}`;
+      ${obrasTabla}<div id="fq-rcon-slot"></div>${obs}${firmas}`;
   } else {
     const t = A.tienda;
     const kv = (titulo, pares) => `<div class="panel"><div class="cab">${titulo}</div><table>${pares.map(([a, b]) => fila(a, b)).join("")}</table></div>`;
@@ -4403,7 +4414,7 @@ function dibujarFranquicia(A){
       <div class="det-h">3 · Cobros, pagos y arriendos</div>
       ${todos}${egr}${arrHTML}
       <div class="det-h">4 · Obras y observaciones</div>
-      ${obrasTabla || `<p>Sin obras.</p>`}${obs}${firmas}`;
+      ${obrasTabla || `<p>Sin obras.</p>`}<div id="fq-rcon-slot"></div>${obs}${firmas}`;
   }
   $("fq-hoja").innerHTML = `<div>${cuerpo}</div>`;
   $("fq-vacio").classList.add("oculto");
@@ -14052,7 +14063,7 @@ function rcLista(){
 // dibuja el check list de RC.fr en todos los lugares donde está a la vista (menú Revisión contrato y hoja del franquiciado)
 function rcPintar(){
   if (!$("vista-rcon").classList.contains("oculto")) rcFicha($("rcon-ficha"), true);
-  const fb = $("fq-rcon-body"); if (fb && $("fq-rcon").dataset.fr === RC.fr) { rcFicha(fb, false); fqRconResumen(); }
+  const d = $("fq-rcon"); if (d && d.dataset.fr === RC.fr) fqRconPintar();
 }
 function rcFicha(el, conCab){
   if (!el) return;
@@ -14130,23 +14141,56 @@ $("vista-rcon").addEventListener("click", e => {
 });
 $("vista-rcon").addEventListener("input", e => { if (e.target.id === "rcon-q") { RC.q = e.target.value; return rcLista(); } rcInput(e); });
 
-/* hoja del franquiciado (Resumen Franquiciado): check list desplegable */
-function fqRconResumen(){
-  const d = $("fq-rcon"); if (!d) return; const fr = d.dataset.fr, n = rcN(fr), r = RC.rev[fr];
-  $("fq-rcon-est").innerHTML = RC.sin78 ? "" : n >= RC_TOTAL ? `<span class="rc-pill ok">✓ Contrato OK</span>` : `<span class="rc-pill ${n ? "" : "cero"}">${n ? `${n} de ${RC_TOTAL} revisados` : "sin revisar"}</span>`;
+/* hoja del franquiciado (Resumen Franquiciado): check list desplegable dentro de la hoja (se imprime con ella) */
+const RC_FQ = { abierto: false };
+function fqRconPintar(){
+  const d = $("fq-rcon"); if (!d) return;
+  const fr = d.dataset.fr, f = (RC.fqs || []).find(x => x.codigo_atr === fr) || {}, r = RC.rev[fr] || { items: {}, modalidad: null, observaciones: "" }, it = r.items || {};
+  const n = rcN(fr), ok = n >= RC_TOTAL, ed = puedeEditar() && !RC.sin78;
+  const nNa = RC_CLAVES.filter(k => it[k] === "na").length + (r.modalidad === "N/A" ? 1 : 0);
+  const est = v => v === true ? `<td class="c rc-c-ok">✓ OK</td>` : v === "na" ? `<td class="c rc-c-na">N/A</td>` : `<td class="c rc-c-pend">Pendiente</td>`;
+  const acc = k => ed ? `<td class="c no-imp" style="white-space:nowrap"><button class="rc-hb ${it[k] === true ? "on" : ""}" data-rcit="${k}">OK</button> <button class="rc-hb ${it[k] === "na" ? "on na" : ""}" data-rcna="${k}">N/A</button></td>` : "";
+  const filaC = ([k, t]) => k === "__modalidad"
+    ? `<tr><td class="item">${t}</td>${r.modalidad ? (r.modalidad === "N/A" ? `<td class="c rc-c-na">N/A</td>` : `<td class="c rc-c-ok">✓ ${esc(r.modalidad)}</td>`) : `<td class="c rc-c-pend">Pendiente</td>`}
+        ${ed ? `<td class="c no-imp" style="white-space:nowrap">${["Tienda", "Digital", "N/A"].map(m => `<button class="rc-hb ${r.modalidad === m ? "on" + (m === "N/A" ? " na" : "") : ""}" data-rcmod="${m}">${m}</button>`).join(" ")}</td>` : ""}</tr>`
+    : `<tr><td class="item">${t}</td>${est(it[k])}${acc(k)}</tr>`;
+  const filaF = ([k, t, tags = []]) => `<tr><td class="item">${t}</td><td class="c">${tags.map(esc).join(" · ") || "—"}</td>${est(it[k])}${acc(k)}</tr>`;
+  const thAcc = ed ? `<th class="no-imp">Marcar</th>` : "";
+  d.innerHTML = `<summary class="cab"><span>REVISIÓN CONTRATO</span><span class="rc-est-cab ${ok ? "ok" : ""}">${RC.sin78 ? "falta 78_revision_contrato.sql" : ok ? "✓ CONTRATO OK" : n ? `${n} DE ${RC_TOTAL} REVISADOS` : "SIN REVISAR"}</span><span class="rc-flecha no-imp">▸</span></summary>
+    ${ed && !ok ? `<div class="rc-hbar no-imp"><span>Clic en <b>OK</b> o <b>N/A</b> (no aplica: cuenta como revisado). Se guarda solo.</span><button class="btn chico" data-rctodo="1">✓ Dar OK a todo</button></div>` : ""}
+    <div class="rc-h2">
+      <table><thead><tr><th style="text-align:left">Contenido del contrato</th><th>Estado</th>${thAcc}</tr></thead><tbody>${RC_ITEMS.contenido.map(filaC).join("")}</tbody></table>
+      <table><thead><tr><th style="text-align:left">Contrato y anexos</th><th>Firma</th><th>Estado</th>${thAcc}</tr></thead><tbody>${RC_ITEMS.firmas.map(filaF).join("")}</tbody></table>
+    </div>
+    <div class="rc-hobs"><b>OBSERVACIONES REVISIÓN:</b>
+      ${ed ? `<textarea class="no-imp" data-rcobs="1" rows="2" placeholder="Qué falta o qué corregir en el contrato…">${esc(r.observaciones || "")}</textarea>` : ""}
+      <span class="${ed ? "solo-imp" : ""}">${esc(r.observaciones || "—")}</span></div>
+    <div class="rc-hpie">${ok ? `Contrato OK${nNa ? ` (${nNa} no aplica${nNa === 1 ? "" : "n"})` : ""}${r.completado_en ? " · " + fecha(String(r.completado_en).slice(0, 10)) : ""}` : `${n} de ${RC_TOTAL} puntos revisados`}
+      <span class="rc-estado">${r.actualizado_en ? `Última revisión ${fecha(String(r.actualizado_en).slice(0, 10))}${r.actualizado_por ? " · " + esc(String(r.actualizado_por).split("@")[0]) : ""}` : "Sin revisar todavía"}</span></div>`;
 }
 async function fqRcon(fr){
-  const d = $("fq-rcon"); if (!d) return;
-  d.classList.toggle("oculto", !fr); if (!fr) return;
-  d.dataset.fr = fr; $("fq-rcon-est").textContent = "…";
-  try { await rcAsegurar(); } catch (_) { d.classList.add("oculto"); return; }
-  if (d.dataset.fr !== fr) return;
-  if (d.open) { RC.fr = fr; rcFicha($("fq-rcon-body"), false); }
-  fqRconResumen();
+  const slot = $("fq-rcon-slot"); if (!slot || !fr) return;
+  slot.innerHTML = `<details class="seccion rc-hoja" id="fq-rcon" data-fr="${esc(fr)}" ${RC_FQ.abierto ? "open" : ""}><summary class="cab">REVISIÓN CONTRATO · …</summary></details>`;
+  $("fq-rcon").addEventListener("toggle", e => { RC_FQ.abierto = e.target.open; });
+  try { await rcAsegurar(); } catch (_) { slot.innerHTML = ""; return; }
+  if (!$("fq-rcon") || $("fq-rcon").dataset.fr !== fr) return;
+  fqRconPintar();
 }
-$("fq-rcon").addEventListener("toggle", () => { const d = $("fq-rcon"); if (d.open) { RC.fr = d.dataset.fr; rcFicha($("fq-rcon-body"), false); } });
-$("fq-rcon-body").addEventListener("click", e => { RC.fr = $("fq-rcon").dataset.fr; rcClick(e); });
-$("fq-rcon-body").addEventListener("input", e => { RC.fr = $("fq-rcon").dataset.fr; rcInput(e); });
+$("fq-hoja").addEventListener("click", e => {
+  const d = $("fq-rcon"); if (!d || !d.contains(e.target) || e.target.closest("summary")) return;
+  RC.fr = d.dataset.fr; rcClick(e);
+});
+$("fq-hoja").addEventListener("input", e => { const d = $("fq-rcon"); if (d && d.contains(e.target)) { RC.fr = d.dataset.fr; rcInput(e); } });
+window.addEventListener("beforeprint", () => {
+  const d = $("fq-rcon"); if (d) { d.dataset.antes = d.open ? "1" : ""; d.open = true; }
+  // Resumen Franquiciado (sin detalle): siempre en 1 hoja → se achica lo justo (carta, márgenes 8 mm ≈ 995 px de alto útil)
+  const h = $("fq-hoja");
+  if (h && !h.classList.contains("fit1") && !matchMedia("print").matches && !$("vista-franq").classList.contains("oculto") && FQ.modo !== "detalle") {
+    const alto = h.getBoundingClientRect().height * 0.62;            // alto aproximado ya con la letra de impresión
+    h.style.setProperty("--fqz", Math.min(1, 970 / Math.max(alto, 1)).toFixed(3)); h.classList.add("fit1");
+  }
+});
+window.addEventListener("afterprint", () => { const d = $("fq-rcon"); if (d) d.open = !!d.dataset.antes; const h = $("fq-hoja"); if (h) h.classList.remove("fit1"); });
 { const _dibFq = dibujarFranquicia; dibujarFranquicia = function(A){ const r = _dibFq.apply(this, arguments); try { fqRcon(A && A.f && A.f.codigo_atr); } catch (_) {} return r; }; }
 </script>
 </body>
