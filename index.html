@@ -1122,6 +1122,13 @@
   a.ob-link{color:inherit;text-decoration:underline;text-decoration-color:#d9b9a6;text-underline-offset:2px}a.ob-link:hover{color:var(--naranjo)}
   .cpx-tabs{display:flex;align-items:stretch;gap:4px;margin:4px 0 14px;flex-wrap:wrap}
   .cpx-flecha{align-self:center;color:#c9b8ad;font-size:22px;font-weight:300}
+  .menu button.menu-desuso{color:#6b6b6b;background:#e6e4e2;opacity:.8}.menu button.menu-desuso small{color:#7a7a7a}
+  .menu button.menu-desuso:hover{opacity:1}
+  .cuad-copiar{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:4px 0 16px}
+  .cuad-copiar .c{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
+  .cuad-copiar .t{font-size:12px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.02em}
+  .cuad-copiar .v{font-size:22px;font-weight:700;margin:2px 0;font-variant-numeric:tabular-nums}
+  .cuad-copiar .s{font-size:12px;color:var(--gris)}
   .cpx-tab{flex:1 1 150px;text-align:left;background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font:inherit;color:var(--tinta)}
   .cpx-tab .t{font-size:12px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.02em}
   .cpx-tab .v{font-size:20px;font-weight:700}.cpx-tab .s{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}.cpx-tab small{font-size:11px;color:var(--gris)}
@@ -1503,7 +1510,7 @@
       <h4 class="sep" data-area="operaciones">Excel ↔ Web</h4>
       <h5 data-area="operaciones">Transición Excel ↔ Web</h5>
       <button data-rep="trans" data-area="operaciones" data-solo-supabase="1">Excel ↔ Web (transición)<small>Id T… por anotar en el Excel · duplicados · cargas<span class="n-ctrl" id="trans-n"></span></small></button>
-      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1">Traspasos web<small>Pagos, negocios y franquicias → Excel · historial<span class="n-ctrl" id="tw-n"></span></small></button>
+      <button data-rep="tw" data-area="operaciones" data-solo-supabase="1" class="menu-desuso" title="Ya no es el procedimiento habitual: los Excel se actualizan con Descargar Excel oficial">Traspasos web (en desuso)<small>Ya no es el procedimiento habitual: usa Descargar Excel oficial<span class="n-ctrl" id="tw-n"></span></small></button>
       <button data-ptarea="oficial" data-area="operaciones" data-solo-supabase="1">Descargar Excel oficial<small><span class="tag-p">PANEL</span>Franquiciados y BBDD-Clientes Obras completos desde la base</small></button>
 
       <h4 class="sep">Control Facturación</h4>
@@ -7265,6 +7272,22 @@ function dibujarCuad(){
 }
 
 /* ---------- 5) Vista de cuadratura ---------- */
+// Totales conciliados (sólo pagos con fecha de conciliación; sin N/A ni pendientes) hasta la fecha "Hasta": son los que se
+// copian en el Excel «Cuadratura bancaria ATR Chile» › Resumen Totales › "Abonado según CN" (Franquiciados / Clientes Obras).
+function cuadTotalesCopiar(){
+  const h = CUAD.hasta || "9999-12-31", hasta = x => String(x.fecha_conciliacion).slice(0, 10) <= h;
+  const tot = o => { const L = CUAD.conc.filter(p => p.fecha_conciliacion && p.origen === o && hasta(p));
+    return { n: L.length, neto: Math.round(cuadSuma(L)), ab: Math.round(cuadSuma(L.filter(x => x.monto > 0))), ca: Math.round(cuadSuma(L.filter(x => x.monto < 0))) }; };
+  const ob = tot("Obras"), fr = tot("Franquiciados");
+  const caja = (t, x, k) => `<div class="c"><div class="t">${t}</div><div class="v">${$$(x.neto)}</div>
+      <div class="s">${x.n} pagos conciliados · abonos ${$$(x.ab)} · cargos ${$$(x.ca)}</div>
+      <button class="btn sec" style="margin-top:8px" data-cuadcopiar="${x.neto}">Copiar ${k}</button></div>`;
+  return `<h3 class="fres-h">Totales conciliados para el Excel de cuadratura <small>desde el inicio hasta el ${fecha(CUAD.hasta) || "hoy"} · sólo pagos con fecha de conciliación (sin N/A ni pendientes)</small></h3>
+    <div class="cuad-copiar">${caja("Total pagos de clientes / Obras", ob, "obras")}${caja("Total pagos de franquiciados", fr, "franquiciados")}
+      <div class="c"><div class="t">Cómo usarlos</div><div class="s" style="margin-top:4px">Pon en <b>Hasta</b> la fecha “Vigente al” de la cartola y pega cada total en
+        <b>Resumen Totales › Abonado según CN</b> (Franquiciados / Clientes Obras). Son netos (abonos − cargos), igual que “según cartola”.</div>
+        <button class="btn sec" style="margin-top:8px" data-cuadcargacn="1" title="Fecha de conciliación, monto y banco de cada pago conciliado del período (Desde–Hasta), para pegar en la hoja Carga CNs">Copiar detalle para “Carga CNs”</button></div></div>`;
+}
 function cuadDibResumen(){
   const M = cuadMovs(), P = cuadPagos().filter(p => p.fecha_conciliacion), S = cuadSugs();
   const pend = M.filter(m => m.estado === "Pendiente"), sinBanco = P.filter(p => !p.banco), sinId = pend.filter(m => cuadOrigenMov(m) === "Sin identificar");
@@ -7276,6 +7299,7 @@ function cuadDibResumen(){
     <div class="kpi cuad-ir" data-cuadir="pend"><div class="t">Pendientes de conciliar</div><div class="v">${pend.length}</div><div class="s">${$$(cuadSuma(pend))} en la cartola →</div></div>
     <div class="kpi cuad-ir" data-cuadir="inc"><div class="t">Información incompleta</div><div class="v">${sinBanco.length + sinId.length}</div><div class="s">${sinBanco.length} sin banco · ${sinId.length} sin origen →</div></div>
     <div class="kpi cuad-ir" data-cuadir="match"><div class="t">Matches por confirmar</div><div class="v">${S.length}</div><div class="s">${S.filter(s => s.score >= 95).length} seguros (95+) →</div></div></div>`;
+  h = cuadTotalesCopiar() + h;
   // banco × origen
   const fila = (t, me, pe) => { const e = cuadSuma(me), p = cuadSuma(pe), d = e - p;
     return `<tr><td><b>${t}</b></td><td class="n">${$$(cuadSuma(me.filter(x => x.monto > 0)))}</td><td class="n">${$$(cuadSuma(me.filter(x => x.monto < 0)))}</td><td class="n"><b>${$$(e)}</b><br><small>${me.length} mov.</small></td>
@@ -7461,6 +7485,10 @@ $("vista-cuad").addEventListener("click", async e => {
   if (t.id === "cuad-sing") { e.preventDefault(); CUAD.grupo = null; return dibujarCuad(); }
   if (t.id === "cuad-act") { CONC.movs = null; return cargarCuad(null, true); }
   if (t.id === "cuad-xlsx") return cuadExcel();
+  if (t.dataset.cuadcopiar) { try { await navigator.clipboard.writeText(t.dataset.cuadcopiar); toast(`✓ Copiado: ${esc(t.dataset.cuadcopiar)} (pégalo en el Excel)`); } catch (_) { toast("No pude copiar."); } return; }
+  if (t.dataset.cuadcargacn) { const L = cuadPagos().filter(p => p.fecha_conciliacion).sort((a, b) => String(a.fecha_conciliacion).localeCompare(String(b.fecha_conciliacion)));
+    const txt = L.map(p => [fecha(p.fecha_conciliacion), Math.round(Number(p.monto)), p.banco || ""].join("\t")).join("\n");
+    try { await navigator.clipboard.writeText(txt); toast(`✓ ${L.length} filas copiadas (fecha · monto · banco) del ${fecha(CUAD.desde) || "inicio"} al ${fecha(CUAD.hasta) || "hoy"}: pégalas en Carga CNs.`, 8000); } catch (_) { toast("No pude copiar."); } return; }
   const sugK = k => CUAD.sug.find(s => s.movimiento_ids.join(",") === k);
   if (t.dataset.cuadok) { const s = sugK(t.dataset.cuadok); if (s) return cuadConfirmar([s], "Sugerencia"); }
   if (t.dataset.cuadno) { e.preventDefault(); const s = sugK(t.dataset.cuadno); if (!s) return;
@@ -13113,7 +13141,7 @@ function dibujarPend(){
       ${ed ? `<td style="white-space:nowrap"><input type="date" class="porc-f" data-id="${x.id}" value="${x.fecha_en_cartola || ""}" style="width:135px">
         <button class="btn-acc" data-porcok="${x.id}">Guardar</button></td>` : ""}</tr>`).join("")}</tbody></table></div>
     <p class="nota-g">Al guardar la fecha, el pago queda conciliado en ${ob ? "Pagos obras (y cuenta en el saldo de la obra)" : "Pagos franquiciados"} y pasa a <b>Conciliado</b>; si es una tarjeta, su comisión Getnet unida se concilia con la misma fecha.
-      Para conciliar contra los movimientos de la cartola uno a uno, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a>.</p>`;
+      Para conciliar contra los movimientos de la cartola uno a uno, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a> (ahí están también los <b>totales conciliados</b> para copiar al Excel de cuadratura).</p>`;
   $("porc-cuerpo").innerHTML = h;
 }
 async function porcGuardar(items){
