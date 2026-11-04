@@ -246,6 +246,7 @@ window.PortalATR = (() => {
     function dibujar(){
       const D = S.deudas, pend = D.filter(x => PENDIENTE.includes(x.estado)), venc = pend.filter(x => x.estado === "Vencida");
       const rev = D.filter(x => x.estado === "En revisión"), rec = D.filter(x => ["Pago recibido", "Pagada"].includes(x.estado));
+      const esp = D.filter(x => x.estado === "Esperando factura");
       const suma = L => L.reduce((a, x) => a + Number(x.saldo || 0), 0);
       const nRev = S.pagos.filter(x => ["En revisión", "Iniciado"].includes(x.estado)).length;
       const ses = S.ses;
@@ -256,7 +257,7 @@ window.PortalATR = (() => {
           <div class="ptl-id"><span>Franquicia <b>${esc(ses.franquicia)}</b></span>${ses.rut ? `<span>RUT <b>${esc(ses.rut)}</b></span>` : ""}${ses.ciudad ? `<span>${esc(ses.ciudad)}</span>` : ""}</div></div>
           <button class="ptl-btn sec chico" data-p="act">Actualizar</button></div>
         <div class="ptl-kpis">
-          <div class="ptl-kpi total ${S.filtro === "pend" ? "on" : ""}" data-f="pend"><div class="t">Total por pagar</div><div class="v">${clp(suma(pend))}</div><div class="s">${pend.length} deuda(s)</div></div>
+          <div class="ptl-kpi total ${S.filtro === "pend" ? "on" : ""}" data-f="pend"><div class="t">Total por pagar</div><div class="v">${clp(suma(pend))}</div><div class="s">${pend.length} deuda(s)${esp.length ? ` · + ${clp(suma(esp))} esperando factura` : ""}</div></div>
           <div class="ptl-kpi venc ${S.filtro === "venc" ? "on" : ""}" data-f="venc"><div class="t">Vencido</div><div class="v">${clp(suma(venc))}</div><div class="s">${venc.length ? venc.length + " deuda(s) vencida(s)" : "Estás al día"}</div></div>
           <div class="ptl-kpi rev ${S.filtro === "rev" ? "on" : ""}" data-f="rev"><div class="t">En revisión</div><div class="v">${clp(rev.reduce((a, x) => a + Number(x.en_revision || 0), 0))}</div><div class="s">Pagos informados por confirmar</div></div>
           <div class="ptl-kpi pag ${S.filtro === "pag" ? "on" : ""}" data-f="pag"><div class="t">Pagado · 12 meses</div><div class="v">${clp(rec.reduce((a, x) => a + Number(x.monto || 0), 0))}</div><div class="s">${rec.length} deuda(s)</div></div>
@@ -274,7 +275,7 @@ window.PortalATR = (() => {
 
     function filtradas(){
       const f = S.filtro, D = S.deudas;
-      if (f === "pend") return D.filter(x => PENDIENTE.includes(x.estado));
+      if (f === "pend") return D.filter(x => PENDIENTE.includes(x.estado) || x.estado === "Esperando factura");
       if (f === "venc") return D.filter(x => x.estado === "Vencida");
       if (f === "rev") return D.filter(x => x.estado === "En revisión");
       if (f === "pag") return D.filter(x => ["Pago recibido", "Pagada"].includes(x.estado));
@@ -293,7 +294,8 @@ window.PortalATR = (() => {
       for (const x of L) {
         const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + folios(x.documento) : "", x.obra ? "Obra " + esc(x.obra) : ""].filter(Boolean).join(" · ");
         const sub = x.estado === "Vencida" ? `Vencida hace ${x.dias_vencido} día(s)` : x.estado === "Pago recibido" ? `Pago recibido el ${fec(x.fecha_pagado)}`
-                  : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago" : "";
+                  : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago"
+                  : x.estado === "Esperando factura" ? "Se podrá pagar cuando se emita la factura" : "";
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>

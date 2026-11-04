@@ -3111,13 +3111,14 @@ $("cp-xlsx").onclick = () => {
    Sugerencia → Aceptar / Rechazar → Por pagar (revisar, editar) → Enviar a Contabilidad → Contabilidad marca Pagada
    ===================================================================== */
 const CPX = { tab: "rev", rech: [], porPagar: [], sps: [], spLin: {}, sel: null, abiertas: new Set(), calc: new Set(),
-              rechFiltro: "vig", cargado: false, error: "" };
+              rechFiltro: "vig", cargado: false, error: "", sinBanco: [], sbErr: "", sbSel: new Set(), sbOrigen: "", sbSentido: "" };
 const CPX_TABS = [
   ["rev", "Por revisar", "Sugerencias: aceptar o rechazar"],
   ["pp", "Por pagar", "Revisar, editar y enviar"],
   ["cont", "En Contabilidad", "Enviado, aún sin pagar"],
   ["pag", "Pagadas", "Cerradas con fecha de pago"],
-  ["rech", "Rechazadas", "Con su motivo"]];
+  ["rech", "Rechazadas", "Con su motivo"],
+  ["sb", "Sin banco", "Pagos sin banco registrado"]];
 const CPX_TIPO = { prov: "Pago a proveedor", fr: "Transferencia franquiciado", tra: "Traspaso de fondos" };
 const cpxN = v => Math.round(Number(v) || 0);
 
@@ -3131,6 +3132,9 @@ async function cpxCargar(){
       .eq("estado_pago", "Pendiente").eq("origen", "OBRA").in("item", ["Transferencia franquiciado (egreso)", "Pago proveedores (egreso)"])),
     todo(() => db.from("v_solicitudes_pago").select("*").neq("estado", "Anulada").order("id", { ascending: false }))]);
   { const mm = await todo(() => db.from("v_cp_manual").select("*").order("id")); CPX.manual = mm.error ? [] : (mm.data || []); }
+  { const sb = await todo(() => db.from("v_pagos_sin_banco").select("*").order("fecha_pago").order("id_pago"));
+    CPX.sbErr = sb.error ? sb.error.message : ""; CPX.sinBanco = sb.error ? [] : (sb.data || []);
+    const ids = new Set(CPX.sinBanco.map(x => x.id)); [...CPX.sbSel].forEach(id => { if (!ids.has(id)) CPX.sbSel.delete(id); }); }
   const cob = await todo(() => db.from("v_sug_facturas_obras_ui").select("*").order("obra"));
   const [rp, rf] = await Promise.all([todo(() => db.from("v_pago_respaldo").select("*")),
     todo(() => db.from("v_respaldo_facturas").select("id_factura,n_factura,ruta,archivo").eq("por_pagar_atrium", true))]);
@@ -3191,12 +3195,13 @@ function cpxDibujar(){
   const rechV = CPX.rech.filter(x => x.vigente);
   const cobD = cpxCobros(), rechD = cpxCobros(true);
   const info = { rev: [sug.length + cobD.length, sumar(sug, a => a.monto) + sumar(cobD, x => x.monto)], pp: [pp.length, sumar(pp, x => x.monto_total)],
-    cont: [enCont.length, sumar(enCont, s => s.total)], pag: [pag.length, sumar(pag, s => s.total)], rech: [rechV.length + rechD.length, sumar(rechV, x => x.monto) + sumar(rechD, x => x.monto)] };
+    cont: [enCont.length, sumar(enCont, s => s.total)], pag: [pag.length, sumar(pag, s => s.total)], rech: [rechV.length + rechD.length, sumar(rechV, x => x.monto) + sumar(rechD, x => x.monto)],
+    sb: [CPX.sinBanco.length, sumar(CPX.sinBanco, x => x.monto)] };
   $("cp-tabs").innerHTML = CPX_TABS.map(([k, t, s]) => `<button class="cpx-tab ${CPX.tab === k ? "activo" : ""} ${k}" data-cpxtab="${k}">
       <span class="t">${t}</span><span class="v">${info[k][0]}${k === "cont" || k === "pag" ? " solicitud" + (info[k][0] === 1 ? "" : "es") : ""}</span>
       <span class="s">${k === "rech" ? s : $$(info[k][1])}</span><small>${k === "rech" ? "" : s}</small></button>`).join('<span class="cpx-flecha">›</span>');
   if (CPX.error) { $("cp-cuerpo").innerHTML = `<p class="cp-vacio">Error: ${esc(CPX.error)}.<br>¿Ejecutaste 48_control_pagos_simple.sql en Supabase?</p>`; return; }
-  const f = { rev: cpxDibRev, pp: cpxDibPP, cont: cpxDibCont, pag: cpxDibPag, rech: cpxDibRech }[CPX.tab];
+  const f = { rev: cpxDibRev, pp: cpxDibPP, cont: cpxDibCont, pag: cpxDibPag, rech: cpxDibRech, sb: cpxDibSB }[CPX.tab];
   $("cp-cuerpo").innerHTML = f(sug, pp, enCont, pag);
   $("cp-calc-box").classList.toggle("oculto", CPX.tab !== "rev"); $("cp-reglas").classList.toggle("oculto", CPX.tab !== "rev");
   const falt = [...CPX.abiertas].filter(id => !(id in CPX.spLin) && CPX.sps.some(x => x.id === id));
@@ -3336,6 +3341,46 @@ function cpxDibPag(_, __, ___, pag){
 }
 
 /* ---------- 5) Rechazadas ---------- */
+/* ---------- Sin banco: pagos ya hechos sin cuenta de Atrium (86_sin_banco_y_cobranza_canon.sql) ---------- */
+function cpxSBVisibles(){
+  const fr = $("cp-franquicia").value, q = $("cp-buscar").value.toLowerCase().trim();
+  return CPX.sinBanco.filter(x => (!fr || x.franquicia === fr) && (!CPX.sbOrigen || x.origen === CPX.sbOrigen) && (!CPX.sbSentido || x.sentido === CPX.sbSentido) &&
+    (!q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.solicitud, x.referencia_banco, x.observaciones].some(t => String(t || "").toLowerCase().includes(q))));
+}
+function cpxDibSB(){
+  if (CPX.sbErr) return `<p class="cp-vacio">${/does not exist|schema cache/i.test(CPX.sbErr) ? "Falta ejecutar 86_sin_banco_y_cobranza_canon.sql en Supabase." : "Error: " + esc(CPX.sbErr)}</p>`;
+  const L = cpxSBVisibles(), ed = puedeEditar() && !enExcel(), sel = CPX.sinBanco.filter(x => CPX.sbSel.has(x.id));
+  const chip = (k, v, t, n) => `<button class="chip ${CPX[k] === v ? "activo" : ""}" data-sbchip="${k}" data-v="${v}">${t}${n !== undefined ? `<b>${n}</b>` : ""}</button>`;
+  const B = CPX.sinBanco;
+  let h = `<p class="nota-g" style="margin:0 0 10px">Pagos ya hechos (pagados, conciliados o con comprobante) que no tienen registrado <b>a qué banco de Atrium</b> entraron o de cuál salieron. Márcalos y ponles el banco: sólo se completa el banco, no cambian montos ni fechas.</p>
+    <div class="chips" style="margin-bottom:6px">${chip("sbOrigen", "", "Obras y franquiciados", B.length)}${chip("sbOrigen", "OBRA", "Obras", B.filter(x => x.origen === "OBRA").length)}${chip("sbOrigen", "FRANQUICIA", "Franquiciados", B.filter(x => x.origen === "FRANQUICIA").length)}</div>
+    <div class="chips" style="margin-bottom:10px">${chip("sbSentido", "", "Ingresos y egresos")}${chip("sbSentido", "Ingreso", "Ingresos")}${chip("sbSentido", "Egreso", "Egresos")}</div>`;
+  if (ed && L.length) h += `<div class="sel-barra"><label><input type="checkbox" id="sb-todos" ${L.every(x => CPX.sbSel.has(x.id)) ? "checked" : ""}> Todos</label>
+      <span>${sel.length ? `${sel.length} marcado(s) · ${$$(sumar(sel, x => x.monto))}` : "Marca los pagos y elige el banco"}</span><span class="esp"></span>
+      <select id="sb-banco"><option value="">Banco…</option>${opcionesBanco() || "<option>SANTANDER</option><option>SECURITY</option>"}</select>
+      <button class="btn" id="sb-asignar" ${sel.length ? "" : "disabled"}>Poner banco a los marcados</button></div>`;
+  if (!L.length) return h + `<p class="cp-vacio">✓ No hay pagos sin banco${B.length ? " con este filtro" : ""}.</p>`;
+  h += `<div class="tabla-wrap"><table class="cp"><thead><tr>${ed ? "<th></th>" : ""}<th>Pago</th><th>Franquicia · obra</th><th>Ítem</th><th class="n">Monto</th><th>Fecha pago</th><th>Medio · referencia</th><th>Situación</th></tr></thead><tbody>
+    ${L.map(x => `<tr>${ed ? `<td><input type="checkbox" data-sbsel="${x.id}" ${CPX.sbSel.has(x.id) ? "checked" : ""}></td>` : ""}
+      <td><b>${esc(x.id_pago)}</b> <span class="tag-origen ${x.origen === "OBRA" ? "ob" : "fr"}">${x.origen === "OBRA" ? "Obra" : "Franquiciado"}</span>${x.solicitud ? `<br><small>${esc(x.solicitud)}</small>` : ""}</td>
+      ${quienCelda(x)}
+      <td>${esc(x.item)}${x.observaciones ? `<br><small>${esc(String(x.observaciones).slice(0, 90))}</small>` : ""}</td>
+      <td class="n ${Number(x.monto) < 0 ? "neg" : ""}"><b>${$$(x.monto)}</b></td>
+      <td>${fecha(x.fecha_pago) || "—"}</td>
+      <td><small>${esc(x.medio || "—")}${x.referencia_banco ? "<br>N° " + esc(x.referencia_banco) : ""}</small></td>
+      <td><small>${esc(x.situacion)}${x.fecha_conciliacion ? " " + fecha(x.fecha_conciliacion) : ""}</small></td></tr>`).join("")}</tbody></table></div>`;
+  return h;
+}
+async function cpxAsignarBanco(){
+  const banco = $("sb-banco").value, ids = [...CPX.sbSel];
+  if (!ids.length) return toast("Marca los pagos.");
+  if (!banco) return toast("Elige el banco.");
+  if (!confirm(`¿Poner ${banco} como banco a ${ids.length} pago(s)?`)) return;
+  const { data, error } = await db.rpc("asignar_banco_pagos", { p: { ids, banco } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`✓ ${data.n} pago(s) con banco ${esc(banco)}${(data.codigos || []).length ? ": " + esc(data.codigos.slice(0, 8).join(", ")) + (data.codigos.length > 8 ? "…" : "") : ""}.`);
+  CPX.sbSel.clear(); await cpxRecargar();
+}
 function cpxDibRech(){
   const q = $("cp-buscar").value.toLowerCase().trim(), fr = $("cp-franquicia").value;
   const L = CPX.rech.filter(x => (CPX.rechFiltro === "todas" || x.vigente) && (!fr || x.franquicia === fr)
@@ -3427,6 +3472,8 @@ function cpxAbrirSP(id){
 $("vista-pagos").addEventListener("click", async e => {
   const t = e.target, tb = t.closest("[data-cpxtab]");
   if (tb) { CPX.tab = tb.dataset.cpxtab; return cpxDibujar(); }
+  const sbc = t.closest("[data-sbchip]"); if (sbc) { CPX[sbc.dataset.sbchip] = sbc.dataset.v; return cpxDibujar(); }
+  if (t.id === "sb-asignar") return cpxAsignarBanco();
   if (t.dataset.cpxok) return cpxAceptar(t.dataset.cpxok);
   if (t.dataset.cpxno) return cpxRechazar(t.dataset.cpxno);
   if (t.dataset.cpxcalc) { e.preventDefault(); const o = t.dataset.cpxcalc; CPX.calc.has(o) ? CPX.calc.delete(o) : CPX.calc.add(o); return cpxDibujar(); }
@@ -3472,6 +3519,8 @@ $("vista-pagos").addEventListener("click", async e => {
 $("vista-pagos").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.cpxsel) { t.checked ? CPX.sel.add(+t.dataset.cpxsel) : CPX.sel.delete(+t.dataset.cpxsel); return cpxDibujar(); }
+  if (t.dataset.sbsel) { t.checked ? CPX.sbSel.add(+t.dataset.sbsel) : CPX.sbSel.delete(+t.dataset.sbsel); const b = $("sb-banco").value; cpxDibujar(); if ($("sb-banco")) $("sb-banco").value = b; return; }
+  if (t.id === "sb-todos") { cpxSBVisibles().forEach(x => t.checked ? CPX.sbSel.add(x.id) : CPX.sbSel.delete(x.id)); const b = $("sb-banco").value; cpxDibujar(); if ($("sb-banco")) $("sb-banco").value = b; return; }
   if (t.dataset.cpxall) { const tipo = t.dataset.cpxall === "Pagos a proveedores";
     cpxFiltroPP(CPX.porPagar).filter(x => (x.tipo_solicitud === "Pago proveedores") === tipo).forEach(x => t.checked ? CPX.sel.add(x.id) : CPX.sel.delete(x.id)); return cpxDibujar(); }
 });
@@ -9870,7 +9919,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 85;
+const VERSION_PAGINA = 86;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10663,6 +10712,7 @@ window.PortalATR = (() => {
     function dibujar(){
       const D = S.deudas, pend = D.filter(x => PENDIENTE.includes(x.estado)), venc = pend.filter(x => x.estado === "Vencida");
       const rev = D.filter(x => x.estado === "En revisión"), rec = D.filter(x => ["Pago recibido", "Pagada"].includes(x.estado));
+      const esp = D.filter(x => x.estado === "Esperando factura");
       const suma = L => L.reduce((a, x) => a + Number(x.saldo || 0), 0);
       const nRev = S.pagos.filter(x => ["En revisión", "Iniciado"].includes(x.estado)).length;
       const ses = S.ses;
@@ -10673,7 +10723,7 @@ window.PortalATR = (() => {
           <div class="ptl-id"><span>Franquicia <b>${esc(ses.franquicia)}</b></span>${ses.rut ? `<span>RUT <b>${esc(ses.rut)}</b></span>` : ""}${ses.ciudad ? `<span>${esc(ses.ciudad)}</span>` : ""}</div></div>
           <button class="ptl-btn sec chico" data-p="act">Actualizar</button></div>
         <div class="ptl-kpis">
-          <div class="ptl-kpi total ${S.filtro === "pend" ? "on" : ""}" data-f="pend"><div class="t">Total por pagar</div><div class="v">${clp(suma(pend))}</div><div class="s">${pend.length} deuda(s)</div></div>
+          <div class="ptl-kpi total ${S.filtro === "pend" ? "on" : ""}" data-f="pend"><div class="t">Total por pagar</div><div class="v">${clp(suma(pend))}</div><div class="s">${pend.length} deuda(s)${esp.length ? ` · + ${clp(suma(esp))} esperando factura` : ""}</div></div>
           <div class="ptl-kpi venc ${S.filtro === "venc" ? "on" : ""}" data-f="venc"><div class="t">Vencido</div><div class="v">${clp(suma(venc))}</div><div class="s">${venc.length ? venc.length + " deuda(s) vencida(s)" : "Estás al día"}</div></div>
           <div class="ptl-kpi rev ${S.filtro === "rev" ? "on" : ""}" data-f="rev"><div class="t">En revisión</div><div class="v">${clp(rev.reduce((a, x) => a + Number(x.en_revision || 0), 0))}</div><div class="s">Pagos informados por confirmar</div></div>
           <div class="ptl-kpi pag ${S.filtro === "pag" ? "on" : ""}" data-f="pag"><div class="t">Pagado · 12 meses</div><div class="v">${clp(rec.reduce((a, x) => a + Number(x.monto || 0), 0))}</div><div class="s">${rec.length} deuda(s)</div></div>
@@ -10691,7 +10741,7 @@ window.PortalATR = (() => {
 
     function filtradas(){
       const f = S.filtro, D = S.deudas;
-      if (f === "pend") return D.filter(x => PENDIENTE.includes(x.estado));
+      if (f === "pend") return D.filter(x => PENDIENTE.includes(x.estado) || x.estado === "Esperando factura");
       if (f === "venc") return D.filter(x => x.estado === "Vencida");
       if (f === "rev") return D.filter(x => x.estado === "En revisión");
       if (f === "pag") return D.filter(x => ["Pago recibido", "Pagada"].includes(x.estado));
@@ -10710,7 +10760,8 @@ window.PortalATR = (() => {
       for (const x of L) {
         const pend = PENDIENTE.includes(x.estado), doc = [x.documento ? "Factura N° " + folios(x.documento) : "", x.obra ? "Obra " + esc(x.obra) : ""].filter(Boolean).join(" · ");
         const sub = x.estado === "Vencida" ? `Vencida hace ${x.dias_vencido} día(s)` : x.estado === "Pago recibido" ? `Pago recibido el ${fec(x.fecha_pagado)}`
-                  : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago" : "";
+                  : x.estado === "Pagada" ? `Pagada el ${fec(x.fecha_pagado)}` : x.estado === "En revisión" ? "Operaciones está revisando tu pago"
+                  : x.estado === "Esperando factura" ? "Se podrá pagar cuando se emita la factura" : "";
         h += `<tr class="${S.sel.has(x.id) ? "sel" : ""} ${pend ? "" : "dim"}">
           <td class="t-chk">${pend ? `<input type="checkbox" class="ptl-chk" data-sel="${x.id}" ${S.sel.has(x.id) ? "checked" : ""}>` : ""}</td>
           <td class="t-con"><div class="c">${esc(x.concepto)}</div><div class="d">${esc(x.detalle || "")}${Number(x.abonado) > 0 && pend ? ` · abonado ${clp(x.abonado)}` : ""}</div></td>
