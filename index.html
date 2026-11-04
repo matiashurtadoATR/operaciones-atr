@@ -9870,7 +9870,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 83;
+const VERSION_PAGINA = 84;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10667,7 +10667,7 @@ window.PortalATR = (() => {
       const nRev = S.pagos.filter(x => ["En revisión", "Iniciado"].includes(x.estado)).length;
       const ses = S.ses;
       let h = `<div class="ptl">
-        ${ses.vista_previa ? `<div class="ptl-aviso amb"><b>Vista previa de Operaciones:</b> así ve el portal el franquiciado de ${esc(ses.franquicia)}. Puedes recorrer el flujo de pago, pero no enviar pagos en su nombre.</div>` : ""}
+        ${ses.vista_previa ? `<div class="ptl-aviso amb"><b>Vista previa de Operaciones:</b> así ve el portal el franquiciado de ${esc(ses.franquicia)}. Si ya sabes que pagó, elige sus deudas y usa <b>Pagar → Transferencia → Registrar pago</b>: queda aceptado, en Pagos franquiciados y en Conciliación › Por conciliar.</div>` : ""}
         <div class="ptl-cab"><div><h2>Hola, ${esc(ses.razon_social || ses.franquicia)}</h2>
           <p class="ptl-sub">Aquí ves lo que tu franquicia debe a Inversiones Atrium Chile SpA y puedes pagarlo.</p>
           <div class="ptl-id"><span>Franquicia <b>${esc(ses.franquicia)}</b></span>${ses.rut ? `<span>RUT <b>${esc(ses.rut)}</b></span>` : ""}${ses.ciudad ? `<span>${esc(ses.ciudad)}</span>` : ""}</div></div>
@@ -10839,17 +10839,21 @@ window.PortalATR = (() => {
             <button class="ptl-copiar" data-copiar="__todo">Copiar todos los datos</button></div>`;
         f = `<button class="ptl-btn sec" data-pp="atras">Atrás</button><button class="ptl-btn" data-pp="siguiente">Ya transferí →</button>`;
       } else if (F.paso === 3) {
-        t = "Informa tu pago"; b = pasos + `<div class="ptl-aviso azul" style="margin-bottom:14px">Total transferido: <b>${clp(F.total)}</b> · ${F.L.length} deuda(s)</div>
+        const vp = S.ses.vista_previa, opc = vp ? ` <small style="font-weight:400;color:var(--p-gris)">(opcional)</small>` : "";
+        t = vp ? "Registrar pago (Operaciones)" : "Informa tu pago"; b = pasos + `<div class="ptl-aviso azul" style="margin-bottom:14px">Total transferido: <b>${clp(F.total)}</b> · ${F.L.length} deuda(s)</div>
+          ${vp ? `<div class="ptl-aviso amb" style="margin-bottom:14px">Lo registras tú: queda <b>aceptado</b> al tiro, como pago recibido en Pagos franquiciados y en <b>Conciliación › Por conciliar</b> hasta que tenga fecha de cartola.</div>` : ""}
           <div class="ptl-form">
             <label>Fecha de la transferencia<input type="date" id="ptl-fecha" max="${hoyISO()}" value="${hoyISO()}"></label>
-            <label>Banco de origen<select id="ptl-banco"><option value="">Elige…</option>${BANCOS.map(x => `<option>${x}</option>`).join("")}</select></label>
-            <label>N° de operación o comprobante<input id="ptl-op" maxlength="40" placeholder="Aparece en el comprobante del banco"></label>
-            <label>Comprobante (PDF o imagen)<input type="file" id="ptl-comp" accept=".pdf,image/*"></label>
+            <label>Banco de origen${opc}<select id="ptl-banco"><option value="">Elige…</option>${BANCOS.map(x => `<option>${x}</option>`).join("")}</select></label>
+            <label>N° de operación o comprobante${opc}<input id="ptl-op" maxlength="40" placeholder="Aparece en el comprobante del banco"></label>
+            <label>Comprobante (PDF o imagen)${opc}<input type="file" id="ptl-comp" accept=".pdf,image/*"></label>
             <label class="full">Comentario (opcional)<textarea id="ptl-com" rows="2" maxlength="500"></textarea></label></div>
           <div class="ptl-err" id="ptl-err"></div>`;
-        f = `<button class="ptl-btn sec" data-pp="atras">Atrás</button><button class="ptl-btn" data-pp="enviar" ${S.ses.vista_previa ? "disabled title='Vista previa: sólo el franquiciado informa sus pagos'" : ""}>Informar pago</button>`;
+        f = `<button class="ptl-btn sec" data-pp="atras">Atrás</button><button class="ptl-btn" data-pp="enviar">${S.ses.vista_previa ? "Registrar pago" : "Informar pago"}</button>`;
       } else {
-        t = "Pago informado"; b = `<div class="ptl-listo"><div class="ok">✓</div><h3 style="margin:0 0 6px">Recibimos tu aviso de pago</h3>
+        t = S.ses.vista_previa ? "Pago registrado" : "Pago informado"; b = S.ses.vista_previa ? `<div class="ptl-listo"><div class="ok">✓</div><h3 style="margin:0 0 6px">Pago registrado</h3>
+          <p class="ptl-sub">Registro N° <b>${F.res.id}</b> por <b>${clp(F.total)}</b> · ${F.res.cobros ?? F.L.length} deuda(s) quedaron como pago recibido.
+            Ya están en <b>Pagos franquiciados</b> y en <b>Conciliación › Por conciliar</b>; pasan a Pagado cuando les pongas la fecha de cartola.</p></div>` : `<div class="ptl-listo"><div class="ok">✓</div><h3 style="margin:0 0 6px">Recibimos tu aviso de pago</h3>
           <p class="ptl-sub">Aviso N° <b>${F.res.id}</b> por <b>${clp(F.total)}</b>. Operaciones lo verificará con el banco; cuando quede confirmado,
             tus deudas pasarán a <b>Pago recibido</b>. Puedes seguir el estado en <b>Mis pagos</b>.</p>
           <p class="ptl-nota">Si tienes dudas escribe a ${esc(c.correo || "")}.</p></div>`;
@@ -10880,10 +10884,11 @@ window.PortalATR = (() => {
       if (k === "enviar") return enviarTransferencia(a);
     }
     async function enviarTransferencia(btn){
-      if (F.enviando || S.ses.vista_previa) return;
+      if (F.enviando) return;
       const q = id => F.fondo.querySelector("#" + id), err = q("ptl-err");
       const fecha = q("ptl-fecha").value, banco = q("ptl-banco").value, op = q("ptl-op").value.trim(), arch = q("ptl-comp").files[0], com = q("ptl-com").value.trim();
       err.textContent = "";
+      if (S.ses.vista_previa) return registrarOperaciones(btn, { fecha, banco, op, arch, com, err });
       if (!fecha) return err.textContent = "Indica la fecha de la transferencia.";
       if (!banco) return err.textContent = "Elige el banco desde el que transferiste.";
       if (!op) return err.textContent = "Indica el N° de operación (aparece en el comprobante).";
@@ -10904,6 +10909,29 @@ window.PortalATR = (() => {
         F.res = r.data; F.paso = 4; pintarPago();
       } catch (ex) {
         err.textContent = ex.message || String(ex); btn.disabled = false; btn.textContent = "Informar pago";
+      } finally { if (F) F.enviando = false; }
+    }
+    // Operaciones registra un pago que ya sabe hecho (84_pago_registrado_operaciones.sql): comprobante, banco y N° opcionales.
+    async function registrarOperaciones(btn, x){
+      const err = x.err;
+      if (!x.fecha) return err.textContent = "Indica la fecha del pago.";
+      if (x.arch && x.arch.size > 10 * 1024 * 1024) return err.textContent = "El comprobante no puede pesar más de 10 MB.";
+      F.enviando = true; btn.disabled = true; btn.textContent = "Registrando…";
+      try {
+        if (x.arch && !F.ruta) {
+          const nombre = x.arch.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\-]+/g, "_").slice(-80);
+          const ruta = `portal/${S.ses.franquicia_id}/${hoyISO()}_${F.clave.slice(0, 8)}_ops_${nombre}`;
+          const up = await S.sb.storage.from("comprobantes").upload(ruta, x.arch, { upsert: false, contentType: x.arch.type || undefined });
+          if (up.error && !/exists|duplicate/i.test(up.error.message)) throw new Error("No se pudo subir el comprobante (" + up.error.message + "). Quítalo para registrar sin comprobante.");
+          F.ruta = ruta;
+        }
+        const r = await rpc("portal_registrar_pago_operaciones", { p: { franquicia: S.ses.franquicia, items: F.L.map(y => ({ id: y.id })), fecha: x.fecha,
+                             banco_origen: x.banco || null, n_operacion: x.op || null, comentario: x.com || null,
+                             comprobante_ruta: x.arch ? F.ruta : null, comprobante_nombre: x.arch ? x.arch.name : null, clave: F.clave } });
+        if (r.error) throw new Error(/does not exist|schema cache|Could not find/i.test(r.error.message) ? "Falta ejecutar 84_pago_registrado_operaciones.sql en Supabase." : r.error.message);
+        F.res = r.data; F.paso = 4; pintarPago();
+      } catch (ex) {
+        err.textContent = ex.message || String(ex); btn.disabled = false; btn.textContent = "Registrar pago";
       } finally { if (F) F.enviando = false; }
     }
     // ETAPA 2: aquí se conecta el proveedor (Fintoc / Khipu / Mercado Pago). La deuda NO cambia hasta que el banco confirme.
