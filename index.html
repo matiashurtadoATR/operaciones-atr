@@ -420,6 +420,13 @@
   .m-campo{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--gris);margin:10px 0}
   .m-campo input,.m-campo select{padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font:inherit;font-weight:400;color:var(--tinta)}
   .m-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .modal.des-obras{max-width:880px}
+  .des-t{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  .des-t th{background:var(--cafe,#7e350e);color:#fff;text-align:left;padding:5px 7px;font-weight:600}
+  .des-t td{border-bottom:1px solid #ead3c6;padding:5px 7px;vertical-align:middle}.des-t .n{text-align:right;font-variant-numeric:tabular-nums}
+  .des-t input{width:120px;text-align:right}.des-t tr.sin td{color:#9a8f88}
+  .des-tot{display:flex;gap:18px;flex-wrap:wrap;align-items:center;background:#fbf6f3;border:1px solid #ead3c6;border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px}
+  .des-tot b{font-variant-numeric:tabular-nums}.des-tot .mal{color:#a1281f}.des-tot .ok{color:#1e6b2b}
   .m-conc{border:1px solid var(--linea);border-radius:10px;padding:8px 14px;margin-top:8px;font-size:13px}
   .m-conc legend{font-weight:700;color:var(--cafe);font-size:12px;padding:0 4px}
   .m-conc label{display:block;margin:7px 0}
@@ -1537,6 +1544,7 @@
       <button data-rep="cobz" data-mod="revisar" data-area="operaciones" data-solo-supabase="1">Pagos informados<small>Transferencias informadas en el portal<span class="n-ctrl" id="cobz-n"></span></small></button>
       <button data-rep="cobz" data-mod="deudas" data-area="operaciones" data-solo-supabase="1">Deudas y accesos<small>Lo que debe cada franquicia · acceso al portal</small></button>
       <button data-rep="cobz" data-mod="vista" data-area="operaciones" data-solo-supabase="1">Vista del franquiciado<small>El portal como lo ve cada franquiciado</small></button>
+      <button data-rep="cobz" data-mod="descuentos" data-area="operaciones" data-solo-supabase="1">Descuentos de obras<small>Facturas pagadas con fondos de otras obras · avisos</small></button>
 
       <h4 class="sep" data-area="operaciones">Onboarding</h4>
       <h5 data-area="operaciones">Activación</h5>
@@ -9949,7 +9957,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 86;
+const VERSION_PAGINA = 87;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10078,6 +10086,7 @@ function actualizarSelCob(){
   $("cob-sel").innerHTML = !ed ? "" : sel.length ? `<b>${sel.length}</b> seleccionado(s) · ${$$(sumar(sel, r => r.monto))}
       <button class="btn sec" id="cob-informar" ${pc.length ? "" : "disabled"}>Comprobante recibido</button>
       <button class="btn" id="cob-pagar" ${pc.length ? "" : "disabled"}>Registrar pago (cartola)</button>
+      <button class="btn sec" id="cob-obras" ${pc.length && new Set(pc.map(r => r.franquicia)).size === 1 ? "" : "disabled"} title="Paga los cobros con el saldo disponible de otras obras de la misma franquicia">Pagar con fondos de obras</button>
       <button class="btn sec" id="cob-factura">Asignar factura</button>
       <button class="btn" id="cob-solfact">Solicitar factura a Contabilidad</button>`
     : `<span>Selecciona cobros para anotar el <b>comprobante recibido</b>, <b>registrar su pago</b> (cuando aparece en la cartola) o <b>asignarles la factura</b> que los paga.</span>`;
@@ -10167,6 +10176,12 @@ $("vista-cob").addEventListener("click", e => {
   const t = e.target, ch = t.closest("[data-cob-chip]");
   if (ch) { COB.chip = ch.dataset.cobChip; COB.sel.clear(); return dibujarCobros(); }
   if (t.id === "cob-pagar") return modalPagoCobro();
+  if (t.id === "cob-obras") { const L = COB.filas.filter(r => COB.sel.has(r.id) && r.estado_cobro === "Por cobrar");
+    if (!L.length) return toast("Elige cobros por cobrar (los informados o pagados no se descuentan).");
+    if (new Set(L.map(r => r.franquicia)).size > 1) return toast("Elige cobros de una sola franquicia.");
+    return abrirDescuentoObras({ franquicia: L[0].franquicia, franquiciado: L[0].franquiciado,
+      cobros: L.map(r => ({ id: r.id, id_pago: r.id_pago, concepto: r.concepto, folio: r.folio, vencimiento: r.vencimiento, monto: Number(r.monto) })) },
+      async () => { COB.sel.clear(); COB.filas = null; invalidarPagos(); await cargarCobros(); }); }
   if (t.id === "cob-informar") return modalInformarCobro();
   if (t.dataset.cobDel) return eliminarCobro(COB.filas.find(r => r.id === +t.dataset.cobDel));
   if (t.dataset.cobEdit) return modalEditarCobro(COB.filas.find(r => r.id === +t.dataset.cobEdit));
@@ -10697,6 +10712,103 @@ $("aqc-xlsx").onclick = () => {
 
 
 /* =====================================================================
+   v87 · PAGAR COBROS CON FONDOS DE OTRAS OBRAS (87_descuento_obras.sql)
+   Lo usan Cobros a franquiciados (barra de selección) y Cobranza › Vista del franquiciado (Pagar › Descontar de fondos de otras obras).
+   ===================================================================== */
+const DES = { ord: o => (["Cerrada", "Finalizada"].includes(o.estado) ? 0 : 1) };
+function desObrasDesdePortal(info, listo){ return abrirDescuentoObras(info, listo); }
+async function abrirDescuentoObras(info, alListo){
+  if (!puedeEditar()) return toast("Tu usuario no puede registrar pagos.");
+  const cobros = (info.cobros || []).filter(c => Number(c.monto) > 0);
+  if (!cobros.length) return toast("No hay cobros pendientes elegidos.");
+  const { data, error } = await db.rpc("descuento_obras_disponible", { p_franquicia: info.franquicia });
+  if (error) return toast("⚠ " + esc(/does not exist|schema cache|Could not find/i.test(error.message) ? "Falta ejecutar 87_descuento_obras.sql en Supabase." : errorAmigable(error.message)), 9000);
+  const obras = (data || []).slice().sort((a, b) => DES.ord(a) - DES.ord(b) || Number(b.disponible) - Number(a.disponible));
+  const pend = Math.round(cobros.reduce((a, c) => a + Number(c.monto), 0));
+  const dispTot = obras.reduce((a, o) => a + Number(o.disponible), 0);
+  const fila = (o, i) => `<tr class="${Number(o.disponible) > 0 ? "" : "sin"}"><td><b>${esc(o.obra)}</b><br><small>${esc(o.cliente || "")} · ${esc(o.centro_costo || "")}</small></td>
+      <td>${esc(o.estado || "")}</td><td class="n">${$$(o.saldo)}</td>
+      <td class="n" title="Saldo − programado − facturas por pagar − reservas − transferencia sugerida al franquiciado">${$$(o.disponible)}</td>
+      <td class="n">${Number(o.disponible) > 0 ? `<input class="des-m" data-i="${i}" inputmode="numeric" placeholder="0">` : "<small>sin disponible</small>"}</td></tr>`;
+  const clave = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
+  const p = modal(`<h3>Pagar con fondos de otras obras · ${esc(info.franquicia)}${info.franquiciado ? " · " + esc(info.franquiciado) : ""}</h3>
+    <p class="nota-sol"><b>${cobros.length} cobro(s) por ${$$(pend)}</b>: ${cobros.map(c => `${esc(c.id_pago || "")} ${esc(c.concepto || "")}${c.folio ? " F° " + esc(c.folio) : ""} ${$$(c.monto)}`).join(" · ")}</p>
+    <p class="nota-g" style="margin:4px 0">Disponible = lo que la obra puede entregar sin afectar su flujo: saldo menos pagos programados, facturas de proveedor por pagar, reservas y la transferencia ya sugerida al franquiciado. Se proponen primero las obras cerradas o finalizadas.</p>
+    ${obras.length ? `<div style="max-height:46vh;overflow:auto"><table class="des-t"><thead><tr><th>Obra</th><th>Estado</th><th class="n">Saldo</th><th class="n">Disponible</th><th class="n">Descontar</th></tr></thead>
+      <tbody>${obras.map(fila).join("")}</tbody></table></div>` : `<div class="cf-aviso">La franquicia no tiene obras.</div>`}
+    <div class="des-tot"><span>Pendiente: <b>${$$(pend)}</b></span><span>Disponible total: <b>${$$(dispTot)}</b></span><span id="des-suma">A descontar: <b>$ 0</b></span>
+      <button class="btn sec" type="button" id="des-sugerir" ${dispTot > 0 ? "" : "disabled"}>Sugerir reparto</button></div>
+    <div class="m-grid"><label class="m-campo">Fecha del descuento<input type="date" id="des-fecha" value="${hoyISO()}" max="${hoyISO()}"></label>
+      <label class="m-campo">Nota (opcional, queda en el registro)<input id="des-nota" maxlength="300" placeholder="Ej.: acordado con el gerente"></label></div>
+    <p class="nota-g">Se registra como <b>Obligaciones franquiciado (egreso)</b> N/A en cada obra y los cobros quedan <b>pagados</b> (si no alcanza, el último queda con el saldo por cobrar). Después avisa al franquiciado desde <b>Cobranza › Descuentos de obras</b> (Panel).</p>
+    <div class="error" id="des-error"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Registrar descuento", fn: async fondo => {
+      const err = fondo.querySelector("#des-error"); err.textContent = "";
+      const items = [...fondo.querySelectorAll(".des-m")].map(x => ({ o: obras[+x.dataset.i], m: Math.round(Number(String(x.value).replace(/[^\d]/g, "")) || 0) })).filter(x => x.m > 0);
+      const tot = items.reduce((a, x) => a + x.m, 0);
+      if (!items.length) { err.textContent = "Escribe cuánto descontar de al menos una obra."; return false; }
+      const exc = items.find(x => x.m > Number(x.o.disponible) + 1);
+      if (exc) { err.textContent = `${exc.o.obra}: el máximo es ${$$(exc.o.disponible)}.`; return false; }
+      if (tot > pend) { err.textContent = `El total (${$$(tot)}) supera lo pendiente (${$$(pend)}).`; return false; }
+      const fdes = fondo.querySelector("#des-fecha").value;
+      if (!fdes) { err.textContent = "Indica la fecha."; return false; }
+      if (!confirm(`¿Descontar ${$$(tot)} de ${items.length} obra(s) para pagar ${cobros.length} cobro(s)${tot < pend ? ` (queda ${$$(pend - tot)} por cobrar)` : ""}?`)) return false;
+      const r = await db.rpc("descuento_obras_aplicar", { p: { franquicia: info.franquicia, cobros: cobros.map(c => c.id), fecha: fdes, nota: fondo.querySelector("#des-nota").value.trim() || null,
+        obras: items.map(x => ({ obra: x.o.obra, monto: x.m })), clave } });
+      if (r.error) { err.textContent = errorAmigable(r.error.message); return false; }
+      const d = r.data || {};
+      toast(`✓ ${esc(d.codigo)}: ${$$(d.total)} descontados de ${items.length} obra(s). ${(d.cobros || []).map(c => `${esc(c.id_pago)} pagado ${$$(c.pagado)}${c.resto ? ` (saldo en ${esc(c.resto)})` : ""}`).join(" · ")}.
+        <br><a href="#" data-des-panel="1">Avisar al franquiciado (Panel)</a>`, 12000);
+      if (alListo) await alListo(d);
+      return true; } }]);
+  const fondo = document.querySelector(".modal-fondo:last-of-type"); if (!fondo) return p;
+  fondo.querySelector(".modal").classList.add("des-obras");
+  const suma = () => { const tot = [...fondo.querySelectorAll(".des-m")].reduce((a, x) => a + (Number(String(x.value).replace(/[^\d]/g, "")) || 0), 0);
+    const mal = tot > pend || [...fondo.querySelectorAll(".des-m")].some(x => (Number(String(x.value).replace(/[^\d]/g, "")) || 0) > Number(obras[+x.dataset.i].disponible) + 1);
+    fondo.querySelector("#des-suma").innerHTML = `A descontar: <b class="${mal ? "mal" : tot === pend ? "ok" : ""}">${$$(tot)}</b>${tot && tot < pend ? ` · queda ${$$(pend - tot)} por cobrar` : tot > pend ? " · supera lo pendiente" : ""}`; };
+  fondo.addEventListener("input", e => { if (e.target.classList.contains("des-m")) suma(); });
+  fondo.addEventListener("focusout", e => { if (e.target.classList.contains("des-m")) { const v = Number(String(e.target.value).replace(/[^\d]/g, "")) || 0; e.target.value = v ? nf.format(v) : ""; suma(); } });
+  fondo.querySelector("#des-sugerir")?.addEventListener("click", () => {
+    let rest = pend;
+    fondo.querySelectorAll(".des-m").forEach(x => { const d = Math.floor(Number(obras[+x.dataset.i].disponible)); const v = Math.min(rest, d); x.value = v > 0 ? nf.format(v) : ""; rest -= Math.max(v, 0); });
+    suma(); });
+  return p;
+}
+document.addEventListener("click", e => { const a = e.target.closest("[data-des-panel]"); if (!a) return;
+  e.preventDefault(); abrirPanel({ tarea: "descuentos", prueba: 1 }); });
+
+// ---------- Cobranza › Descuentos de obras (historial, aviso y anulación)
+async function cobzDescuentos(){
+  const { data, error } = await todo(() => db.from("v_descuento_obras").select("*").order("id", { ascending: false }));
+  if (error) { $("cobz-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 87_descuento_obras.sql en Supabase." : esc(error.message)}</div>`; return; }
+  COBZ.des = data || [];
+  const vig = COBZ.des.filter(d => !d.anulado_en), pend = vig.filter(d => !d.notificado_en);
+  const ed = puedeEditar();
+  const est = d => d.anulado_en ? `<span class="pill no">Anulado</span><br><small>${esc(d.motivo_anulacion || "")}</small>`
+    : d.notificado_en ? `<span class="pill ok">Avisado</span><br><small>${fecha(String(d.notificado_en).slice(0, 10))}</small>` : `<span class="pill parcial">Por avisar</span>`;
+  $("cobz-cuerpo").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="kpi"><div class="t">Descuentos vigentes</div><div class="v">${vig.length}</div><div class="s">${$$(sumar(vig, d => d.total))}</div></div>
+      <div class="kpi ${pend.length ? "alerta" : ""}"><div class="t">Por avisar al franquiciado</div><div class="v">${pend.length}</div><div class="s">${pend.length ? `<a href="#" data-des-panel="1">Avisar (Panel)</a>` : "al día"}</div></div>
+      <div class="kpi"><div class="t">Cómo se hace uno nuevo</div><div class="s" style="margin-top:6px">Cobros a franquiciados › marcar cobros › <b>Pagar con fondos de obras</b>, o Vista del franquiciado › Pagar › <b>Descontar de fondos de otras obras</b>.</div></div></div>
+    ${COBZ.des.length ? `<div class="tabla-wrap"><table class="cp"><thead><tr><th>Descuento</th><th>Franquicia</th><th>Cobros pagados</th><th>Obras de origen</th><th class="n">Total</th><th>Estado</th>${ed ? "<th></th>" : ""}</tr></thead><tbody>
+      ${COBZ.des.map(d => `<tr style="${d.anulado_en ? "opacity:.6" : ""}"><td><b>${esc(d.codigo)}</b><br><small>${fecha(d.fecha)} · ${esc(String(d.creado_por || "").split("@")[0])}</small>${d.nota ? `<br><small><i>${esc(d.nota)}</i></small>` : ""}</td>
+        <td><b>${esc(d.franquicia)}</b><br><small>${esc(d.franquiciado || "")}</small></td>
+        <td><small>${(d.cobros || []).map(c => `${esc(c.id_pago)} ${esc(c.concepto)}${c.folio ? " F° " + esc(c.folio) : ""}: <b>${$$(c.pagado)}</b>${c.saldo_pendiente ? ` (saldo ${$$(c.saldo_pendiente)} en ${esc(c.id_pago_saldo)})` : ""}`).join("<br>")}</small></td>
+        <td><small>${(d.obras || []).map(o => `${esc(o.obra)} · ${esc(o.cliente || "")}: <b>${$$(o.monto)}</b> (${esc(o.id_pago || "")})`).join("<br>")}</small></td>
+        <td class="n"><b>${$$(d.total)}</b></td><td>${est(d)}</td>
+        ${ed ? `<td style="white-space:nowrap">${!d.anulado_en ? `<a href="#" class="link-chico" data-des-anular="${d.id}">Anular…</a>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`
+      : `<p class="nota-g">Aún no hay descuentos de obras.</p>`}`;
+}
+document.addEventListener("click", async e => { const a = e.target.closest("[data-des-anular]"); if (!a) return;
+  e.preventDefault();
+  const d = (COBZ.des || []).find(x => x.id === +a.dataset.desAnular); if (!d) return;
+  const m = prompt(`Anular ${d.codigo} (${$$(d.total)}): se borran los egresos de las obras y los cobros vuelven a quedar por cobrar.${d.notificado_en ? "\n⚠ Ya se avisó al franquiciado: avísale también la anulación." : ""}\n\nMotivo:`);
+  if (!m || !m.trim()) return;
+  const { error } = await db.rpc("descuento_obras_anular", { p: { id: d.id, motivo: m.trim() } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`✓ ${esc(d.codigo)} anulado.`); invalidarPagos(); COB.filas = null; cobzDescuentos(); });
+
+/* =====================================================================
    COBRANZA FRANQUICIADOS · núcleo del portal de pago
    Lo usan "Portal Franquiciados ATR.html" (el franquiciado) y Operaciones › Cobranza franquiciados › Vista del franquiciado.
    La base decide qué franquicia se ve (por el correo de la sesión): este código nunca puede pedir otra.
@@ -10907,7 +11019,8 @@ window.PortalATR = (() => {
         t = "Pagar deudas"; b = pasos + resumen + `<p style="margin:14px 0 8px;font-weight:600">¿Cómo quieres pagar?</p><div class="ptl-opc">
           <button class="ptl-op" data-via="banco" ${online ? "" : "disabled"}><span class="i">🏦</span><span><b>Pagar con tu banco${online ? `<span class="ptl-tag rec">Recomendado</span>` : `<span class="ptl-tag prox">Próximamente</span>`}</b>
             <small>${online ? "Eliges tu banco, apruebas con tu clave y el pago se confirma al instante." : "Pronto podrás pagar eligiendo tu banco, como en el SII. Por ahora usa la transferencia."}</small></span></button>
-          <button class="ptl-op" data-via="transf"><span class="i">⇄</span><span><b>Transferencia bancaria</b><small>Transfiere desde tu banco a la cuenta de Atrium y luego informa el pago con el comprobante.</small></span></button></div>`;
+          <button class="ptl-op" data-via="transf"><span class="i">⇄</span><span><b>Transferencia bancaria</b><small>Transfiere desde tu banco a la cuenta de Atrium y luego informa el pago con el comprobante.</small></span></button>
+          ${S.ses.vista_previa && typeof o.descontarObras === "function" ? `<button class="ptl-op" data-via="obras"><span class="i">⇆</span><span><b>Descontar de fondos de otras obras <span class="ptl-tag rec">Operaciones</span></b><small>Paga con el saldo disponible de otras obras de esta franquicia. Eliges cuánto se descuenta de cada obra.</small></span></button>` : ""}</div>`;
         f = `<button class="ptl-btn sec" data-pp="cerrar">Cancelar</button><span></span>`;
       } else if (F.paso === 2) {
         const fila = (k, v, copia, extra = "") => `<div class="${extra}"><span>${k}</span><b>${esc(v)}</b>${copia ? `<button class="ptl-copiar" data-copiar="${esc(copia)}">Copiar</button>` : "<span></span>"}</div>`;
@@ -10954,6 +11067,8 @@ window.PortalATR = (() => {
       const via = e.target.closest("[data-via]");
       if (via && !via.disabled) {
         if (via.dataset.via === "transf") { F.paso = 2; return pintarPago(); }
+        if (via.dataset.via === "obras") { const L = F.L.map(x => ({ id: x.id, id_pago: x.id_pago, concepto: x.concepto, folio: x.documento, vencimiento: x.vencimiento, monto: Number(x.saldo) }));
+          cerrarPago(); return o.descontarObras({ franquicia: S.ses.franquicia, franquiciado: S.ses.razon_social, cobros: L }, () => { S.sel.clear(); cargar(); }); }
         return pagarConBanco();
       }
       const a = e.target.closest("[data-pp]"); if (!a) return;
@@ -11151,7 +11266,8 @@ const COBZ = { mod: "revisar", pagos: [], acc: [], chip: "rev", fr: "", q: "", p
 const COBZ_INFO = {
   revisar: { t: "Pagos informados", d: "Transferencias que los franquiciados informaron desde el portal. Compara con la cartola de Security y acepta o rechaza: al aceptar, el cobro queda Informado (igual que en Cobros a franquiciados) y la conciliación lo deja pagado." },
   deudas:  { t: "Deudas y accesos", d: "Lo que debe cada franquicia (lo mismo que ve en su portal) y quién tiene acceso. El franquiciado entra con su correo corporativo y un código que le llega a ese correo." },
-  vista:   { t: "Vista del franquiciado", d: "El portal exactamente como lo ve el franquiciado elegido. Puedes recorrer el flujo de pago, pero no informar pagos en su nombre." } };
+  vista:   { t: "Vista del franquiciado", d: "El portal exactamente como lo ve el franquiciado elegido. Puedes recorrer el flujo de pago, pero no informar pagos en su nombre." },
+  descuentos: { t: "Descuentos de obras", d: "Facturas o cobros del franquiciado pagados con fondos disponibles de otras obras de la misma franquicia: qué se pagó, de qué obras salió, aviso al franquiciado (Panel) y anulación." } };
 async function cobzContador(){
   try { const { data } = await db.from("v_portal_pagos").select("id").eq("estado", "En revisión");
     if ($("cobz-n")) $("cobz-n").textContent = data && data.length ? ` · ${data.length} por revisar` : ""; } catch (_) {}
@@ -11162,6 +11278,7 @@ async function cargarCobz(mod){
   document.querySelectorAll(".menu button[data-rep='cobz']").forEach(b => b.classList.toggle("activo", b.dataset.mod === COBZ.mod));
   $("cobz-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
   if (COBZ.mod === "vista") return cobzVista();
+  if (COBZ.mod === "descuentos") return cobzDescuentos();
   const [p, a] = await Promise.all([todo(() => db.from("v_portal_pagos").select("*").order("id", { ascending: false })),
                                     todo(() => db.from("v_portal_accesos").select("*").order("franquicia"))]);
   const err = p.error || a.error;
@@ -11248,7 +11365,7 @@ async function cobzVista(){
       <span style="flex:1"></span><button class="btn" id="cobz-imprimir" title="Imprime (o guarda en PDF) lo que se ve abajo: elige antes la pestaña y el filtro (ej. Por pagar)">Imprimir / PDF</button></div>
     <p class="nota-g" style="margin:-6px 0 12px">Para imprimir el estado de cuenta: elige la pestaña y el filtro (ej. <b>Mis deudas › Por pagar</b> o <b>Todas</b>) y presiona <b>Imprimir / PDF</b>. Se imprime sin botones, con los datos para pagar.</p>
     <div id="cobz-portal" style="background:#f7f3f0;border:1px solid var(--linea);border-radius:14px;padding:20px"></div>`;
-  if (COBZ.fr) COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: COBZ.fr });
+  if (COBZ.fr) COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: COBZ.fr, descontarObras: desObrasDesdePortal });
 }
 $("vista-cobz").addEventListener("click", async e => {
   const t = e.target;
@@ -14231,7 +14348,7 @@ function cobzOpcionesFr(rs){
 }
 function cobzMontar(fr){
   if (!fr) return; COBZ.fr = fr;
-  COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: fr });
+  COBZ.portal = PortalATR.montar({ sb, cont: $("cobz-portal"), franquicia: fr, descontarObras: desObrasDesdePortal });
 }
 
 /* ---------------- v78 · Onboarding › Revisión contrato (78/79_revision_contrato.sql) ---------------- */
