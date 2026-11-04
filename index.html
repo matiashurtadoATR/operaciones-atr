@@ -9870,7 +9870,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 84;
+const VERSION_PAGINA = 85;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -12869,18 +12869,20 @@ if ("serviceWorker" in navigator && location.protocol === "https:") navigator.se
    · Por conciliar: pagos ya pagados o con comprobante que aún no tienen fecha de cartola (se pone aquí).
    ===================================================================== */
 const PORC = { mod: "OBRA", tab: "conc", filas: [], conc: null, sel: new Set(), q: "", fr: "", etapa: "",
-  per: "anio", desde: "", hasta: "", fBanco: "", fItem: "", fSigno: "", cq: "", verDet: false };
-try { const t = localStorage.getItem("conc_tab"); if (t === "conc" || t === "porc") PORC.tab = t; } catch (e) {}
+  per: "anio", desde: "", hasta: "", fBanco: "", fItem: "", fSigno: "", cq: "", verDet: false, cc: [], ccOk: true, ccSel: new Set() };
+try { const t = localStorage.getItem("conc_tab"); if (t === "conc" || t === "porc" || t === "cont") PORC.tab = t; } catch (e) {}
 const czISO = t => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(t || "")); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
 async function cargarPorc(mod){
-  PORC.mod = mod === "FRANQUICIA" ? "FRANQUICIA" : "OBRA"; PORC.sel.clear(); PORC.fBanco = PORC.fItem = PORC.fSigno = "";
+  PORC.mod = mod === "FRANQUICIA" ? "FRANQUICIA" : "OBRA"; PORC.sel.clear(); PORC.ccSel.clear(); PORC.fBanco = PORC.fItem = PORC.fSigno = "";
   $("porc-titulo").textContent = "Conciliación · " + (PORC.mod === "OBRA" ? "Obras" : "Franquiciados");
   $("porc-tabs").innerHTML = ""; $("porc-cuerpo").innerHTML = `<p class="nota-g">Cargando…</p>`;
   const vista = PORC.mod === "OBRA" ? "v_ing_pagos_obra" : "v_ing_pagos_franquicia";
   const cols = "id,id_pago,franquicia,fecha_pago,item,monto,medio,fecha_conciliacion,banco,referencia_banco,observaciones" + (PORC.mod === "OBRA" ? ",obra,cliente" : ",franquiciado");
-  const [r, c] = await Promise.all([
+  const [r, c, cc] = await Promise.all([
     todo(() => db.from("v_por_conciliar").select("*").eq("origen", PORC.mod).order("fecha_pago").order("id_pago")),
-    todo(() => db.from(vista).select(cols).not("fecha_conciliacion", "is", null).order("id"))]);
+    todo(() => db.from(vista).select(cols).not("fecha_conciliacion", "is", null).order("id")),
+    db.rpc("conc_cont_pendientes", { p_origen: PORC.mod })]);
+  PORC.ccOk = !cc.error; PORC.cc = cc.error ? [] : (cc.data || []);
   if (r.error) { $("porc-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(r.error.message) ? "Falta ejecutar 65_por_conciliar_excepcionales.sql en Supabase." : esc(r.error.message)}</div>`; return; }
   PORC.filas = r.data || [];
   PORC.conc = c.error ? [] : (c.data || []).map(x => ({ ...x, fc: czISO(x.fecha_conciliacion), banco: x.banco || "Banco no indicado" }));
@@ -12906,11 +12908,14 @@ function dibujarPorc(){
       <span class="v">${$$(neto)}</span><span class="s">${mv.length} movimiento${mv.length === 1 ? "" : "s"} bancario${mv.length === 1 ? "" : "s"}</span><small>${esc(czNombrePer())}</small></button>
     <span class="cpx-flecha"></span>
     <button class="cpx-tab ${pend ? "rech" : ""} ${PORC.tab === "porc" ? "activo" : ""}" data-cztab="porc"><span class="t">Por conciliar</span>
-      <span class="v">${pend}</span><span class="s">${$$(sumar(PORC.filas, x => x.monto))}</span><small>Pagos sin fecha de cartola</small></button>`;
+      <span class="v">${pend}</span><span class="s">${$$(sumar(PORC.filas, x => x.monto))}</span><small>Pagos sin fecha de cartola</small></button>
+    <button class="cpx-tab ${PORC.cc.length ? "rech" : ""} ${PORC.tab === "cont" ? "activo" : ""}" data-cztab="cont"><span class="t">Fecha de Contabilidad</span>
+      <span class="v">${PORC.cc.length}</span><span class="s">${$$(sumar(PORC.cc, x => x.monto))}</span><small>Por confirmar o cambiar</small></button>`;
   $("porc-intro").innerHTML = PORC.tab === "conc"
     ? `Movimientos bancarios ya conciliados (con fecha de cartola) de ${PORC.mod === "OBRA" ? "Pagos obras" : "Pagos franquiciados"}. Los marcados N/A (descuentos, cruces) no son movimientos del banco y no se suman.`
     : `Pagos ya pagados (o con comprobante) que todavía no tienen <b>fecha de cartola</b>. Pon la fecha aquí: se actualiza el mismo pago en Pagos obras / franquiciados y en el saldo. Los cobros que el franquiciado aún debe no están aquí (están en Cobros a franquiciados).`;
-  return PORC.tab === "conc" ? czDibujar(mv) : dibujarPend();
+  if (PORC.tab === "cont") $("porc-intro").innerHTML = `Pagos a los que <b>Contabilidad</b> les puso la fecha de conciliación (al marcarlos pagados o al usar fondos). Ya cuentan como conciliados; revisa la fecha contra la cartola y <b>confírmala</b> o <b>cámbiala</b>. Si el pago se une a la cartola en Cuadratura Bancaria, sale de aquí solo.`;
+  return PORC.tab === "conc" ? czDibujar(mv) : PORC.tab === "cont" ? dibujarCC() : dibujarPend();
 }
 function czNombrePer(){
   const [d, h] = czPeriodo(), mes = s => new Date(s + "T12:00").toLocaleDateString("es-CL", { month: "long", year: "numeric" });
@@ -12969,6 +12974,51 @@ function czDibujar(mvAll){
         <td class="n ${+x.monto < 0 ? "neg" : ""}">${$$(x.monto)}</td></tr>`).join("")}</tbody></table></div></details>
     <p class="nota-g">Haz clic en Ingresos, Egresos, un banco o un ítem para filtrar. Para cuadrar contra la cartola línea a línea, usa <a href="#" data-ir="cuad">Cuadratura Bancaria</a>.</p>`;
   $("porc-cuerpo").innerHTML = h;
+}
+/* ---------- Fecha de Contabilidad (por confirmar) · 85_conciliacion_contabilidad_confirmar.sql ---------- */
+function ccVisibles(){
+  const q = PORC.q.toLowerCase();
+  return PORC.cc.filter(x => (!PORC.fr || x.franquicia === PORC.fr) &&
+    (!q || [x.id_pago, x.obra, x.cliente, x.franquicia, x.franquiciado, x.item, x.solicitud, x.referencia_banco, x.puesta_por].join(" ").toLowerCase().includes(q)));
+}
+function dibujarCC(){
+  if (!PORC.ccOk) { $("porc-cuerpo").innerHTML = `<div class="cf-aviso">Falta ejecutar <b>85_conciliacion_contabilidad_confirmar.sql</b> en Supabase.</div>`; return; }
+  const ed = puedeEditar() && !enExcel(), L = ccVisibles(), ob = PORC.mod === "OBRA", frs = [...new Set(PORC.cc.map(x => x.franquicia).filter(Boolean))].sort();
+  const bancos = opcionesBanco() || "<option>SANTANDER</option><option>SECURITY</option>";
+  let h = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input id="porc-q" placeholder="Buscar Id, ${ob ? "obra, cliente" : "franquicia"}, ítem, SP-…" value="${esc(PORC.q)}" style="flex:1;min-width:220px;max-width:360px">
+      <select id="porc-fr"><option value="">Todas las franquicias</option>${frs.map(f => `<option ${f === PORC.fr ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>
+      <span class="nota-g">${L.length} de ${PORC.cc.length}</span></div>`;
+  if (ed && L.length) h += `<div class="solicitar-barra" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <div><b>Marcados</b><br><small>${PORC.ccSel.size} marcado(s)</small></div>
+      <button class="btn" id="cc-confirmar" ${PORC.ccSel.size ? "" : "disabled"}>✓ Confirmar la fecha de Contabilidad</button>
+      <span style="opacity:.85">o cambiar a</span><input type="date" id="cc-fecha" max="${hoyISO()}">
+      <select id="cc-banco"><option value="">(mismo banco)</option>${bancos}</select>
+      <button class="btn sec" id="cc-cambiar" ${PORC.ccSel.size ? "" : "disabled"}>Cambiar fecha</button></div>`;
+  if (!L.length) { $("porc-cuerpo").innerHTML = h + `<p class="nota-g">✓ No hay fechas de Contabilidad por confirmar${PORC.cc.length ? " con ese filtro" : ""}.</p>`; return; }
+  const todos = L.every(x => PORC.ccSel.has(x.id));
+  h += `<div class="tabla-wrap"><table class="cp"><thead><tr>${ed ? `<th><input type="checkbox" id="cc-todos" ${todos ? "checked" : ""}></th>` : ""}<th>Id pago</th>
+      <th>${ob ? "Obra · cliente" : "Franquicia"}</th><th>Ítem</th><th class="n">Monto</th><th>Fecha pago</th><th>Fecha de Contabilidad</th><th>Banco · medio</th><th>Puesta por</th>${ed ? "<th>Confirmar o cambiar</th>" : ""}</tr></thead><tbody>
+    ${L.map(x => `<tr>${ed ? `<td><input type="checkbox" data-ccsel="${x.id}" ${PORC.ccSel.has(x.id) ? "checked" : ""}></td>` : ""}
+      <td><b>${esc(x.id_pago)}</b>${x.solicitud ? `<br><small>${esc(x.solicitud)}</small>` : ""}</td>
+      <td><small>${ob ? `${esc(x.obra || "")}<br>${esc(x.cliente || "")}` : `${esc(x.franquicia || "")} · ${esc(x.franquiciado || "")}`}</small></td>
+      <td><small>${esc(x.item)}</small></td><td class="n ${+x.monto < 0 ? "neg" : ""}">${$$(x.monto)}</td>
+      <td>${fecha(x.fecha_pago) || "—"}</td>
+      <td><b>${fecha(x.fecha_actual)}</b>${x.fecha_actual !== x.fecha_cont ? `<br><small class="nota-g">Contabilidad puso ${fecha(x.fecha_cont)}</small>` : ""}</td>
+      <td><small>${esc(x.banco || x.banco_cont || "—")}${x.medio ? " · " + esc(x.medio) : ""}${x.referencia_banco ? "<br>" + esc(x.referencia_banco) : ""}</small></td>
+      <td><small>${x.accion === "Uso de fondos" ? "Uso de fondos" : "Marcó pagado"}<br>${esc(String(x.puesta_por || "").split("@")[0])} · ${x.puesta_en ? fecha(String(x.puesta_en).slice(0, 10)) : ""}</small></td>
+      ${ed ? `<td><div style="display:flex;flex-wrap:wrap;gap:4px;max-width:190px"><button class="btn-acc" data-ccok="${x.id}" title="La fecha está bien">✓ Confirmar</button>
+        <input type="date" class="cc-f" data-id="${x.id}" value="${String(x.fecha_actual || "").slice(0, 10)}" max="${hoyISO()}" style="width:130px">
+        <button class="btn-acc" data-cccambiar="${x.id}">Cambiar</button></div></td>` : ""}</tr>`).join("")}</tbody></table></div>
+    <p class="nota-g">Confirmar deja la fecha como está. Cambiar actualiza la fecha de conciliación del mismo pago en ${ob ? "Pagos obras (y el saldo de la obra)" : "Pagos franquiciados"}. En ambos casos sale de esta lista y queda registrado quién lo revisó.</p>`;
+  $("porc-cuerpo").innerHTML = h;
+}
+async function ccRevisar(ids, accion, f, banco){
+  if (!ids.length) return;
+  const { data, error } = await db.rpc("conc_cont_revisar", { p: { ids, accion, fecha: f || null, banco: banco || null } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`✓ ${data.n} fecha(s) ${accion === "confirmar" ? "confirmada(s)" : "cambiada(s)"}${(data.codigos || []).length ? ": " + esc(data.codigos.slice(0, 8).join(", ")) + (data.codigos.length > 8 ? "…" : "") : ""}.`);
+  PORC.ccSel.clear(); if (accion !== "confirmar") invalidarPagos(); await cargarPorc(PORC.mod);
 }
 /* ---------- Por conciliar ---------- */
 function porcVisibles(){
@@ -13032,6 +13082,17 @@ $("vista-porc").addEventListener("click", async e => {
   const it = t.closest("[data-czitem]"); if (it) { PORC.fItem = PORC.fItem === it.dataset.czitem ? "" : it.dataset.czitem; return dibujarPorc(); }
   if (t.id === "cz-limpiar") { e.preventDefault(); PORC.fBanco = PORC.fItem = PORC.fSigno = ""; return dibujarPorc(); }
   if (t.dataset.porcet !== undefined && t.classList.contains("chip")) { PORC.etapa = t.dataset.porcet; return dibujarPorc(); }
+  if (t.dataset.ccok) return ccRevisar([+t.dataset.ccok], "confirmar");
+  if (t.dataset.cccambiar) { const f = document.querySelector(`.cc-f[data-id="${t.dataset.cccambiar}"]`).value;
+    const x = PORC.cc.find(y => y.id === +t.dataset.cccambiar);
+    if (!f) return toast("Escribe la nueva fecha de conciliación.");
+    if (x && f === String(x.fecha_actual).slice(0, 10)) return toast("Es la misma fecha: usa ✓ Confirmar.");
+    return ccRevisar([+t.dataset.cccambiar], "cambiar", f); }
+  if (t.id === "cc-confirmar") { if (!confirm(`¿Confirmar la fecha de Contabilidad de ${PORC.ccSel.size} pago(s)?`)) return;
+    return ccRevisar([...PORC.ccSel], "confirmar"); }
+  if (t.id === "cc-cambiar") { const f = $("cc-fecha").value; if (!f) return toast("Escribe la nueva fecha (al lado de “Cambiar fecha”).");
+    if (!confirm(`¿Cambiar la fecha de conciliación de ${PORC.ccSel.size} pago(s) a ${fecha(f)}?`)) return;
+    return ccRevisar([...PORC.ccSel], "cambiar", f, $("cc-banco").value); }
   if (t.dataset.porcok) { const f = document.querySelector(`.porc-f[data-id="${t.dataset.porcok}"]`).value;
     if (!f) return toast("Escribe la fecha de la cartola.");
     return porcGuardar([{ id: +t.dataset.porcok, fecha_conciliacion: f }]); }
@@ -13050,6 +13111,8 @@ $("vista-porc").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.porcsel) { t.checked ? PORC.sel.add(+t.dataset.porcsel) : PORC.sel.delete(+t.dataset.porcsel); return dibujarPorc(); }
   if (t.id === "porc-todos") { porcVisibles().forEach(x => t.checked ? PORC.sel.add(x.id) : PORC.sel.delete(x.id)); return dibujarPorc(); }
+  if (t.dataset.ccsel) { t.checked ? PORC.ccSel.add(+t.dataset.ccsel) : PORC.ccSel.delete(+t.dataset.ccsel); return dibujarPorc(); }
+  if (t.id === "cc-todos") { ccVisibles().forEach(x => t.checked ? PORC.ccSel.add(x.id) : PORC.ccSel.delete(x.id)); return dibujarPorc(); }
   if (t.id === "porc-fr") { PORC.fr = t.value; return dibujarPorc(); }
   if (t.id === "cz-desde") { PORC.desde = t.value; return dibujarPorc(); }
   if (t.id === "cz-hasta") { PORC.hasta = t.value; return dibujarPorc(); }
