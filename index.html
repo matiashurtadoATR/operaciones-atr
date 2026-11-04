@@ -3934,6 +3934,8 @@ const pendientes = () => G.cambios.size + G.nuevas.filter(n => Object.keys(n.dat
 async function abrirModulo(mod){
   if (G.mod && G.mod !== mod && pendientes() && !confirm("Tienes cambios sin guardar en " + G.cfg.titulo + ". ¿Descartarlos?")) return false;
   G.mod = mod; G.cfg = MODULOS[mod]; G.cambios = new Map(); G.nuevas = []; G.errores = new Map(); G.sel = null; G.editando = null;
+  if (typeof FORM !== "undefined" && FORM.modo !== "form") { FORM.modo = "form";      // cada hoja abre en Formulario
+    document.querySelectorAll("#ing-modo-sel button").forEach(b => b.classList.toggle("activo", b.dataset.modo === "form")); }
   G.orden = G.cfg.orden; G.desc = !!G.cfg.desc; G.limite = 400;
   $("ing-titulo").textContent = G.cfg.titulo;
   $("ing-hoja").textContent = "Equivale a la hoja: " + G.cfg.hoja;
@@ -11409,7 +11411,9 @@ document.addEventListener("click", e => { if (e.target.closest("#ct-pdfs")) { e.
    Cada hoja de Ingreso de datos se ve como una lista; "+ Nuevo" o clic en una fila abre un formulario ordenado por secciones.
    La planilla sigue disponible (botón Planilla) para pegar muchas filas desde Excel. Mismo guardado que la planilla.
    ===================================================================== */
-const FORM = { modo: (() => { try { return localStorage.getItem("atr_ing_modo") || "form"; } catch (_) { return "form"; } })() };
+// v86b · siempre parte en Formulario (la Planilla es sólo para pegar muchas filas y no queda guardada para la próxima vez)
+const FORM = { modo: "form" };
+try { localStorage.removeItem("atr_ing_modo"); } catch (_) {}
 // secciones y columnas de la lista por hoja (lo que no se nombra va a "Otros datos")
 const FORM_CFG = {
   pagos_obra: { lista: ["id_pago", "obra", "cliente", "fecha_pago", "item", "monto", "fecha_conciliacion", "estado_pago"],
@@ -11471,7 +11475,7 @@ const formCols = () => { const c = formCfg(); const cols = G.cfg.cols;
   return c.lista ? c.lista.map(k => cols.find(x => x.k === k)).filter(Boolean) : cols.slice(0, 7); };
 
 function formModo(m){
-  FORM.modo = m; try { localStorage.setItem("atr_ing_modo", m); } catch (_) {}
+  FORM.modo = m;
   document.querySelectorAll("#ing-modo-sel button").forEach(b => b.classList.toggle("activo", b.dataset.modo === m));
   const plan = m === "planilla", ed = puedeEditar();
   if (!plan) G.sel = null;
