@@ -1584,6 +1584,7 @@
       <h5 data-area="contabilidad">Pagos</h5>
       <button data-rep="cont" data-mod="pagos" data-area="contabilidad" data-solo-supabase="1">Pagos para la semana<small>Enviados por Operaciones · marcar pagada<span class="n-ctrl" id="cont-n-pagos"></span></small></button>
       <button data-rep="cont" data-mod="conc" data-area="contabilidad" data-solo-supabase="1">Pagos conciliados<small>Obras y franquiciados · histórico</small></button>
+      <button data-rep="cont" data-mod="movs" data-area="contabilidad" data-solo-supabase="1">Movimientos de obras / franquiciados<small>Por franquiciado u obra · traspasos · saldo · registrar<span class="n-ctrl" id="cont-n-movs"></span></small></button>
       <h5 data-area="contabilidad">Fondos</h5>
       <button data-rep="cont" data-mod="fondos" data-area="contabilidad" data-solo-supabase="1">Fondos<small>Por usar · usados<span class="n-ctrl" id="cont-n-fondos"></span></small></button>
       <h5 data-area="contabilidad">Centros de costo</h5>
@@ -2113,6 +2114,7 @@
       <div class="kpis" id="cob-kpis"></div>
       <p class="nota-g" id="cob-uf" style="margin:-4px 0 10px"></p>
       <div class="cob-canon" id="cob-canon"></div>
+      <div id="cob-desconf"></div>
       <div class="controles" id="cob-filtros"></div>
       <div class="chips" id="cob-chips" style="margin-bottom:10px"></div>
       <div class="sel-barra" id="cob-sel"></div>
@@ -6822,6 +6824,7 @@ const CONT = { mod: "fobras",
   pagos: { lista: null, lineas: {}, abiertas: new Set(), semana: "", sel: new Set() },
   conc: { datos: null, desde: "", hasta: "", tipo: "", sentido: "", concil: "", fr: "", item: "", q: "", rango: "" } };
 const CONT_INFO = {
+  movs: { t: "Movimientos de obras / franquiciados", d: "Movimientos conciliados (cartola) y N/A de un franquiciado (todos sus centros de costo) o de una obra (su centro de costo), con el saldo de la obra antes y después, traspasos entre obras y deudas, y su estado. Por registrar = lo nuevo que Contabilidad aún no registra." },
   fobras: { t: "Facturas de obras", d: "Royalty y Aquí Club de cada obra. Llegan solas cuando Patricio aprueba la solicitud. Toma la solicitud, emite cada factura y registra su folio (marca las líneas que incluye). En ⓘ están el giro, la ciudad, el teléfono y el representante legal." },
   ffranq: { t: "Facturas de franquiciados", d: "Canon de entrada, arriendos, plataforma tecnológica, mínimos trimestrales y otros cobros a franquiciados. Llegan solas cuando Patricio aprueba la solicitud. Toma la solicitud, emite cada factura y registra su folio. En ⓘ están el giro, la ciudad, el teléfono y el representante legal." },
   pagos: { t: "Pagos para la semana", d: "Solicitudes de pago que envía Operaciones (Control de Pagos), por semana de pago: obra, contrato, avance, factura, OC, neto, IVA, total, saldo de la obra y datos bancarios del destinatario. Cuando se pague, marca la solicitud como pagada con la fecha oficial de pago (o pago por pago). Clic en el ID de obra o de franquicia para ver su ficha." },
@@ -6844,12 +6847,13 @@ async function contContadores(){
     if ($("cont-n-fobras")) $("cont-n-fobras").textContent = nf("Obras") ? req(nf("Obras")) : "";
     if ($("cont-n-ffranq")) $("cont-n-ffranq").textContent = nf("Franquiciados") ? req(nf("Franquiciados")) : "";
     if ($("cont-n-pagos")) $("cont-n-pagos").textContent = np ? ` · ${np} nueva(s)` : "";
+    db.rpc("contab_mov_pendientes").then(({ data }) => { if ($("cont-n-movs")) $("cont-n-movs").textContent = data ? ` · ${data} por registrar` : ""; });
   } catch (_) {}
 }
 
 async function cargarCont(mod){
   if (mod === "fact") mod = "fobras";
-  CONT.mod = ["fobras", "ffranq", "fcli", "pagos", "conc", "fondos"].includes(mod) ? mod : "fobras";
+  CONT.mod = ["fobras", "ffranq", "fcli", "pagos", "conc", "fondos", "movs"].includes(mod) ? mod : "fobras";
   document.querySelectorAll('.menu button[data-rep="cont"]').forEach(b => b.classList.toggle("activo", b.dataset.mod === CONT.mod));
   $("cont-titulo").textContent = CONT_INFO[CONT.mod].t; $("cont-desc").textContent = CONT_INFO[CONT.mod].d;
   $("cont-acciones").innerHTML = `<button class="btn sec" id="cont-xlsx">Descargar Excel</button><button class="btn sec" id="cont-act">Actualizar</button>`;
@@ -6859,6 +6863,7 @@ async function cargarCont(mod){
   if (CONT.mod === "conc") await contCargarConc();
   if (CONT.mod === "fcli") await contCargarFcli();
   if (CONT.mod === "fondos") await contCargarFondos();
+  if (CONT.mod === "movs") await contCargarMovs();
 }
 const contError = (e, sql) => { $("cont-cuerpo").innerHTML = `<div class="cf-aviso rojo">No pude leer los datos: ${esc(e.message)}${sql ? `<br>¿Se ejecutó ${sql} en Supabase?` : ""}</div>`; };
 
@@ -7097,6 +7102,85 @@ function contXlsxConc(){
   XLSX.writeFile(wb, `Pagos conciliados ${fecha(CONT.conc.desde)} a ${fecha(CONT.conc.hasta)}.xlsx`);
 }
 
+/* ---------------- Contabilidad › Movimientos de obras / franquiciados (v88) ---------------- */
+const MV = { tipo: "registrar", valor: "", desde: "", hasta: "", cart: false, datos: null, sel: new Set(), listas: null };
+async function contCargarMovs(){
+  if (!MV.listas) {
+    const [o, f] = await Promise.all([todo(() => db.from("v_cc_obras").select("id_franquicia,franquicia,id_opp,centro_costo,cliente").order("centro_costo")),
+                                      todo(() => db.from("v_cc_franquicias").select("id_franquicia,franquicia").order("id_franquicia"))]);
+    const fr = new Map(); [...(f.data || []), ...(o.data || [])].forEach(x => fr.set(x.id_franquicia, x.franquicia));
+    MV.listas = { obras: o.data || [], franq: [...fr].map(([id, n]) => ({ id, n })) };
+  }
+  const L = MV.listas;
+  $("cont-cuerpo").innerHTML = `<div class="controles" style="flex-wrap:wrap;gap:8px;align-items:end">
+      <label>Consultar<br><select id="mv-tipo"><option value="registrar">Por registrar (novedades)</option><option value="franquicia">Franquiciado (Id franquicia)</option><option value="obra">Obra (centro de costo)</option></select></label>
+      <label id="mv-val-l" ${MV.tipo === "registrar" ? "hidden" : ""}>${MV.tipo === "obra" ? "Centro de costo / Id obra" : "Id franquicia"}<br><input id="mv-valor" list="mv-lista" style="width:260px" value="${esc(MV.valor)}" placeholder="${MV.tipo === "obra" ? "ej. 4-02-001" : "ej. R78701"}"></label>
+      <datalist id="mv-lista">${MV.tipo === "obra" ? L.obras.map(x => `<option value="${esc(x.centro_costo)}">${esc(x.id_opp)} · ${esc(x.cliente || "")}</option>`).join("")
+                                                   : L.franq.map(x => `<option value="${esc(x.id)}">${esc(x.n || "")}</option>`).join("")}</datalist>
+      <label>Desde<br><input type="date" id="mv-desde" value="${MV.desde}"></label><label>Hasta<br><input type="date" id="mv-hasta" value="${MV.hasta}"></label>
+      <label style="padding-bottom:6px"><input type="checkbox" id="mv-cart" ${MV.cart ? "checked" : ""}> Sólo cartola (sin N/A)</label>
+      <button class="btn" id="mv-ver">Consultar</button></div><div id="mv-res"><p class="nota-g">${MV.tipo === "registrar" ? "Presiona Consultar para ver lo nuevo por registrar." : "Elige el franquiciado u obra y presiona Consultar."}</p></div>`;
+  $("mv-tipo").value = MV.tipo;
+  if (MV.datos) mvDibujar();
+}
+async function mvConsultar(){
+  MV.tipo = $("mv-tipo").value; MV.valor = ($("mv-valor").value || "").trim().toUpperCase(); MV.desde = $("mv-desde").value; MV.hasta = $("mv-hasta").value; MV.cart = $("mv-cart").checked;
+  if (MV.tipo !== "registrar" && !MV.valor) return toast("Elige el franquiciado o la obra.");
+  $("mv-res").innerHTML = `<p class="nota-g">Cargando…</p>`;
+  const { data, error } = await db.rpc("contab_movimientos", { p: { tipo: MV.tipo, valor: MV.valor, desde: MV.desde || null, hasta: MV.hasta || null, solo_cartola: MV.cart } });
+  if (error) { $("mv-res").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 88_contabilidad_movimientos.sql en Supabase." : esc(errorAmigable(error.message))}</div>`; return; }
+  MV.datos = data || []; MV.sel.clear(); mvDibujar();
+}
+function mvDibujar(){
+  const D = MV.datos, ing = D.filter(x => +x.monto > 0), egr = D.filter(x => +x.monto < 0), esCont = puedeEditar();
+  const obra = MV.tipo === "obra" && D[0] ? D[0] : null;
+  const pill = e => `<span class="pill ${e === "Ejecutado" || e === "Conciliado" ? "ok" : e === "Cancelado" ? "no" : "parcial"}">${esc(e)}</span>`;
+  $("mv-res").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:10px 0">
+      <div class="kpi"><div class="t">Movimientos</div><div class="v">${D.length}</div><div class="s">${D.filter(x => x.registrado_en).length} registrados por Contabilidad</div></div>
+      <div class="kpi"><div class="t">Ingresos</div><div class="v">${$$(sumar(ing, x => x.monto))}</div><div class="s">${ing.length}</div></div>
+      <div class="kpi"><div class="t">Egresos</div><div class="v">${$$(sumar(egr, x => x.monto))}</div><div class="s">${egr.length} · ${D.filter(x => x.traspaso).length} traspasos</div></div>
+      <div class="kpi"><div class="t">${obra ? "Saldo actual de la obra" : "Neto del período"}</div><div class="v">${$$(obra ? obra.saldo_actual_obra : sumar(D, x => x.monto))}</div><div class="s">${obra ? esc(obra.obra + " · " + (obra.cliente || "")) : "conciliado + N/A"}</div></div></div>
+    <div class="acciones" style="margin-bottom:8px">${esCont ? `<button class="btn" id="mv-reg">Marcar registrados</button><button class="btn sec" id="mv-quitar">Quitar registro</button>` : ""}<button class="btn sec" id="mv-xlsx">Descargar Excel</button></div>
+    ${D.length ? `<div class="tabla-wrap"><table class="cp"><thead><tr><th><input type="checkbox" id="mv-todos"></th><th>Conciliación</th><th>Id pago</th><th>Centro de costo</th><th>Obra / franquicia</th><th>Movimiento</th><th>Banco</th><th class="n">Monto</th><th class="n">Saldo obra (antes → después)</th><th>Factura / OC</th><th>Traspaso</th><th>Estado</th><th>Contabilidad</th></tr></thead><tbody>
+      ${D.map(x => `<tr><td><input type="checkbox" data-mvsel="${x.id}" ${MV.sel.has(x.id) ? "checked" : ""}></td>
+        <td>${x.fecha_conciliacion ? fecha(x.fecha_conciliacion) : "N/A"}<br><small>registro ${fecha(x.fecha_registro)}</small></td>
+        <td>${esc(x.id_pago)}<br><small>${esc(x.fuente || "")}</small></td><td>${esc(x.centro_costo || "")}</td>
+        <td>${x.obra ? `${esc(x.obra)}<br><small>${esc(x.cliente || "")}</small>` : `${esc(x.franquicia)}<br><small>${esc(x.franquiciado || "")}</small>`}</td>
+        <td><b>${esc(x.item)}</b><br><small>${esc(x.observaciones || "")}${x.referencia_banco ? " · Ref. " + esc(x.referencia_banco) : ""}</small></td>
+        <td>${esc(x.banco || (x.conciliacion === "N/A" ? "N/A" : ""))}</td>
+        <td class="n" style="color:${+x.monto < 0 ? "#a1281f" : "#1e6b2b"}"><b>${$$(x.monto)}</b><br><small>${esc(x.sentido)}</small></td>
+        <td class="n">${x.saldo_posterior != null ? `<small>${$$(x.saldo_anterior)} →</small><br><b>${$$(x.saldo_posterior)}</b>` : "—"}</td>
+        <td><small>${[x.folios_venta && "F° " + x.folios_venta, x.n_factura_compra && "FC " + x.n_factura_compra, x.n_oc && "OC " + x.n_oc, x.solicitud_pago].filter(Boolean).map(esc).join("<br>")}</small></td>
+        <td>${x.traspaso ? `<b>Sí</b>${x.traspaso_detalle ? `<br><small>${esc(x.traspaso_detalle)}${x.generado_por ? ` · generó ${esc(String(x.generado_por).split("@")[0])}` : ""}${x.confirmado_en ? ` · confirmó ${esc(String(x.confirmado_por || "").split("@")[0])} ${fecha(String(x.confirmado_en).slice(0, 10))}` : ""}</small>` : ""}` : "No"}</td>
+        <td>${pill(x.estado)}</td>
+        <td>${x.registrado_en ? `<small>✓ ${fecha(String(x.registrado_en).slice(0, 10))} ${esc(String(x.registrado_por || "").split("@")[0])}${x.nota_contabilidad ? "<br>" + esc(x.nota_contabilidad) : ""}</small>` : `<small style="color:#a1281f">Por registrar</small>`}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="nota-g">Sin movimientos para este filtro.</p>`}`;
+}
+function mvXlsx(){
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Id pago", "Centro de costo", "Id franquicia", "Franquiciado", "Obra", "Cliente", "Fecha registro", "Fecha pago", "Fecha conciliación", "Banco", "Medio", "Referencia", "Tipo", "Monto",
+    "Movimiento", "Observaciones", "Folios venta", "N° factura compra", "N° OC", "Solicitud de pago", "Traspaso", "Detalle traspaso", "Descuento", "Generado por", "Confirmado", "Estado", "Saldo anterior obra", "Saldo posterior obra", "Saldo actual obra", "Registrado Contabilidad", "Nota Contabilidad"],
+    ...MV.datos.map(x => [x.id_pago, x.centro_costo, x.franquicia, x.franquiciado, x.obra, x.cliente, x.fecha_registro, x.fecha_pago, x.fecha_conciliacion || "N/A", x.banco, x.medio, x.referencia_banco, x.sentido, +x.monto,
+      x.item, x.observaciones, x.folios_venta, x.n_factura_compra, x.n_oc, x.solicitud_pago, x.traspaso ? "Sí" : "No", x.traspaso_detalle, x.descuento, x.generado_por, x.confirmado_en ? String(x.confirmado_en).slice(0, 10) : "", x.estado,
+      x.saldo_anterior == null ? "" : +x.saldo_anterior, x.saldo_posterior == null ? "" : +x.saldo_posterior, x.saldo_actual_obra == null ? "" : +x.saldo_actual_obra, x.registrado_en ? String(x.registrado_en).slice(0, 10) : "", x.nota_contabilidad])]), "Movimientos");
+  XLSX.writeFile(wb, `Movimientos ${MV.tipo === "registrar" ? "por registrar" : MV.valor} ${hoyISO()}.xlsx`);
+}
+$("vista-cont").addEventListener("change", e => { if (CONT.mod !== "movs") return;
+  if (e.target.id === "mv-tipo") { MV.tipo = e.target.value; MV.valor = ""; MV.datos = null; contCargarMovs(); }
+  const c = e.target.closest("[data-mvsel]"); if (c) { c.checked ? MV.sel.add(+c.dataset.mvsel) : MV.sel.delete(+c.dataset.mvsel); }
+  if (e.target.id === "mv-todos") { (MV.datos || []).forEach(x => e.target.checked ? MV.sel.add(x.id) : MV.sel.delete(x.id)); mvDibujar(); } });
+$("vista-cont").addEventListener("click", async e => { if (CONT.mod !== "movs") return;
+  const t = e.target;
+  if (t.id === "cont-act" || t.id === "mv-ver") return mvConsultar();
+  if (t.id === "cont-xlsx" || t.id === "mv-xlsx") return MV.datos ? mvXlsx() : toast("Primero consulta.");
+  if (t.id === "mv-reg" || t.id === "mv-quitar") {
+    if (!MV.sel.size) return toast("Marca los movimientos.");
+    const quitar = t.id === "mv-quitar", nota = quitar ? null : prompt(`Marcar ${MV.sel.size} movimiento(s) como registrados en Contabilidad.\nNota (opcional):`, "");
+    if (nota === null && !quitar) return;
+    const { data, error } = await db.rpc("contab_mov_registrar", { p: { ids: [...MV.sel], nota: nota || null, quitar } });
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+    toast(`✓ ${data} movimiento(s) ${quitar ? "sin registro" : "registrados"}.`); mvConsultar(); } });
+
 /* ---------------- eventos ---------------- */
 $("vista-cont").addEventListener("click", async e => {
   const t = e.target, ed = puedeEditar();
@@ -7104,7 +7188,7 @@ $("vista-cont").addEventListener("click", async e => {
     if (ok) toast(ok); return data || true; };
   if (t.id === "cont-act") { CONT.conc.datos = null; return cargarCont(CONT.mod); }
   if (t.id === "cont-xlsx" && CONT.mod === "fcli") return contXlsxFcli();
-  if (CONT.mod === "fcli" || CONT.mod === "fondos") return;
+  if (CONT.mod === "fcli" || CONT.mod === "fondos" || CONT.mod === "movs") return;
   if (t.id === "cont-xlsx") return /^f/.test(CONT.mod) ? contXlsxFact(contFactFiltradas().map(s => s.id)) : CONT.mod === "pagos" ? contXlsxPagos(contPagosVisibles().map(s => s.id)) : contXlsxConc();
   // facturas
   const cf = t.closest("[data-ctf]"); if (cf) { CONT.fact.filtro = cf.dataset.ctf; return contDibujarFact(); }
@@ -9957,7 +10041,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 87;
+const VERSION_PAGINA = 88;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -10028,7 +10112,7 @@ async function cargarCobros(forzar){
     if (a.error) { $("cob-tabla").innerHTML = `<tbody><tr><td class="cp-vacio">Error: ${esc(a.error.message)}<br>¿Ejecutaste 18_pagos_reales.sql en Supabase?</td></tr></tbody>`; return; }
     COB.filas = a.data || []; COB.canon = b.data || []; COB.sel.clear();
   }
-  dibujarCobros(); cobUfLinea();
+  dibujarCobros(); cobUfLinea(); cobDesPend();
 }
 const cobVisibles = () => COB.filas.filter(r => (!COB.fr || r.franquicia === COB.fr)
   && (COB.chip === "todos" || (COB.chip === "porcobrar" ? r.estado_cobro !== "Pagado" : COB.chip === "informados" ? r.estado_cobro === "Informado" : COB.chip === "pagados" ? r.estado_cobro === "Pagado"
@@ -10740,7 +10824,7 @@ async function abrirDescuentoObras(info, alListo){
       <button class="btn sec" type="button" id="des-sugerir" ${dispTot > 0 ? "" : "disabled"}>Sugerir reparto</button></div>
     <div class="m-grid"><label class="m-campo">Fecha del descuento<input type="date" id="des-fecha" value="${hoyISO()}" max="${hoyISO()}"></label>
       <label class="m-campo">Nota (opcional, queda en el registro)<input id="des-nota" maxlength="300" placeholder="Ej.: acordado con el gerente"></label></div>
-    <p class="nota-g">Se registra como <b>Obligaciones franquiciado (egreso)</b> N/A en cada obra y los cobros quedan <b>pagados</b> (si no alcanza, el último queda con el saldo por cobrar). Después avisa al franquiciado desde <b>Cobranza › Descuentos de obras</b> (Panel).</p>
+    <p class="nota-g">Se registra como <b>Obligaciones franquiciado (egreso)</b> N/A en cada obra y los cobros quedan <b>pagados</b> (si no alcanza, el último queda con el saldo por cobrar). Después avisa al franquiciado desde <b>Cobranza › Descuentos de obras</b> (Panel) y, si no objeta, <b>confirma</b> el descuento: hasta entonces no es definitivo.</p>
     <div class="error" id="des-error"></div>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Registrar descuento", fn: async fondo => {
       const err = fondo.querySelector("#des-error"); err.textContent = "";
@@ -10782,11 +10866,13 @@ async function cobzDescuentos(){
   const { data, error } = await todo(() => db.from("v_descuento_obras").select("*").order("id", { ascending: false }));
   if (error) { $("cobz-cuerpo").innerHTML = `<div class="cf-aviso rojo">${/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar 87_descuento_obras.sql en Supabase." : esc(error.message)}</div>`; return; }
   COBZ.des = data || [];
-  const vig = COBZ.des.filter(d => !d.anulado_en), pend = vig.filter(d => !d.notificado_en);
+  const vig = COBZ.des.filter(d => !d.anulado_en), pend = vig.filter(d => !d.notificado_en), conf = vig.filter(d => d.notificado_en && !d.confirmado_en);
   const ed = puedeEditar();
-  const est = d => d.anulado_en ? `<span class="pill no">Anulado</span><br><small>${esc(d.motivo_anulacion || "")}</small>`
-    : d.notificado_en ? `<span class="pill ok">Avisado</span><br><small>${fecha(String(d.notificado_en).slice(0, 10))}</small>` : `<span class="pill parcial">Por avisar</span>`;
-  $("cobz-cuerpo").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+  const est = d => d.anulado_en ? `<span class="pill no">Cancelado</span><br><small>${esc(d.motivo_anulacion || "")}</small>`
+    : d.confirmado_en ? `<span class="pill ok">Ejecutado</span><br><small>confirmado ${fecha(String(d.confirmado_en).slice(0, 10))}</small>`
+    : d.notificado_en ? `<span class="pill parcial">Pendiente de confirmación</span><br><small>avisado ${fecha(String(d.notificado_en).slice(0, 10))}</small>` : `<span class="pill parcial">Por avisar</span>`;
+  $("cobz-cuerpo").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+      <div class="kpi ${conf.length ? "alerta" : ""}"><div class="t">Por confirmar (ya avisados)</div><div class="v">${conf.length}</div><div class="s">${$$(sumar(conf, d => d.total))} · confirma o cancela</div></div>
       <div class="kpi"><div class="t">Descuentos vigentes</div><div class="v">${vig.length}</div><div class="s">${$$(sumar(vig, d => d.total))}</div></div>
       <div class="kpi ${pend.length ? "alerta" : ""}"><div class="t">Por avisar al franquiciado</div><div class="v">${pend.length}</div><div class="s">${pend.length ? `<a href="#" data-des-panel="1">Avisar (Panel)</a>` : "al día"}</div></div>
       <div class="kpi"><div class="t">Cómo se hace uno nuevo</div><div class="s" style="margin-top:6px">Cobros a franquiciados › marcar cobros › <b>Pagar con fondos de obras</b>, o Vista del franquiciado › Pagar › <b>Descontar de fondos de otras obras</b>.</div></div></div>
@@ -10796,17 +10882,44 @@ async function cobzDescuentos(){
         <td><small>${(d.cobros || []).map(c => `${esc(c.id_pago)} ${esc(c.concepto)}${c.folio ? " F° " + esc(c.folio) : ""}: <b>${$$(c.pagado)}</b>${c.saldo_pendiente ? ` (saldo ${$$(c.saldo_pendiente)} en ${esc(c.id_pago_saldo)})` : ""}`).join("<br>")}</small></td>
         <td><small>${(d.obras || []).map(o => `${esc(o.obra)} · ${esc(o.cliente || "")}: <b>${$$(o.monto)}</b> (${esc(o.id_pago || "")})`).join("<br>")}</small></td>
         <td class="n"><b>${$$(d.total)}</b></td><td>${est(d)}</td>
-        ${ed ? `<td style="white-space:nowrap">${!d.anulado_en ? `<a href="#" class="link-chico" data-des-anular="${d.id}">Anular…</a>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`
+        ${ed ? `<td style="white-space:nowrap">${desBotones(d)}</td>` : ""}</tr>`).join("")}</tbody></table></div>`
       : `<p class="nota-g">Aún no hay descuentos de obras.</p>`}`;
 }
 document.addEventListener("click", async e => { const a = e.target.closest("[data-des-anular]"); if (!a) return;
   e.preventDefault();
-  const d = (COBZ.des || []).find(x => x.id === +a.dataset.desAnular); if (!d) return;
-  const m = prompt(`Anular ${d.codigo} (${$$(d.total)}): se borran los egresos de las obras y los cobros vuelven a quedar por cobrar.${d.notificado_en ? "\n⚠ Ya se avisó al franquiciado: avísale también la anulación." : ""}\n\nMotivo:`);
+  const d = (COBZ.des || []).concat(COBZ.desPend || []).find(x => x.id === +a.dataset.desAnular); if (!d) return;
+  const m = prompt(`${d.confirmado_en ? "Anular" : "Cancelar"} ${d.codigo} (${$$(d.total)}): se borran los egresos de las obras y los cobros vuelven a quedar por cobrar.${d.notificado_en ? "\n⚠ Ya se avisó al franquiciado: avísale también la anulación." : ""}\n\nMotivo:`);
   if (!m || !m.trim()) return;
   const { error } = await db.rpc("descuento_obras_anular", { p: { id: d.id, motivo: m.trim() } });
   if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
-  toast(`✓ ${esc(d.codigo)} anulado.`); invalidarPagos(); COB.filas = null; cobzDescuentos(); });
+  toast(`✓ ${esc(d.codigo)} ${d.confirmado_en ? "anulado" : "cancelado"}: no se considera traspaso efectuado.`); invalidarPagos(); COB.filas = null; desRefrescar(); });
+function desBotones(d){
+  if (d.anulado_en) return "";
+  return (d.notificado_en && !d.confirmado_en ? `<button class="btn" style="padding:3px 10px;font-size:12px" data-des-confirmar="${d.id}">Confirmar</button> ` : "")
+    + `<a href="#" class="link-chico" data-des-anular="${d.id}">${d.confirmado_en ? "Anular…" : "Cancelar…"}</a>`;
+}
+function desRefrescar(){
+  if ($("vista-cobz") && !$("vista-cobz").hidden) cobzDescuentos();
+  if ($("cob-desconf")) cargarCobros();
+}
+async function cobDesPend(){
+  const box = $("cob-desconf"); if (!box) return;
+  const { data, error } = await db.from("v_descuento_obras").select("*").is("anulado_en", null).is("confirmado_en", null).order("id");
+  if (error || !data || !data.length) { box.innerHTML = ""; COBZ.desPend = []; return; }
+  COBZ.desPend = data; const ed = puedeEditar();
+  box.innerHTML = `<div class="cf-aviso" style="margin:0 0 10px"><b>Descuentos de obras sin confirmar (${data.length}):</b> el traspaso no es definitivo hasta que lo confirmes.
+    <table class="cp" style="margin-top:6px"><tbody>${data.map(d => `<tr><td><b>${esc(d.codigo)}</b> · ${esc(d.franquicia)} ${esc(d.franquiciado || "")}</td>
+      <td><small>${(d.cobros || []).map(c => `${esc(c.id_pago)} ${esc(c.concepto)}`).join(", ")}</small></td><td class="n"><b>${$$(d.total)}</b></td>
+      <td>${d.notificado_en ? `Pendiente de confirmación<br><small>avisado ${fecha(String(d.notificado_en).slice(0, 10))}</small>` : `Por avisar · <a href="#" data-des-panel="1">Avisar (Panel)</a>`}</td>
+      ${ed ? `<td style="white-space:nowrap">${desBotones(d)}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+}
+document.addEventListener("click", async e => { const b = e.target.closest("[data-des-confirmar]"); if (!b) return;
+  e.preventDefault();
+  const d = (COBZ.des || []).concat(COBZ.desPend || []).find(x => x.id === +b.dataset.desConfirmar); if (!d) return;
+  if (!confirm(`Confirmar ${d.codigo} (${$$(d.total)}): el traspaso queda EJECUTADO y Contabilidad lo verá como fondo y en Movimientos. ¿El franquiciado no objetó el descuento?`)) return;
+  const { error } = await db.rpc("descuento_obras_confirmar", { p: { id: d.id } });
+  if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+  toast(`✓ ${esc(d.codigo)} confirmado: traspaso ejecutado.`); invalidarPagos(); COB.filas = null; desRefrescar(); });
 
 /* =====================================================================
    COBRANZA FRANQUICIADOS · núcleo del portal de pago
