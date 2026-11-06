@@ -11872,7 +11872,8 @@ async function abrirFormulario(key){
       const norm = (c, v) => { v = v ?? ""; if (c.tipo === "monto" || c.tipo === "pct") { const n = numTxt(String(v).replace("%", "")); return n === null ? String(v).trim() : String(n); }
         if (c.tipo === "fecha" || c.tipo === "fecha_na") return formValor(c, v); return String(v).trim(); };
       const cambio = cols.some(c => !c.ro && norm(c, datos[c.k]) !== norm(c, c.tipo === "monto" ? base[c.k] : formValor(c, base[c.k])));
-      if (!cambio) { if (G.mod === "obras" && await obraAvanceTrasGuardar(fondo, base, datos)) return true; toast("Sin cambios."); return true; }
+      if (!cambio) { if (G.mod === "obras" && await obraAvanceTrasGuardar(fondo, base, datos)) return true;
+        if (G.mod === "facturas" && await facRechReiniciar(base.codigo)) return true; toast("Sin cambios."); return true; }
     }
     const faltan = cols.filter(c => c.req && !c.ro && !String(datos[c.k] || "").trim()).map(c => c.t);
     if (faltan.length) return err("Falta: " + faltan.join(", "));
@@ -11894,6 +11895,7 @@ async function abrirFormulario(key){
     await refrescarUnido(cfg, fila);
     if (cfg.recargaListas) await cargarListas();
     CP.cargado = false; dibujarGrilla();
+    if (G.mod === "facturas" && !nueva && await facRechReiniciar(data.codigo || base.codigo)) return true;
     toast(`✓ ${esc(data.codigo || "Guardado")}${nueva ? " creado" : " actualizado"}.` + ((data.avisos || []).length ? `<ul>${data.avisos.slice(0, 6).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""), (data.avisos || []).length ? 9000 : 5000);
     return true; } });
   const pr = modal(`<div class="f-form">${html}</div>`, botones);
@@ -12683,6 +12685,28 @@ async function cprCorregir(id){
   cprRecargarTodo();
 }
 const CONT_CORREO_OPER = "matias.hurtado@aquituremodelacion.cl";
+// v89c · factura rechazada → Editar → Guardar (con o sin cambios) → vuelve a empezar: PDF de la factura y de su(s) nota(s) de crédito
+//   se piden de nuevo (el anterior queda en el historial) y el rechazo se resuelve (Contabilidad: vuelve a Por pagar · Operaciones: vuelve a Por revisar).
+async function facRechReiniciar(cod){
+  if (!cod) return false;
+  const { data, error } = await db.from("v_cp_rechazos").select("id,origen,estado,vigente").eq("id_factura", cod);
+  if (error) return false;
+  const R = (data || []).filter(x => (x.origen === "Contabilidad" && x.estado === "Rechazado") || (x.origen !== "Contabilidad" && x.vigente));
+  if (!R.length) return false;
+  const rp = await db.rpc("respaldo_pedir_de_nuevo", { p: { id_factura: cod } }), errs = [];
+  if (rp.error) errs.push(rp.error.message);
+  for (const x of R) {
+    const r = x.origen === "Contabilidad"
+      ? await db.rpc("cp_corregir_rechazo", { p: { id: x.id, nota: "Factura revisada en Facturas proveedor; se pidió de nuevo el PDF (vuelve a empezar)", monto: "" } })
+      : await db.rpc("cp_reactivar_rechazo", { p_id: x.id });
+    if (r.error) errs.push(r.error.message);
+  }
+  toast(errs.length ? `⚠ ${esc(cod)}: ${esc(errorAmigable(errs[0]))}`
+    : `✓ ${esc(cod)} vuelve a empezar: sube de nuevo el PDF de la factura${""} (y de su nota de crédito, si tiene) en <a href="#" data-irresp="1">Respaldos de facturas › Por pagar sin PDF</a>. `
+      + (R.some(x => x.origen === "Contabilidad") ? "El pago volvió a Control de Pagos › Por pagar." : "La factura volvió a Control de Pagos › Por revisar."), 14000);
+  try { cprRecargarTodo(); } catch (_) {}
+  return true;
+}
 async function cprAnular(id){
   const x = (CPRECH.lista || []).find(r => r.id === id) || (CPX.rech || []).find(r => r.id === id); if (!x) return;
   const ok = await modal(`<h3>Anular el pago</h3><p class="nota-g">${esc(x.id_pago || "")} · ${esc(x.tipo)} · ${$$(x.monto)}<br>Se elimina el pago (no correspondía) y la sugerencia no vuelve a aparecer en Control de Pagos.</p>
@@ -12704,7 +12728,7 @@ document.addEventListener("click", async e => {
   if (ed) { const cod = ed.dataset.cpredit; await irA("ing", "facturas");
     for (let i = 0; i < 40 && !(G.filas || []).some(r => r.codigo === cod); i++) await new Promise(r => setTimeout(r, 250));
     const r = (G.filas || []).find(r => r.codigo === cod); if (!r) return toast(`No encontré ${esc(cod)} en Facturas proveedor.`);
-    toast(`Al terminar de editar ${esc(cod)}, vuelve a <a href="#" data-ircprech="aq">Pagos rechazados</a> y marca <b>2 · Corregido</b>.`, 9000);
+    toast(`Revisa ${esc(cod)} y presiona <b>Guardar</b> (aunque no cambies nada): la factura vuelve a empezar y te pedirá de nuevo el PDF.`, 9000);
     return abrirFormulario(claveFila(r)); }
   const ra = e.target.closest("[data-cprreact]");
   if (ra) { const x = (CPRECH.lista || []).find(r => r.id === +ra.dataset.cprreact); if (!x) return;
