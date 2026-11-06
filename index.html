@@ -3443,9 +3443,22 @@ async function cpxRpc(fn, args, ok){
   return data || true;
 }
 async function cpxRecargar(){ CP.cargado = false; invalidarPagos(); CPX.cargado = false; await cargarPagos(); }
-function cpxMotivo(titulo, texto){
-  return modal(`<h3>${titulo}</h3>${texto ? `<p class="nota-sol">${texto}</p>` : ""}<label class="m-campo">Motivo (queda en el registro)<textarea id="cpx-motivo" rows="3"></textarea></label><div class="error" id="cpx-merr"></div>`,
-    [{ t: "Cancelar", sec: 1 }, { t: "Confirmar", fn: () => { const v = $("cpx-motivo").value.trim(); if (!v) { $("cpx-merr").textContent = "Escribe el motivo."; return false; } return v; } }]);
+const RECH_CAUSAS = {
+  "Sin fondos en la obra": "Falta saldo: gestiona un traspaso o espera fondos y luego Volver a proponer.",
+  "Falta PDF / respaldo": "Sube el PDF en Respaldos de facturas y luego Volver a proponer (o 2 · Corregido).",
+  "Nota de crédito": "Registra la NC con su Documento Relacionado, sube los dos PDF y luego Volver a proponer (o 2 · Corregido).",
+  "Monto o datos de la factura": "1 · Editar factura, corrige y luego Volver a proponer (o 2 · Corregido).",
+  "Datos bancarios del proveedor": "Corrige la cuenta en Aquí Club › Proveedores y luego Volver a proponer (o 2 · Corregido).",
+  "Ya está pagada": "1 · Editar factura › Pagada fuera del sistema = si (sale de por pagar) y márcala Visto.",
+  "Indagar (no se sabe qué es)": "Averigua con el proveedor/obra; edita la factura y Volver a proponer, o márcala Visto si no se paga.",
+  "Otro": "Lee el motivo y resuélvelo; luego Volver a proponer (o 2 · Corregido)." };
+const rechCausa = m => { const x = /^\[([^\]]+)\]\s*/.exec(String(m || "")); return x ? { causa: x[1], texto: String(m).slice(x[0].length) } : { causa: "Sin clasificar", texto: String(m || "") }; };
+const rechSelect = id => `<label class="m-campo">Causa del rechazo<select id="${id}"><option value="">Elige…</option>${Object.keys(RECH_CAUSAS).map(c => `<option>${esc(c)}</option>`).join("")}</select></label>`;
+function cpxMotivo(titulo, texto, conCausa){
+  return modal(`<h3>${titulo}</h3>${texto ? `<p class="nota-sol">${texto}</p>` : ""}${conCausa ? rechSelect("cpx-causa") : ""}<label class="m-campo">Motivo (queda en el registro)<textarea id="cpx-motivo" rows="3"></textarea></label><div class="error" id="cpx-merr"></div>`,
+    [{ t: "Cancelar", sec: 1 }, { t: "Confirmar", fn: () => { const v = $("cpx-motivo").value.trim(), c = conCausa ? $("cpx-causa").value : "";
+      if (conCausa && !c) { $("cpx-merr").textContent = "Elige la causa."; return false; }
+      if (!v) { $("cpx-merr").textContent = "Escribe el motivo."; return false; } return (c ? `[${c}] ` : "") + v; } }]);
 }
 async function cpxAceptar(key){
   const a = cpxSugerencias().find(x => x.key === key); if (!a) return;
@@ -3461,7 +3474,7 @@ async function cpxAceptar(key){
 async function cpxRechazar(key){
   const a = cpxSugerencias().find(x => x.key === key); if (!a) return;
   const m = await cpxMotivo(`Rechazar · ${CPX_TIPO[a.tipo]} · ${$$(a.monto)}`,
-    `${esc(a.obra)} · ${esc(a.cliente || "")}${a.tipo === "prov" ? "<br>Se avisará a <b>Felipe Morales</b> (Aquí Club › Pagos rechazados)." : ""}`);
+    `${esc(a.obra)} · ${esc(a.cliente || "")}${a.tipo === "prov" ? "<br>Se avisará a <b>Felipe Morales</b> (Aquí Club › Pagos rechazados)." : ""}`, a.tipo === "prov");
   if (!m) return;
   const f = a.tipo === "prov" ? CP.prov.find(x => "prov:" + x.id_factura === a.key) || {} : {};
   const r = await cpxRpc("cp_rechazar", { p: { clave: a.clave, tipo: CPX_TIPO[a.tipo], obra: a.obra, franquicia: a.franquicia, monto: String(cpxN(a.monto)),
@@ -3527,7 +3540,7 @@ $("vista-pagos").addEventListener("click", async e => {
   if (t.id === "cpx-enviar") return cpxEnviar();
   if (t.dataset.cpxnopp) {
     const x = CPX.porPagar.find(y => y.id === +t.dataset.cpxnopp);
-    const m = await cpxMotivo(`Rechazar ${esc(x.id_pago)} · ${$$(x.monto_total)}`, `Se elimina del Registro de Pagos y queda en Rechazadas.${x.tipo_solicitud === "Pago proveedores" ? "<br>Se avisará a <b>Felipe Morales</b>." : ""}`);
+    const m = await cpxMotivo(`Rechazar ${esc(x.id_pago)} · ${$$(x.monto_total)}`, `Se elimina del Registro de Pagos y queda en Rechazadas.${x.tipo_solicitud === "Pago proveedores" ? "<br>Se avisará a <b>Felipe Morales</b>." : ""}`, true);
     if (m && await cpxRpc("cp_rechazar", { p: { pago_id: x.id, motivo: m } }, "Rechazado: quedó en Rechazadas.")) await cpxRecargar();
     return;
   }
@@ -12544,9 +12557,11 @@ async function contRechazar(ids){
       <p class="nota-g">Salen de la solicitud y quedan detenidos hasta que se corrijan. Los <b>pagos a proveedor</b> los corrige Aquí Club (Felipe Morales);
         las <b>transferencias a franquiciados</b>, Operaciones (Matías). Después vuelven a llegarte en una nueva solicitud, o se anulan si no correspondían.</p>
       <ul class="nota-g" style="max-height:170px;overflow:auto;margin:6px 0">${L.map(l => `<li><b>${esc(l.id_pago)}</b> · ${esc(l.tipo_solicitud)} · ${esc(l.razon_social_destinatario || "")} · ${$$(l.monto_total)}</li>`).join("")}</ul>
+      ${rechSelect("ct-rech-causa")}
       <label class="campo">Motivo del rechazo (le llega a quien debe corregirlo)<textarea id="ct-rech-mot" rows="3" placeholder="Ej.: la cuenta bancaria no coincide con la factura · falta el respaldo · el monto no cuadra"></textarea></label>`,
     [{ t: "Cancelar", sec: 1 }, { t: "Rechazar", fn: async f => {
-      const { data, error } = await db.rpc("cont_rechazar_pagos", { p: { ids: L.map(l => l.pago_id), motivo: f.querySelector("#ct-rech-mot").value } });
+      const cau = f.querySelector("#ct-rech-causa").value; if (!cau) { toast("Elige la causa del rechazo."); return false; }
+      const { data, error } = await db.rpc("cont_rechazar_pagos", { p: { ids: L.map(l => l.pago_id), motivo: `[${cau}] ` + f.querySelector("#ct-rech-mot").value } });
       if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return data; } }]);
   if (!r) return;
   CONT.pagos.sel.clear();
@@ -12597,7 +12612,10 @@ function cprechDibujar(){
   const sec = $("vista-cprech"); sec.querySelector("h1").textContent = T[0]; sec.querySelector(".cp-head p").innerHTML = T[1];
   const base = CPRECH.lista.filter(x => ob ? x.origen === "Contabilidad" : x.aquiclub);
   const pend = base.filter(x => (x.origen === "Contabilidad" && x.estado === "Rechazado") || (!ob && x.origen !== "Contabilidad" && x.vigente && !x.visto_en));
-  const L = CPRECH.f === "pend" ? pend : base;
+  const espera = ob ? [] : base.filter(x => x.origen !== "Contabilidad" && x.vigente && x.visto_en);   // vistos pero aún sin pagar: no se olvidan
+  const L0 = CPRECH.f === "pend" ? pend : CPRECH.f === "espera" ? espera : base;
+  const L = CPRECH.causa ? L0.filter(x => rechCausa(x.motivo).causa === CPRECH.causa) : L0;
+  const causas = [...new Set(L0.map(x => rechCausa(x.motivo).causa))];
   const est = x => x.origen === "Contabilidad"
     ? (x.estado === "Rechazado" ? '<span class="pill no">Por corregir</span>'
       : x.estado === "Corregido" ? `<span class="pill ok">Corregido</span><br><small>${esc(x.resolucion || "")}${x.monto_corregido ? " · nuevo monto " + $$(x.monto_corregido) : ""}<br>${esc(String(x.resuelto_por || "").split("@")[0])} · ${fecha(x.resuelto_en)}${x.estado_pago_actual === "Solicitado" ? " · ya reenviado a Contabilidad" : x.estado_pago_actual === "Pagado" ? " · pagado" : x.estado_pago_actual === "Pendiente" ? " · en Por pagar" : ""}</small>`
@@ -12608,12 +12626,16 @@ function cprechDibujar(){
       return (x.aquiclub && x.id_factura ? `<button class="cf-btn" data-cpredit="${esc(x.id_factura)}" style="margin-bottom:4px">1 · Editar factura…</button><br>` : "")
         + `<button class="btn-acc" data-cprcorr="${x.id}">${x.aquiclub ? "2 · " : ""}Corregido · volver a Por pagar…</button><br><button class="cf-btn" data-cpranul="${x.id}" style="margin-top:4px">Anular…</button>`;
     if (x.origen !== "Contabilidad" && x.vigente)
-      return (!x.visto_en ? `<button class="btn-acc" data-cprvisto="${x.id}">Visto</button><br>` : "")
+      return (x.aquiclub && x.id_factura && cprPuede(x) ? `<button class="cf-btn" data-cpredit="${esc(x.id_factura)}" style="margin-bottom:4px">Editar factura…</button><br>` : "")
+        + (!x.visto_en ? `<button class="btn-acc" data-cprvisto="${x.id}">Visto</button><br>` : "")
         + (cprPuede(x) ? `<button class="cf-btn" data-cprreact="${x.id}" style="margin-top:4px" title="La factura vuelve a Control de Pagos › Por revisar">Volver a proponer…</button>` : "");
     return "";
   };
   $("cprech-cuerpo").innerHTML = `<div class="chips" style="margin-bottom:10px"><button class="chip ${CPRECH.f === "pend" ? "activo" : ""}" data-cprf2="pend">Por resolver<b>${pend.length}</b></button>
+      ${ob ? "" : `<button class="chip ${CPRECH.f === "espera" ? "activo" : ""}" data-cprf2="espera" title="Ya vistos, pero la factura sigue sin pagarse">En espera · sin pagar<b>${espera.length}</b></button>`}
       <button class="chip ${CPRECH.f === "todas" ? "activo" : ""}" data-cprf2="todas">Todos (historial)<b>${base.length}</b></button></div>
+    ${causas.length > 1 || CPRECH.causa ? `<div class="chips" style="margin:-4px 0 10px"><small style="align-self:center;color:var(--gris)">Causa:</small>
+      <button class="chip ${!CPRECH.causa ? "activo" : ""}" data-cprcausa="">Todas</button>${causas.map(c => `<button class="chip ${CPRECH.causa === c ? "activo" : ""}" data-cprcausa="${esc(c)}">${esc(c)}<b>${L0.filter(x => rechCausa(x.motivo).causa === c).length}</b></button>`).join("")}</div>` : ""}
     <div class="tabla-wrap"><table class="cp"><thead><tr><th>Fecha</th><th>Rechazó</th><th>Pago</th><th>${ob ? "Obra · destinatario" : "Factura · proveedor"}</th><th class="n">Monto</th><th>Motivo</th><th>Estado</th><th></th></tr></thead><tbody>
     ${L.map(x => `<tr class="${pend.includes(x) ? "" : "hecha"}"><td style="white-space:nowrap">${fecha(x.rechazado_en)}</td>
       <td>${x.origen === "Contabilidad" ? `<b>Contabilidad</b><br><small>${esc(String(x.rechazado_por || "").split("@")[0])}${x.solicitud_codigo ? " · " + esc(x.solicitud_codigo) : ""}</small>` : `Operaciones<br><small>${esc(String(x.rechazado_por || "").split("@")[0])}</small>`}</td>
@@ -12621,7 +12643,7 @@ function cprechDibujar(){
       <td class="ob">${x.aquiclub ? `<b>${esc(x.proveedor || "")}</b><span>${esc(x.id_factura || "")}${x.n_factura ? " · F° " + esc(x.n_factura) : ""}${x.numero_oc ? " · OC " + esc(x.numero_oc) : ""}</span><span>${x.obra ? obraLink(x.obra) : ""} · ${esc(x.franquicia || "")}</span>`
           : `<b>${esc(x.cliente || "")}</b><span>${x.obra ? obraLink(x.obra) : ""} · ${esc(x.franquicia || "")}</span>`}</td>
       <td class="n">${$$(x.monto)}${x.monto_actual != null && Math.round(x.monto_actual) !== Math.round(x.monto) ? `<br><small>ahora ${$$(x.monto_actual)}</small>` : ""}</td>
-      <td><b>${esc(x.motivo)}</b></td><td>${est(x)}</td><td>${acc(x)}</td></tr>`).join("")
+      <td>${(r => `<span class="pill parcial">${esc(r.causa)}</span><br><b>${esc(r.texto)}</b>${x.vigente || x.estado === "Rechazado" ? `<br><small style="color:var(--gris)">Qué hacer: ${esc(RECH_CAUSAS[r.causa] || "Edita la factura si hace falta y luego Volver a proponer (o 2 · Corregido). Si no se paga, márcala Visto.")}</small>` : ""}`)(rechCausa(x.motivo))}</td><td>${est(x)}</td><td>${acc(x)}</td></tr>`).join("")
       || `<tr><td colspan="8" class="cp-vacio">${CPRECH.f === "pend" ? "✓ No hay pagos rechazados por resolver." : "No hay pagos rechazados."}</td></tr>`}</tbody></table></div>`;
 }
 async function cprechContador2(){
@@ -12676,6 +12698,7 @@ function cprRecargarTodo(){
   if (!$("vista-pagos").classList.contains("oculto")) cpxRecargar(); else { CPX.cargado = false; if (typeof CP !== "undefined") CP.cargado = false; }
 }
 document.addEventListener("click", async e => {
+  const cz = e.target.closest("[data-cprcausa]"); if (cz) { CPRECH.causa = cz.dataset.cprcausa; return cprechDibujar(); }
   const ir = e.target.closest("[data-irresp]"); if (ir) { e.preventDefault(); return irA("resp"); }
   const ed = e.target.closest("[data-cpredit]");
   if (ed) { const cod = ed.dataset.cpredit; await irA("ing", "facturas");
