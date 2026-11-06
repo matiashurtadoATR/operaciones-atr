@@ -3175,6 +3175,16 @@ async function cpxCargar(){
   CPX.porPagar.forEach(x => { if (!CPX.vistos.has(x.id)) { CPX.vistos.add(x.id); CPX.sel.add(x.id); } });
   { const ids = new Set(CPX.porPagar.map(x => x.id)); [...CPX.sel].forEach(id => { if (!ids.has(id)) CPX.sel.delete(id); }); }
   CPX.cargado = true;
+  cpxExpirarTra();
+}
+// v89b · un traspaso rechazado depende de la falta de saldo que lo generó: si la necesidad desaparece (se eliminó o pagó la
+// factura, entró dinero…) el rechazo se da por cerrado; si la necesidad vuelve (se agrega de nuevo el pago), la sugerencia reaparece.
+async function cpxExpirarTra(){
+  try {
+    const nec = new Set(construirAcciones().filter(a => a.tipo === "tra").map(a => a.obra));
+    const viejas = (CPX.rech || []).filter(x => x.vigente && String(x.clave || "").startsWith("tra:") && !nec.has(String(x.clave).slice(4)));
+    for (const x of viejas) { const { error } = await db.rpc("cp_reactivar_rechazo", { p_id: x.id }); if (!error) x.vigente = false; }
+  } catch (_) {}
 }
 
 // rechazos vigentes: prov:<ID-Factura> siempre oculta; fr/tra:<obra> se oculta mientras el monto sea el mismo (±$1.000)
@@ -3246,6 +3256,7 @@ const cpxNotaRech = a => a.rech && a.rech.r ? `<span class="acc-nota">Rechazada 
 function cpxDibRev(sug){
   const A = sug.filter(a => a.tipo === "prov"), B = sug.filter(a => a.tipo === "fr"), C = sug.filter(a => a.tipo === "tra");
   const traObra = new Set(C.map(a => a.obra));
+  const traRech = new Set((CPX.rech || []).filter(x => x.vigente && String(x.clave || "").startsWith("tra:")).map(x => String(x.clave).slice(4)));
   const sec = (letra, titulo, sub, [filas, items], cab, extra = "") => `<div class="cpx-sec"><div class="cpx-sec-cab"><span class="cpx-letra">${letra}</span>
       <div><h3>${titulo} <small>${items.length} · ${$$(sumar(items, a => a.monto))}</small></h3><p>${sub}</p></div>${extra}</div>
       <div class="tabla-wrap" style="margin:0;border:0"><table class="cp"><thead><tr>${cab}</tr></thead><tbody>${filas.join("") || `<tr><td colspan="9" class="cp-vacio">Nada por revisar.</td></tr>`}</tbody></table></div></div>`;
@@ -3257,7 +3268,7 @@ function cpxDibRev(sug){
         <br>${respLinks([{ id_factura: f.id_factura, n_factura: f.n_factura, ...((CPX.respFac || {})[f.id_factura] || {}) }])}${cpxNotaRech(a)}</td>
       <td class="n"><b>${$$(a.monto)}</b></td>
       <td class="n ${libre < 0 ? "neg" : ""}">${isNaN(libre) ? "—" : $$(libre)}</td>
-      <td>${alcanza ? '<span class="pill ok">Tiene saldo</span>' : `<span class="pill no">Requiere traspaso</span>${traObra.has(a.obra) ? '<br><small>Ver sugerencia en C</small>' : '<br><small>Ninguna obra puede prestar</small>'}`}
+      <td>${alcanza ? '<span class="pill ok">Tiene saldo</span>' : `<span class="pill no">Requiere traspaso</span>${traObra.has(a.obra) ? '<br><small>Ver sugerencia en C</small>' : traRech.has(a.obra) ? '<br><small>Traspaso rechazado (pestaña Rechazadas › Volver a proponer)</small>' : '<br><small>Ninguna obra puede prestar</small>'}`}
         ${a.nota && !a.rojo ? `<span class="acc-nota">${esc(a.nota)}</span>` : ""}</td>${cpxBotones(a)}</tr>`;
   };
   const filaB = a => { const o = CP.filas.find(x => x.codigo_atr === a.obra), ab = CPX.calc.has(a.obra);
@@ -11823,7 +11834,7 @@ function formDerivar(fondo, base){
   });
 }
 async function abrirFormulario(key){
-  if (["oc", "facturas"].includes(G.mod) && Date.now() - (LISTAS._t || 0) > 60000) { await cargarListas(); LISTAS._t = Date.now(); }   // obras/OC creadas por otros usuarios
+  if (["oc", "facturas"].includes(G.mod) && Date.now() - (window._listasT || 0) > 60000) { await cargarListas(); window._listasT = Date.now(); }   // obras/OC creadas por otros usuarios
   if (G.mod === "facturas") LISTAS.doc_rel = (G.filas || []).filter(r => r.tipo_documento === "Factura" && r.numero != null)
     .map(r => ({ valor: String(r.numero), etiqueta: `${r.codigo} · ${r.proveedor || ""}${r.id_oc ? " · " + r.id_oc : ""} · ${$$(r.monto_total)}${r.saldo_por_pagar != null ? " · saldo " + $$(r.saldo_por_pagar) : ""}` }));
   const cfg = G.cfg, ed = puedeEditar(), nueva = !key, base = nueva ? {} : datosFila(key);
