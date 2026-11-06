@@ -420,6 +420,10 @@
   .m-campo{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--gris);margin:10px 0}
   .m-campo input,.m-campo select{padding:8px 10px;border:1px solid var(--linea);border-radius:8px;font:inherit;font-weight:400;color:var(--tinta)}
   .m-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .nc-aviso{margin-top:4px;background:#fff4e5;border-left:4px solid #e8890c;padding:5px 8px;border-radius:4px;font-size:11.5px;line-height:1.35;min-width:260px;white-space:normal}
+  .cb-pop{position:fixed;z-index:9999;background:#fff;border:1px solid #d9c3b5;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:300px;overflow:auto;font-size:12.5px}
+  .cb-pop div{padding:5px 10px;cursor:pointer;border-bottom:1px solid #f3e7e0}.cb-pop div:hover,.cb-pop div.act{background:#fbefe7}.cb-pop small{color:#7a6b63}
+  .cb-pop .cb-mas{color:#7a6b63;cursor:default;background:#faf6f3}
   .modal.des-obras{max-width:880px}
   .des-t{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
   .des-t th{background:var(--cafe,#7e350e);color:#fff;text-align:left;padding:5px 7px;font-weight:600}
@@ -3718,7 +3722,7 @@ const MODULOS = {
         ayuda: "Se calcula solo: Nota Crédito → N/A · pagos CONCILIADOS ≥ 95% → Pagada · pagos marcados Pagado pero sin conciliar ≥ 95% → Pagada sin conciliar · OC con -R → Rendición · si no, según Pagador (Operaciones → Por pagar Atrium)." },
       { k: "pagada_externa", t: "Pagada fuera del sistema", tipo: "lista", lista: "si_no", w: 150,
         ayuda: "si = se pagó por fuera (ej. Habilitaciones pagadas según Sofland). Queda Pagada aunque no haya pagos registrados." },
-      { k: "documento_relacionado", t: "Documento Relacionado", w: 130, ayuda: "Para notas de crédito: N° de la factura que anula" },
+      { k: "documento_relacionado", t: "Documento Relacionado", tipo: "lista", lista: "doc_rel", libre: 1, w: 130, ayuda: "OBLIGATORIO en notas de crédito: elige la factura que rebaja (busca por N°, ID-Factura, proveedor u OC). Sube el PDF de la NC aparte en Respaldos de facturas." },
       { k: "fecha", t: "Fecha factura proveedor", tipo: "fecha", w: 130 },
       { k: "monto_neto", t: "Monto neto factura", tipo: "monto", w: 120 },
       { k: "iva", t: "IVA", ro: 1, tipo: "monto", w: 95, deriva: r => numTxt(r.monto_neto) === null ? "" : Math.round(numTxt(r.monto_neto) * 0.19) },
@@ -7023,7 +7027,7 @@ function contTablaPagos(s, g, titulo, ed){
       <td style="white-space:nowrap"><a href="#" data-ctficha-fr="${esc(l.id_franquicia || "")}" title="Ver ficha de la franquicia"><b>${esc(l.id_franquicia || "")}</b></a><br><small>${esc(l.franquicia || "")}</small></td>
       <td style="min-width:150px">${esc(l.nombre_cliente || "")}</td><td style="white-space:nowrap">${fecha(l.fecha_contrato)}</td>
       <td class="n">${l.monto_contrato == null ? "" : $$(l.monto_contrato)}</td><td style="white-space:nowrap">${fecha(l.fecha_endoso)}</td><td class="n">${pctA(l.avance_pct)}</td>
-      <td>${esc(l.n_factura_compra || "")}${l.id_factura ? `<br><small>${esc(l.id_factura)}</small>` : ""}${l.tipo_solicitud === "Pago proveedores" ? `<br>${respLinks(((CONT.pagos.resp || {})[l.pago_id] || {}).facturas)}` : ""}</td><td>${esc(l.n_oc || "")}</td>
+      <td>${esc(l.n_factura_compra || "")}${l.id_factura ? `<br><small>${esc(l.id_factura)}</small>` : ""}${l.tipo_solicitud === "Pago proveedores" ? `<br>${respLinks(((CONT.pagos.resp || {})[l.pago_id] || {}).facturas)}${ncAviso((CONT.pagos.resp || {})[l.pago_id])}` : ""}</td><td>${esc(l.n_oc || "")}</td>
       <td class="n">${l.monto_neto == null ? "" : $$(l.monto_neto)}</td><td class="n">${l.iva == null ? "" : $$(l.iva)}</td><td class="n"><b>${$$(l.monto_total)}</b></td>
       <td class="n ${Number(l.saldo_disponible) < 0 ? "neg" : ""}">${l.saldo_disponible == null ? "" : $$(l.saldo_disponible)}</td>
       <td style="white-space:nowrap">${esc(rut(l.rut_destinatario))}</td><td style="min-width:180px"><b>${esc(l.razon_social_destinatario || "")}</b></td>
@@ -7711,6 +7715,28 @@ const RESP = { lista: null, filtro: "sinpdf", uso: null, lib: null, zipIds: null
 const RESP_MAX = 10 * 1024 * 1024;
 const respMB = b => (Number(b || 0) / 1048576).toLocaleString("es-CL", { maximumFractionDigits: 1 }) + " MB";
 const respSlug = t => String(t || "factura").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+
+/* lista con buscador para formularios: muestra todas las opciones que coinciden con lo escrito (Id, cliente, CC…) */
+const cbNorm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function cbAbrir(inp){
+  const L = LISTAS[inp.dataset.cb] || [], q = cbNorm(inp.value).split(/\s+/).filter(Boolean);
+  const M = L.filter(o => { const t = cbNorm(o.valor + " " + (o.etiqueta || "")); return q.every(w => t.includes(w)); });
+  let pop = document.querySelector(".cb-pop"); if (!pop) { pop = document.createElement("div"); pop.className = "cb-pop"; document.body.appendChild(pop); }
+  const r = inp.getBoundingClientRect(); pop.style.left = r.left + "px"; pop.style.top = (r.bottom + 2) + "px"; pop.style.width = Math.max(r.width, 360) + "px";
+  pop.innerHTML = M.slice(0, 200).map(o => `<div data-cbv="${esc(o.valor)}"><b>${esc(o.valor)}</b>${o.etiqueta && o.etiqueta !== o.valor ? ` <small>${esc(/^\s*·/.test(o.etiqueta) ? "(sin cliente)" + o.etiqueta : o.etiqueta)}</small>` : ""}</div>`).join("")
+    + (M.length > 200 ? `<div class="cb-mas">${M.length - 200} más: sigue escribiendo para filtrar</div>` : "") + (!M.length ? `<div class="cb-mas">Sin coincidencias en ${L.length} opciones</div>` : "");
+  pop._inp = inp;
+}
+const cbCerrar = () => document.querySelector(".cb-pop")?.remove();
+document.addEventListener("focusin", e => { if (e.target.matches?.("input[data-cb]")) cbAbrir(e.target); });
+document.addEventListener("input", e => { if (e.target.matches?.("input[data-cb]")) cbAbrir(e.target); });
+document.addEventListener("keydown", e => { if (e.target.matches?.("input[data-cb]") && e.key === "Escape") cbCerrar(); });
+document.addEventListener("mousedown", e => {
+  const o = e.target.closest(".cb-pop [data-cbv]"), pop = document.querySelector(".cb-pop");
+  if (o && pop) { e.preventDefault(); const inp = pop._inp; inp.value = o.dataset.cbv; inp.dispatchEvent(new Event("input", { bubbles: true })); inp.dispatchEvent(new Event("change", { bubbles: true })); cbCerrar(); return; }
+  if (pop && !e.target.closest(".cb-pop") && e.target !== pop._inp) cbCerrar();
+});
+document.addEventListener("scroll", e => { const pop = document.querySelector(".cb-pop"); if (pop && !pop.contains(e.target)) cbCerrar(); }, true);
 async function respVer(ruta){
   const w = window.open("", "_blank");
   const { data, error } = await db.storage.from("respaldos").createSignedUrl(ruta, 600);
@@ -7719,8 +7745,14 @@ async function respVer(ruta){
 }
 // [{id_factura, n_factura, ruta, archivo}] → enlaces 📎 o aviso "Sin PDF"
 const respLinks = (fs, vacio = '<span class="pill no">Sin factura asociada</span>') => !(fs || []).length ? vacio
-  : fs.map(f => f.ruta ? `<a href="#" class="resp-a" data-respver="${esc(f.ruta)}" title="${esc(f.archivo || "")}">📎 ${esc(f.n_factura || f.id_factura)}</a>`
-                        : `<span class="pill no" title="Falta el PDF de ${esc(f.id_factura)}">Sin PDF ${esc(f.n_factura || f.id_factura)}</span>`).join(" ");
+  : fs.map(f => f.ruta ? `<a href="#" class="resp-a" data-respver="${esc(f.ruta)}" title="${esc(f.archivo || "")}">📎 ${f.nc ? "NC " : "Factura "}${esc(f.n_factura || f.id_factura)}</a>`
+                        : `<span class="pill no" title="Falta el PDF de ${esc(f.id_factura)}">Sin PDF ${f.nc ? "NC " : ""}${esc(f.n_factura || f.id_factura)}</span>`).join(" ");
+// aviso para Contabilidad: el pago es la diferencia entre la factura y su nota de crédito
+const ncAviso = r => { if (!r || !Number(r.n_nc)) return "";
+  const F = (r.facturas || []).filter(f => !f.nc), N = (r.facturas || []).filter(f => f.nc), neto = Number(r.total_facturas) - Number(r.total_nc), antes = neto - Number(r.monto_pago);
+  return `<div class="nc-aviso">⚠ <b>Pago con nota de crédito.</b> Se paga la diferencia:<br>${F.map(f => `Factura F° ${esc(f.n_factura)} ${$$(f.monto)}`).join(" + ")}
+    ${N.map(f => ` − NC F° ${esc(f.n_factura)} ${$$(f.monto)}`).join("")} = <b>${$$(neto)}</b>${Math.round(antes) > 0 ? ` − pagado antes ${$$(antes)}` : ""} → <b>este pago ${$$(r.monto_pago)}</b>.
+    <br>Adjuntos (2 documentos): ${respLinks(r.facturas)}</div>`; };
 document.addEventListener("click", e => { const a = e.target.closest("[data-respver]"); if (!a) return;
   e.preventDefault(); e.stopPropagation(); respVer(a.dataset.respver); }, true);
 
@@ -7789,7 +7821,7 @@ function dibujarResp(){
     <div class="chips" style="margin:10px 0">${[["sinpdf", "Por pagar sin PDF"], ["porpagar", "Por pagar"], ["conpdf", "Con PDF"], ["todas", "Todas"]]
       .map(([k, t]) => `<button class="chip ${RESP.filtro === k ? "activo" : ""}" data-respf="${k}">${t}<b>${base.filter(F[k]).length}</b></button>`).join("")}</div>
     <div class="tabla-wrap"><table class="cp"><thead><tr><th>Factura</th><th>Proveedor</th><th>Obra</th><th class="n">Monto</th><th>Estado de pago</th><th>Respaldo PDF</th></tr></thead><tbody>
-    ${L.map(x => `<tr data-respdoc="${x.documento_id}"><td style="white-space:nowrap"><b>${esc(x.id_factura)}</b><br><small>F° ${esc(x.n_factura || "")} · ${fecha(x.fecha_factura)}${x.numero_oc ? " · OC " + esc(x.numero_oc) : ""}</small></td>
+    ${L.map(x => `<tr data-respdoc="${x.documento_id}"><td style="white-space:nowrap"><b>${esc(x.id_factura)}</b><br><small>F° ${esc(x.n_factura || "")} · ${fecha(x.fecha_factura)}${x.numero_oc ? " · OC " + esc(x.numero_oc) : ""}</small>${x.tipo_documento === "Nota Crédito" ? `<br><span class="pill parcial">Nota de crédito · rebaja ${esc(x.factura_relacionada || "")} F° ${esc(x.n_factura_relacionada || "")}</span>` : ""}</td>
       <td>${esc(x.proveedor || "")}<br><small>${esc(rut(x.rut_proveedor))}</small></td>
       <td class="ob">${x.obra ? `${obraLink(x.obra, x.cliente || x.obra)}<span>${esc(x.franquicia || "")}</span>` : `<small>${esc(x.franquicia || "")}</small>`}</td>
       <td class="n">${$$(x.monto_total)}${x.por_pagar_atrium ? `<br><small>por pagar ${$$(x.por_pagar)}</small>` : ""}</td>
@@ -10041,7 +10073,7 @@ $("esp-xlsx").onclick = () => {
 /* =====================================================================
    v16 · Aviso de versión: si la base es más nueva que esta página, avisa que hay una página más nueva
    ===================================================================== */
-const VERSION_PAGINA = 88;
+const VERSION_PAGINA = 89;
 async function revisarVersion(){
   try {
     const { data } = await db.from("schema_migracion").select("version").order("version", { ascending: false }).limit(1);
@@ -11762,7 +11794,7 @@ function formCampo(c, v, ro){
     if (c.select) inp = `<select id="${id}"><option value="">Elige…</option>${L.map(o => `<option value="${esc(o.valor)}" ${o.valor === val ? "selected" : ""}>${esc(o.valor)}${o.etiqueta && o.etiqueta !== o.valor ? " - " + esc(o.etiqueta) : ""}</option>`).join("")}</select>`;
     else inp = !c.libre && L.length && L.length <= 15
       ? `<select id="${id}"><option value=""></option>${L.map(o => `<option value="${esc(o.valor)}" ${o.valor === val ? "selected" : ""}>${esc(o.valor)}${o.etiqueta && o.etiqueta !== o.valor ? " · " + esc(o.etiqueta) : ""}</option>`).join("")}${val && !L.some(o => o.valor === val) ? `<option selected>${esc(val)}</option>` : ""}</select>`
-      : `<input id="${id}" list="dl-${c.lista}" value="${esc(val)}" autocomplete="off" placeholder="Escribe para buscar…">`;
+      : `<input id="${id}" data-cb="${esc(c.lista)}" value="${esc(val)}" autocomplete="off" placeholder="Escribe para buscar (Id, cliente, centro de costo…)">`;
   }
   else if (c.tipo === "monto") inp = `<input id="${id}" inputmode="decimal" value="${esc(val)}" placeholder="0">`;
   else if (c.tipo === "pct") inp = `<input id="${id}" inputmode="decimal" value="${esc(val)}" placeholder="0%">`;
@@ -11791,6 +11823,9 @@ function formDerivar(fondo, base){
   });
 }
 async function abrirFormulario(key){
+  if (["oc", "facturas"].includes(G.mod) && Date.now() - (LISTAS._t || 0) > 60000) { await cargarListas(); LISTAS._t = Date.now(); }   // obras/OC creadas por otros usuarios
+  if (G.mod === "facturas") LISTAS.doc_rel = (G.filas || []).filter(r => r.tipo_documento === "Factura" && r.numero != null)
+    .map(r => ({ valor: String(r.numero), etiqueta: `${r.codigo} · ${r.proveedor || ""}${r.id_oc ? " · " + r.id_oc : ""} · ${$$(r.monto_total)}${r.saldo_por_pagar != null ? " · saldo " + $$(r.saldo_por_pagar) : ""}` }));
   const cfg = G.cfg, ed = puedeEditar(), nueva = !key, base = nueva ? {} : datosFila(key);
   const cols = cfg.cols, secc = (formCfg().secc || []).map(([t, ks]) => [t, ks.map(k => cols.find(c => c.k === k)).filter(Boolean)]);
   const usadas = new Set(secc.flatMap(s => s[1].map(c => c.k)));
@@ -11817,6 +11852,13 @@ async function abrirFormulario(key){
     }
     const faltan = cols.filter(c => c.req && !c.ro && !String(datos[c.k] || "").trim()).map(c => c.t);
     if (faltan.length) return err("Falta: " + faltan.join(", "));
+    if (G.mod === "facturas" && /cr[ée]dito/i.test(datos.tipo_documento || "")) {
+      const rel = String(datos.documento_relacionado || "").trim();
+      if (!rel) return err("Nota de crédito: elige en Documento Relacionado la factura que rebaja (así se calcula el neto a pagar).");
+      const fr = (G.filas || []).filter(r => r.tipo_documento === "Factura" && String(r.numero) === rel);
+      if (!fr.length) return err(`Documento Relacionado: no encontré la factura N° ${esc(rel)}. Elígela de la lista.`);
+      if (datos.id_oc && !fr.some(r => r.id_oc === datos.id_oc) && !confirm(`La factura N° ${rel} es de otra OC (${fr.map(r => r.id_oc).join(", ")}). ¿Guardar igual?`)) return false;
+    }
     const p = { ...(cfg.extra || {}), id: nueva ? null : base.id };
     cols.filter(c => !c.ro).forEach(c => { p[c.k] = datos[c.k] ?? ""; });
     const { data, error } = await db.rpc(cfg.guardar, { p });
@@ -12552,8 +12594,11 @@ function cprechDibujar(){
     : (!x.vigente ? '<span class="pill ok">Se volvió a proponer</span>' : x.visto_en ? `<span class="pill ok">Visto ${fecha(x.visto_en)}</span>` : '<span class="pill parcial">Sin ver</span>');
   const acc = x => {
     if (x.origen === "Contabilidad" && x.estado === "Rechazado" && cprPuede(x))
-      return `<button class="btn-acc" data-cprcorr="${x.id}">Corregido · volver a Por pagar…</button><br><button class="cf-btn" data-cpranul="${x.id}" style="margin-top:4px">Anular…</button>`;
-    if (x.origen !== "Contabilidad" && x.vigente && !x.visto_en) return `<button class="btn-acc" data-cprvisto="${x.id}">Visto</button>`;
+      return (x.aquiclub && x.id_factura ? `<button class="cf-btn" data-cpredit="${esc(x.id_factura)}" style="margin-bottom:4px">1 · Editar factura…</button><br>` : "")
+        + `<button class="btn-acc" data-cprcorr="${x.id}">${x.aquiclub ? "2 · " : ""}Corregido · volver a Por pagar…</button><br><button class="cf-btn" data-cpranul="${x.id}" style="margin-top:4px">Anular…</button>`;
+    if (x.origen !== "Contabilidad" && x.vigente)
+      return (!x.visto_en ? `<button class="btn-acc" data-cprvisto="${x.id}">Visto</button><br>` : "")
+        + (cprPuede(x) ? `<button class="cf-btn" data-cprreact="${x.id}" style="margin-top:4px" title="La factura vuelve a Control de Pagos › Por revisar">Volver a proponer…</button>` : "");
     return "";
   };
   $("cprech-cuerpo").innerHTML = `<div class="chips" style="margin-bottom:10px"><button class="chip ${CPRECH.f === "pend" ? "activo" : ""}" data-cprf2="pend">Por resolver<b>${pend.length}</b></button>
@@ -12591,12 +12636,16 @@ async function cprCorregir(id){
       <p class="nota-g">El pago vuelve a <b>Control de Pagos › Por pagar</b> y Operaciones lo envía de nuevo a Contabilidad en la próxima solicitud.
         ${x.aquiclub ? "Si el problema era la cuenta del proveedor o la factura, corrígelo antes en Ingreso de datos." : "Si el problema era la cuenta bancaria, corrígela antes en Ingreso de datos."}</p>
       <label class="campo">¿Qué se corrigió?<input id="cpr-nota" placeholder="Ej.: se actualizó la cuenta del proveedor · se adjuntó el acta"></label>
-      <label class="campo">Monto (sólo si cambió)<input id="cpr-monto" inputmode="numeric" value="${nf.format(Math.round(x.monto_actual ?? x.monto))}"></label>`,
+      <label class="campo">Monto (sólo si cambió)<input id="cpr-monto" inputmode="numeric" value="${nf.format(Math.round(x.monto_actual ?? x.monto))}"></label>
+      ${x.aquiclub && x.id_factura ? `<label style="display:block;margin-top:6px"><input type="checkbox" id="cpr-pdf" checked> Volver a pedir el PDF de ${esc(x.id_factura)} (y de su nota de crédito): queda en <b>Respaldos de facturas › Por pagar sin PDF</b>. El PDF anterior queda en el historial.</label>
+        <p class="nota-g">¿Cambió la factura? Edítala antes con <b>1 · Editar factura…</b> (monto, N°, OC, pagador, nota de crédito…).</p>` : ""}`,
     [{ t: "Cancelar", sec: 1 }, { t: "Volver a Por pagar", fn: async f => {
       const { error } = await db.rpc("cp_corregir_rechazo", { p: { id, nota: f.querySelector("#cpr-nota").value, monto: f.querySelector("#cpr-monto").value } });
+      CPRECH.pdfPedido = false;
+      if (!error && x.aquiclub && x.id_factura && f.querySelector("#cpr-pdf")?.checked) { const rp = await db.rpc("respaldo_pedir_de_nuevo", { p: { id_factura: x.id_factura } }); CPRECH.pdfPedido = !rp.error; }
       if (error) { toast("⚠ " + esc(errorAmigable(error.message)), 9000); return false; } return true; } }]);
   if (!ok) return;
-  toast(`✓ ${esc(x.id_pago || "")} vuelve a Control de Pagos › Por pagar.` + (!puedeArea("operaciones")
+  toast(`✓ ${esc(x.id_pago || "")} vuelve a Control de Pagos › Por pagar.${CPRECH.pdfPedido ? ' Sube el PDF nuevo en <a href="#" data-irresp="1">Respaldos de facturas</a>: sin PDF no se puede enviar.' : ""}` + (!puedeArea("operaciones")
     ? ` ${rechMail(CONT_CORREO_OPER, `Pago corregido · ${x.id_pago}`, `Hola,\n\nCorregí el pago ${x.id_pago} que había rechazado Contabilidad (${x.motivo}). Ya está en Control de Pagos › Por pagar para enviarlo de nuevo.\n\nGracias.`, "Avisar a Operaciones")}` : ""), 12000);
   cprRecargarTodo();
 }
@@ -12615,7 +12664,20 @@ function cprRecargarTodo(){
   if (!$("vista-cprech").classList.contains("oculto")) cargarCprech(); else cprechContador2();
   if (!$("vista-pagos").classList.contains("oculto")) cpxRecargar(); else { CPX.cargado = false; if (typeof CP !== "undefined") CP.cargado = false; }
 }
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
+  const ir = e.target.closest("[data-irresp]"); if (ir) { e.preventDefault(); return irA("resp"); }
+  const ed = e.target.closest("[data-cpredit]");
+  if (ed) { const cod = ed.dataset.cpredit; await irA("ing", "facturas");
+    for (let i = 0; i < 40 && !(G.filas || []).some(r => r.codigo === cod); i++) await new Promise(r => setTimeout(r, 250));
+    const r = (G.filas || []).find(r => r.codigo === cod); if (!r) return toast(`No encontré ${esc(cod)} en Facturas proveedor.`);
+    toast(`Al terminar de editar ${esc(cod)}, vuelve a <a href="#" data-ircprech="aq">Pagos rechazados</a> y marca <b>2 · Corregido</b>.`, 9000);
+    return abrirFormulario(claveFila(r)); }
+  const ra = e.target.closest("[data-cprreact]");
+  if (ra) { const x = (CPRECH.lista || []).find(r => r.id === +ra.dataset.cprreact); if (!x) return;
+    if (!confirm(`¿Volver a proponer ${x.id_factura || x.id_pago || "este pago"}? Vuelve a aparecer en Control de Pagos › Por revisar para que Operaciones decida de nuevo.`)) return;
+    const { error } = await db.rpc("cp_reactivar_rechazo", { p_id: x.id });
+    if (error) return toast("⚠ " + esc(errorAmigable(error.message)), 9000);
+    toast(`✓ ${esc(x.id_factura || x.id_pago || "")} vuelve a Control de Pagos › Por revisar.`); return cprRecargarTodo(); }
   const c = e.target.closest("[data-cprcorr]"); if (c) return cprCorregir(+c.dataset.cprcorr);
   const a = e.target.closest("[data-cpranul]"); if (a) return cprAnular(+a.dataset.cpranul);
   const f = e.target.closest("[data-cprf2]"); if (f) { CPRECH.f = f.dataset.cprf2; return cprechDibujar(); }
